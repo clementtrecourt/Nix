@@ -13,6 +13,7 @@
       url = "github:mangowm/mango";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    hyprland.url = "github:hyprwm/Hyprland";
     noctalia.url = "github:noctalia-dev/noctalia/cachix";
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
@@ -20,13 +21,15 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, mangowm, noctalia, zen-browser, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, mangowm, noctalia, hyprland, zen-browser, ... }@inputs:
   let
     mkHost = hostPath: homeModule: nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit inputs; };
       modules = [
         hostPath
+        hyprland.nixosModules.default
+        ./modules/hyprland.nix
         mangowm.nixosModules.mango
         home-manager.nixosModules.home-manager
         {
