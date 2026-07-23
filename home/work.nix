@@ -8,6 +8,7 @@
 
   home.packages = with pkgs; [
     tigervnc
+    teams-for-linux 
 
   ];
 }
