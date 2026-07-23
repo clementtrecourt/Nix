@@ -1,6 +1,10 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    oskars-dotfiles = {
+      url = "github:oskardotglobal/.dotfiles/nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -25,18 +29,27 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, mangowm, noctalia, hyprland, zen-browser, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, mangowm, noctalia, oskars-dotfiles, hyprland, zen-browser, ... }@inputs:
   let
     mkHost = hostPath: homeModule: nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit inputs; };
       modules = [
         hostPath
+
+        {
+          nixpkgs.overlays = [
+            oskars-dotfiles.overlays.spotx
+          ];
+        }
+
         hyprland.nixosModules.default
         ./modules/hyprland.nix
         ./home/caelestia.nix
         mangowm.nixosModules.mango
+
         home-manager.nixosModules.home-manager
+
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
@@ -45,6 +58,7 @@
           home-manager.extraSpecialArgs = { inherit inputs; };
         }
       ];
+
     };
   in
   {

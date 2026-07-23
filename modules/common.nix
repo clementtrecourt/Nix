@@ -86,6 +86,6 @@
     inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
     vicinae
     capitaine-cursors ibm-plex
-    unrar unzip tldr spotify
+    unrar unzip tldr spotify zip
   ];
 }
