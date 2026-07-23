@@ -47,5 +47,8 @@
     brave
     nitch
     foot
+    hyprshade
+    cliphist
+    wl-clipboard
   ];
 }
