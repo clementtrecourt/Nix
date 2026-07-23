@@ -58,6 +58,9 @@
     init.defaultBranch = "main";
   };
 };
+  home.sessionVariables = {
+   XDG_DATA_DIRS = "$HOME/.local/share:/run/current-system/sw/share:/etc/profiles/per-user/$USER/share";
+  };
 
   # Packages utilisateur communs (hors gaming)
   home.packages = with pkgs; [
