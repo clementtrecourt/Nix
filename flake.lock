@@ -166,12 +166,29 @@
         "type": "github"
       }
     },
+    "qwerty-fr": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1779055419,
+        "narHash": "sha256-iXme/Edv2eG8WP58GXbFzUfVqr26Lu7lgJzGq21iE2E=",
+        "owner": "qwerty-fr",
+        "repo": "qwerty-fr",
+        "rev": "812e3c14e8366bb211688fe0c494f34a8e39885d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "qwerty-fr",
+        "repo": "qwerty-fr",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "home-manager": "home-manager",
         "mangowm": "mangowm",
         "nixpkgs": "nixpkgs",
         "noctalia": "noctalia",
+        "qwerty-fr": "qwerty-fr",
         "zen-browser": "zen-browser"
       }
     },
