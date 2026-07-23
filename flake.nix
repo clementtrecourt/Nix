@@ -19,6 +19,10 @@
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    caelestia-shell = {
+      url = "github:caelestia-dots/shell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { self, nixpkgs, home-manager, mangowm, noctalia, hyprland, zen-browser, ... }@inputs:
@@ -30,6 +34,7 @@
         hostPath
         hyprland.nixosModules.default
         ./modules/hyprland.nix
+        ./home/caelestia.nix
         mangowm.nixosModules.mango
         home-manager.nixosModules.home-manager
         {

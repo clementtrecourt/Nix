@@ -7,45 +7,20 @@
 
   # Symlinks vers ~/Dot — le dépôt git reste la seule source de vérité.
   home.file = {
-    # Fish
-    ".config/fish/config.fish".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/fish/config.fish";
-    ".config/fish/fish_variables".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/fish/fish_variables";
-    ".config/fish/functions".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/fish/functions";
-
-    # Kitty
-    ".config/kitty/kitty.conf".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/kitty/kitty.conf";
-    ".config/kitty/themes".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/kitty/themes";
-
-    # Starship
-    ".config/starship.toml".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/starship.toml";
-
-    # Neovim
-    ".config/nvim".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/nvim";
-
-    # Mango WM
-    ".config/mango/config.conf".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/mango/config.conf";
-    ".config/mango/bind.conf".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/mango/bind.conf";
-    ".config/mango/env.conf".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/mango/env.conf";
-    ".config/mango/keyboard.conf".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/mango/keyboard.conf";
-    ".config/mango/monitor.conf".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/mango/monitor.conf";
-    ".config/mango/rule.conf".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/mango/rule.conf";
-    ".config/mango/tag.conf".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/mango/tag.conf";
-
-    # Tmux
+    # # Fish
+    # ".config/fish/config.fish".source =
+    #   config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/fish/config.fish";
+    # ".config/fish/fish_variables".source =
+    #   config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/fish/fish_variables";
+    # ".config/fish/functions".source =
+    #   config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/fish/functions";
+    #
+    # # Kitty
+    # ".config/kitty/kitty.conf".source =
+    #   config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/kitty/kitty.conf";
+    # ".config/kitty/themes".source =
+    #   config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/kitty/themes";
+    # # Tmux
     ".tmux.conf".source =
       config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/.tmux.conf";
   };
@@ -67,8 +42,10 @@
     tree
     eza
     flatpak
+    nerd-fonts.im-writing
     firefox
     brave
     nitch
+    foot
   ];
 }

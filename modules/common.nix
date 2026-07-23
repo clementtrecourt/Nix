@@ -34,9 +34,9 @@
   services.greetd = {
     enable = true;
     settings = {
-      initial_session = { command = "Hyprland"; user = "clem"; };
+      initial_session = { command = "start-hyprland"; user = "clem"; };
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --cmd Hyprland";
+        command = "${pkgs.tuigreet}/bin/tuigreet --cmd start-hyprland";
         user = "greeter";
       };
     };
