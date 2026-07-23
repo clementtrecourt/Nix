@@ -12,7 +12,15 @@
     dates = "weekly";
     options = "--delete-older-than 7d";
   };
-
+  services.xserver.xkb = {
+      layout = "qwerty-fr";
+      variant = "";
+      extraLayouts.qwerty-fr = {
+        description = "US keyboard with french symbols - AltGr combination";
+        languages   = [ "eng" ];
+        symbolsFile = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
+      };
+  };
   virtualisation.docker.enable = true;
 
   boot.loader.systemd-boot.enable = true;
@@ -76,7 +84,6 @@
     wl-clipboard nemo waybar
     inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
     vicinae
-    claude-code
     capitaine-cursors ibm-plex
     unrar unzip tldr spotify
   ];
