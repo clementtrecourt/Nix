@@ -10,7 +10,9 @@
   };
   programs.gamescope.enable = true;
   programs.gamemode.enable = true;
-
+  hardware.bluetooth.enable = false;
+  services.blueman.enable = true;
+  hardware.bluetooth.powerOnBoot = true;
   programs.corectrl.enable = true;
   hardware.amdgpu.overdrive.enable = true; # ⚠️ AMD-only, à retirer si work = Intel/Nvidia
 

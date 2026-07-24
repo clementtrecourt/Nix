@@ -1,13 +1,11 @@
-{ pkgs, inputs, ... }:
+{ inputs, ... }:
 {
-  home-manager.users.clem = {
-    imports = [
-      inputs.caelestia-shell.homeManagerModules.default
-    ];
+  imports = [
+    inputs.caelestia-shell.homeManagerModules.default
+  ];
 
-    programs.caelestia = {
-      enable = true;
-      cli.enable = true;
-    };
+  programs.caelestia = {
+    enable = true;
+    cli.enable = true;
   };
 }

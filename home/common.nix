@@ -6,10 +6,14 @@ let
   };
 in
 {
+  imports = [
+      ./caelestia.nix
+  ];
   home.username = "clem";
   home.homeDirectory = "/home/clem";
   home.stateVersion = "26.05";
   # Symlinks vers ~/Dot — le dépôt git reste la seule source de vérité.
+
   home.file = {
     # Fish
     ".config/fish/config.fish".source =
@@ -82,7 +86,6 @@ in
   home.packages = with pkgs; [
     tree
     eza
-    flatpak
     nerd-fonts.im-writing
     firefox
     brave

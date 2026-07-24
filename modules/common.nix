@@ -3,6 +3,9 @@
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
     auto-optimise-store = true;
+    max-jobs = "auto";
+    cores = 0;
+    builders-use-substitutes = true;
   };
 
   nix.gc = {
@@ -19,12 +22,14 @@
         symbolsFile = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
       };
   };
-  virtualisation.docker.enable = true;
   programs.ssh.startAgent = true;
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.configurationLimit = 10;
+  boot.loader.timeout = 1;
   boot.loader.efi.canTouchEfiVariables = true;
-  boot.kernelPackages = pkgs.linuxPackages_latest;
+  boot.kernelPackages = pkgs.linuxPackages;
+  boot.initrd.compressor = "zstd";
+  services.nscd.enable = true;
 
   nixpkgs.config.allowUnfree = true;
 
@@ -40,25 +45,21 @@
   };
 
   environment.variables = { EDITOR = "nvim"; VISUAL = "nvim"; };
-
+  networking.modemmanager.enable = false;
   time.timeZone = "Europe/Paris";
   services.timesyncd.enable = true;
-  services.flatpak.enable = true;
   networking.networkmanager.enable = true;
-  services.xserver.enable = true;
+  systemd.services.NetworkManager-wait-online.enable = false;
 
   hardware.graphics.enable = true; # enable32Bit géré à part si gaming
 
   services.pipewire = {
     enable = true;
     alsa.enable = true;
-    alsa.support32Bit = true;
     pulse.enable = true;
   };
 
-  hardware.bluetooth.enable = true;
-  hardware.bluetooth.powerOnBoot = true;
-  services.blueman.enable = true;
+
 
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
@@ -67,7 +68,7 @@
 
   users.users.clem = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "docker" ];
+    extraGroups = [ "wheel" ];
     shell = pkgs.fish;
     hashedPassword = "$y$j9T$VC7rDnqaqcmhe5kp3O.KS0$bPN8wmEwcGLgl0wTF7ouClBPYh3ixUTTMz0aZhWvfB4";
   };
