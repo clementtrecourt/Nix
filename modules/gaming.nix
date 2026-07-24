@@ -10,7 +10,7 @@
   };
   programs.gamescope.enable = true;
   programs.gamemode.enable = true;
-  hardware.bluetooth.enable = false;
+  hardware.bluetooth.enable = true;
   services.blueman.enable = true;
   hardware.bluetooth.powerOnBoot = true;
   programs.corectrl.enable = true;

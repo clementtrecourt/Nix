@@ -1,5 +1,8 @@
 { config, lib, pkgs, inputs, ... }:
 {
+  imports = [
+      ./zen.nix
+    ];
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
     auto-optimise-store = true;

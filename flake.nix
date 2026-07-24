@@ -40,7 +40,6 @@
 
         hyprland.nixosModules.default
         ./modules/hyprland.nix
-        ./home/caelestia.nix
 
         home-manager.nixosModules.home-manager
 
