@@ -8,9 +8,19 @@
     auto-optimise-store = true;
     max-jobs = "auto";
     cores = 0;
+    warn-dirty = false;
     builders-use-substitutes = true;
   };
-
+  services.earlyoom = {
+    enable = true;
+    freeMemThreshold = 5; # Déclenche si moins de 5% de RAM disponible
+    enableNotifications = true; # Envoie une notification si un processus est tué
+  };
+  services.fstrim = {
+    enable = true;
+    interval = "weekly";
+  };
+  boot.initrd.systemd.enable = true;
   nix.gc = {
     automatic = true;
     dates = "weekly";
@@ -30,12 +40,15 @@
   boot.loader.systemd-boot.configurationLimit = 10;
   boot.loader.timeout = 1;
   boot.loader.efi.canTouchEfiVariables = true;
-  boot.kernelPackages = pkgs.linuxPackages;
   boot.initrd.compressor = "zstd";
   services.nscd.enable = true;
-
+  services.udisks2.enable = true;
+  services.gvfs.enable = true;
   nixpkgs.config.allowUnfree = true;
-
+  zramSwap = {
+    enable = true;
+    memoryPercent = 50; # Utilise jusqu'à 50% de la RAM comme swap compressé
+  };
   services.greetd = {
     enable = true;
     settings = {
@@ -46,7 +59,11 @@
       };
     };
   };
-
+  boot.kernel.sysctl = {
+    "net.core.default_qdisc" = "fq";
+    "net.ipv4.tcp_congestion_control" = "bbr";
+  };
+  systemd.coredump.enable = false;
   environment.variables = { EDITOR = "nvim"; VISUAL = "nvim"; };
   networking.modemmanager.enable = false;
   time.timeZone = "Europe/Paris";
@@ -61,14 +78,44 @@
     alsa.enable = true;
     pulse.enable = true;
   };
+  services.pipewire.wireplumber.extraConfig = {
+    "10-bluez" = {
+      "monitor.bluez.properties" = {
+        "bluez5.enable-sbc-xq" = true;
+        "bluez5.enable-msbc" = true;
+        "bluez5.enable-hw-volume" = true;
+        "bluez5.codecs" = [ "ldac" "aptx_hd" "aac" "sbc_xq" ];
+      };
+    };
+  };
+  fonts = {
+    enableDefaultPackages = true;
+    packages = with pkgs; [
+      ibm-plex
+      nerd-fonts.im-writing
+      nerd-fonts.jetbrains-mono
+      nerd-fonts.symbols-only
+    ];
 
-
+    fontconfig = {
+      defaultFonts = {
+        monospace = [ "IBM Plex Mono" ];
+        sansSerif = [ "IBM Plex Sans" ];
+        serif = [ "IBM Plex Serif" ];
+      };
+    };
+  };
 
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
 
   programs.fish.enable = true;
-
+  networking.firewall = {
+    enable = true;
+    allowPing = true;
+    # Add specific ports here if needed later (e.g. 8080, 22)
+    # allowedTCPPorts = [ 8080 ];
+  };
   users.users.clem = {
     isNormalUser = true;
     extraGroups = [ "wheel" ];
@@ -77,14 +124,22 @@
   };
 
   programs.firefox.enable = true;
-
+  services.resolved = {
+    enable = true;
+    settings = {
+      Resolve = {
+        DNSOverTLS = "opportunistic";
+        FallbackDNS = [ "1.1.1.1" "9.9.9.9" ];
+      };
+    };
+  };
   environment.systemPackages = with pkgs; [
     kitty tmux starship fish zoxide direnv fzf
     bat eza ripgrep fd btop jq
     git lazygit
     neovim vim zed-editor
     wl-clipboard nemo waybar
-    capitaine-cursors ibm-plex
-    unrar unzip tldr spotify zip
+    capitaine-cursors
+    unrar unzip tldr spotify zip yazi vlc
   ];
 }

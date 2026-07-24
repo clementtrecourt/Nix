@@ -1,76 +1,99 @@
 { config, pkgs, ... }:
+
 let
   kvantumTheme = pkgs.catppuccin-kvantum.override {
-    accent = "blue";     # pick any of: blue, flamingo, green, lavender, maroon, mauve, peach, pink, red, rosewater, sapphire, sky, teal, yellow
+    accent = "blue";
     variant = "mocha";
   };
+
+  dot = path: config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Dot/${path}";
 in
 {
   imports = [
       ./caelestia.nix
-  ];
+    ];
   home.username = "clem";
   home.homeDirectory = "/home/clem";
-  home.stateVersion = "26.05";
-  # Symlinks vers ~/Dot — le dépôt git reste la seule source de vérité.
+  home.stateVersion = "24.11";
 
+  # Symlinks vers ~/Dot — le dépôt git reste la seule source de vérité.
   home.file = {
     # Fish
-    ".config/fish/config.fish".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/fish/config.fish";
-    ".config/fish/fish_variables".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/fish/fish_variables";
-    ".config/fish/functions".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/fish/functions";
+    ".config/fish/config.fish".source = dot "fish/config.fish";
+    ".config/fish/fish_variables".source = dot "fish/fish_variables";
+    ".config/fish/functions".source = dot "fish/functions";
 
-    # # Foot
-    ".config/foot/foot.ini".source =
-     config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/foot/foot.ini";
-    # # Tmux
-    ".tmux.conf".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/.tmux.conf";
-    ## Caelestia
-    ".config/caelestia/monitors".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/caelestia/monitors";
-    ".config/caelestia/hypr-vars.lua".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/caelestia/hypr-vars.lua";
-    ".config/caelestia/hypr-user.lua".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/caelestia/hypr-user.lua";
-    ".config/caelestia/monitors.lua".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/caelestia/monitors.lua";
-    ".config/caelestia/monitors-work.lua".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/caelestia/monitors-work.lua";
-    ".config/caelestia/shell.json".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/caelestia/shell.json";
-    ".config/caelestia/user-config.fish".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/caelestia/user-config.fish";
+    # Foot & Tmux
+    ".config/foot/foot.ini".source = dot "foot/foot.ini";
+    ".tmux.conf".source = dot ".tmux.conf";
 
+    # Caelestia
+    ".config/caelestia/monitors".source = dot "caelestia/monitors";
+    ".config/caelestia/hypr-vars.lua".source = dot "caelestia/hypr-vars.lua";
+    ".config/caelestia/hypr-user.lua".source = dot "caelestia/hypr-user.lua";
+    ".config/caelestia/monitors.lua".source = dot "caelestia/monitors.lua";
+    ".config/caelestia/monitors-work.lua".source = dot "caelestia/monitors-work.lua";
+    ".config/caelestia/shell.json".source = dot "caelestia/shell.json";
+    ".config/caelestia/user-config.fish".source = dot "caelestia/user-config.fish";
 
-    ## Hyprland
-    ".config/hypr/hyprland".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/hypr/hyprland";
-    ".config/hypr/utils".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/hypr/utils";
-    ".config/hypr/hyprland.lua".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/hypr/hyprland.lua";
-    ".config/hypr/hyprshade.toml".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/hypr/hyprshade.toml";
-    ".config/hypr/variables.lua".source =
-      config.lib.file.mkOutOfStoreSymlink "/home/clem/Dot/hypr/variables.lua";
+    # Hyprland
+    ".config/hypr/hyprland".source = dot "hypr/hyprland";
+    ".config/hypr/utils".source = dot "hypr/utils";
+    ".config/hypr/hyprland.lua".source = dot "hypr/hyprland.lua";
+    ".config/hypr/hyprshade.toml".source = dot "hypr/hyprshade.toml";
+    ".config/hypr/variables.lua".source = dot "hypr/variables.lua";
   };
-  qt = {
+  dconf.settings = {
+      "org/gnome/desktop/interface" = {
+        color-scheme = "prefer-dark";
+        gtk-theme = "Adwaita-dark";
+        icon-theme = "Papirus-Dark";
+      };
+    };
+    gtk = {
       enable = true;
-      style.name = "kvantum";
-      platformTheme.name = "qtct";
+
+      theme = {
+        name = "Adwaita-dark";
+        package = pkgs.catppuccin-gtk.override {
+          accents = [ "blue" ];
+          variant = "mocha";
+        };
+      };
+
+      iconTheme = {
+        name = "Papirus-Dark";
+        package = pkgs.papirus-icon-theme;
+      };
+
+      gtk3.extraConfig = {
+        gtk-application-prefer-dark-theme = 1;
+      };
+
+      gtk4 = {
+        theme = null; # 👈 Règle le 1er avertissement
+        extraConfig = {
+          gtk-application-prefer-dark-theme = 1;
+        };
+      };
     };
 
-    xdg.configFile = {
-      "Kvantum/kvantum.kvconfig".text = ''
-        [General]
-        theme=catppuccin-mocha-blue
-      '';
-      "Kvantum/catppuccin-mocha-blue".source = "${kvantumTheme}/share/Kvantum/catppuccin-mocha-blue";
+    # Cursor Hyprland / GTK
+    home.pointerCursor = {
+      enable = true; # 👈 Règle le 2ème avertissement
+      name = "capitaine-cursors";
+      package = pkgs.capitaine-cursors;
+      size = 24;
+      gtk.enable = true;
+      hyprcursor.enable = true;
     };
+  qt = {
+    enable = true;
+    style.name = "kvantum";
+    platformTheme.name = "qtct";
+  };
+
+
   programs.git = {
     enable = true;
     settings = {
@@ -79,17 +102,22 @@ in
       init.defaultBranch = "main";
     };
   };
-  # Packages utilisateur communs (hors gaming)
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true;
+  };
+  # Packages utilisateur communs
   home.packages = with pkgs; [
     tree
     eza
-    nerd-fonts.im-writing
     firefox
     brave
     nitch
     foot
     hyprshade
+    material-symbols
     cliphist
+    matugen
     wl-clipboard
   ];
 }

@@ -13,8 +13,20 @@
         .xdg-desktop-portal-hyprland;
   };
 
-  environment.sessionVariables.NIXOS_OZONE_WL = "1";
+  environment.sessionVariables = {
+    # Force Wayland for Qt apps
+    QT_QPA_PLATFORM = "wayland;xcb";
+    QT_AUTO_SCREEN_SCALE_FACTOR = "1";
 
+    # Force Wayland for GTK apps
+    GDK_BACKEND = "wayland,x11,*";
+
+    # Force Wayland for Mozilla/Firefox
+    MOZ_ENABLE_WAYLAND = "1";
+
+    # Force Wayland for Electron apps (VSCode, Discord, Slack, etc.)
+    NIXOS_OZONE_WL = "1";
+  };
   nix.settings = {
     substituters = [
       "https://cache.nixos.org"
