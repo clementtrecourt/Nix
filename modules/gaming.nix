@@ -22,9 +22,6 @@
   services.ananicy = {
     enable = true;
     package = pkgs.ananicy-cpp;
-    rulesVR = with pkgs; [
-      ananicy-rules-ksysguard
-    ];
   };
   services.udev.packages = [ pkgs.game-devices-udev-rules ];
   boot.kernel.sysctl = {
@@ -38,7 +35,7 @@
     "fs.file-max" = 2097152;
   };
   hardware.amdgpu.initrd.enable = true;
-  powerManagement.cpuFreqGovernor = lib.mkDefault "performance";
+  powerManagement.cpuFreqGovernor = pkgs.lib.mkDefault "performance";
   environment.systemPackages = with pkgs; [
     heroic mangohud
     wineWow64Packages.stable
