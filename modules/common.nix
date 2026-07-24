@@ -2,8 +2,6 @@
 {
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
-    extra-substituters = [ "https://noctalia.cachix.org" ];
-    extra-trusted-public-keys = [ "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4=" ];
     auto-optimise-store = true;
   };
 
@@ -29,7 +27,6 @@
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
   nixpkgs.config.allowUnfree = true;
-  programs.mango.enable = true;
 
   services.greetd = {
     enable = true;
@@ -83,8 +80,6 @@
     git lazygit
     neovim vim zed-editor
     wl-clipboard nemo waybar
-    inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
-    vicinae
     capitaine-cursors ibm-plex
     unrar unzip tldr spotify zip
   ];

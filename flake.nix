@@ -13,12 +13,7 @@
         url = "github:qwerty-fr/qwerty-fr";
         flake = false;
     };
-    mangowm = {
-      url = "github:mangowm/mango";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     hyprland.url = "github:hyprwm/Hyprland";
-    noctalia.url = "github:noctalia-dev/noctalia/cachix";
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -29,7 +24,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, mangowm, noctalia, oskars-dotfiles, hyprland, zen-browser, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, oskars-dotfiles, hyprland, zen-browser, ... }@inputs:
   let
     mkHost = hostPath: homeModule: nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
@@ -46,7 +41,6 @@
         hyprland.nixosModules.default
         ./modules/hyprland.nix
         ./home/caelestia.nix
-        mangowm.nixosModules.mango
 
         home-manager.nixosModules.home-manager
 
