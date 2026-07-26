@@ -43,38 +43,35 @@ in
     ".config/hypr/hyprshade.toml".source = dot "hypr/hyprshade.toml";
     ".config/hypr/variables.lua".source = dot "hypr/variables.lua";
   };
-  dconf.settings = {
-      "org/gnome/desktop/interface" = {
-        color-scheme = "prefer-dark";
-        gtk-theme = "Adwaita-dark";
-        icon-theme = "Papirus-Dark";
-      };
-    };
     gtk = {
       enable = true;
-
       theme = {
-        name = "Adwaita-dark";
+        name = "catppuccin-mocha-blue-standard";
         package = pkgs.catppuccin-gtk.override {
           accents = [ "blue" ];
           variant = "mocha";
         };
       };
-
       iconTheme = {
         name = "Papirus-Dark";
         package = pkgs.papirus-icon-theme;
       };
-
       gtk3.extraConfig = {
         gtk-application-prefer-dark-theme = 1;
       };
-
       gtk4 = {
-        theme = null; # 👈 Règle le 1er avertissement
+        theme = null;
         extraConfig = {
           gtk-application-prefer-dark-theme = 1;
         };
+      };
+    };
+
+    dconf.settings = {
+      "org/gnome/desktop/interface" = {
+        color-scheme = "prefer-dark";
+        gtk-theme = "catppuccin-mocha-blue-standard";
+        icon-theme = "Papirus-Dark";
       };
     };
 
@@ -90,9 +87,8 @@ in
   qt = {
     enable = true;
     style.name = "kvantum";
-    platformTheme.name = "qtct";
+    platformTheme.name = "qt6ct";
   };
-
 
   programs.git = {
     enable = true;
@@ -106,6 +102,8 @@ in
     enable = true;
     nix-direnv.enable = true;
   };
+  xdg.dataFile."icons/hicolor/scalable/apps/zen-beta.svg".source =
+    "${pkgs.papirus-icon-theme}/share/icons/Papirus/48x48/apps/zen-browser.svg";
   # Packages utilisateur communs
   home.packages = with pkgs; [
     tree
@@ -121,5 +119,6 @@ in
     matugen
     hyprshot
     wl-clipboard
+    qt6Packages.qt6ct
   ];
 }
