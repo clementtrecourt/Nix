@@ -116,8 +116,10 @@ in
     foot
     hyprshade
     material-symbols
+    papirus-icon-theme
     cliphist
     matugen
+    hyprshot
     wl-clipboard
   ];
 }

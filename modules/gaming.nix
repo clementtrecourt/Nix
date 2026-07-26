@@ -16,6 +16,7 @@
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = true;
   services.blueman.enable = true;
+  services.flatpak.enable = true;
 
   programs.corectrl.enable = true;
   hardware.amdgpu.overdrive.enable = true;
@@ -24,6 +25,10 @@
     package = pkgs.ananicy-cpp;
   };
   services.udev.packages = [ pkgs.game-devices-udev-rules ];
+  programs.appimage = {
+    enable = true;
+    binfmt = true;
+  };
   boot.kernel.sysctl = {
     # Nécessaire pour Steam/Proton, Star Citizen et les gros jeux (évite les crashs mémoire)
     "vm.max_map_count" = 2147483642;
