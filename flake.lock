@@ -350,6 +350,26 @@
         "type": "github"
       }
     },
+    "helium": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1784972795,
+        "narHash": "sha256-YylS1VucYSa8U3K72PDlded7x6uR4tYGAvrY/B6LJFk=",
+        "owner": "oxcl",
+        "repo": "nix-flake-helium-browser",
+        "rev": "a550cdaa666bc9d1f4411c9ed13f94bfeb7885fc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxcl",
+        "repo": "nix-flake-helium-browser",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -766,6 +786,22 @@
         "type": "github"
       }
     },
+    "mozilla": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1783941145,
+        "narHash": "sha256-WXGFkdoYqOX9mjJaSfN5+rAH7eFe/1F6LmYb/Rs360g=",
+        "owner": "mozilla",
+        "repo": "nixpkgs-mozilla",
+        "rev": "16ab32eeb8390de633eb336eb4910efbbe0091e6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mozilla",
+        "repo": "nixpkgs-mozilla",
+        "type": "github"
+      }
+    },
     "nix-citizen": {
       "inputs": {
         "flake-compat": "flake-compat_2",
@@ -1129,8 +1165,10 @@
       "inputs": {
         "caelestia-cli": "caelestia-cli",
         "caelestia-shell": "caelestia-shell_2",
+        "helium": "helium",
         "home-manager": "home-manager",
         "hyprland": "hyprland",
+        "mozilla": "mozilla",
         "nixpkgs": "nixpkgs_2",
         "oskars-dotfiles": "oskars-dotfiles",
         "qwerty-fr": "qwerty-fr",

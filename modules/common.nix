@@ -113,7 +113,6 @@
     hashedPassword = "$y$j9T$VC7rDnqaqcmhe5kp3O.KS0$bPN8wmEwcGLgl0wTF7ouClBPYh3ixUTTMz0aZhWvfB4";
   };
 
-  programs.firefox.enable = true;
   services.resolved = {
     enable = true;
     settings = {

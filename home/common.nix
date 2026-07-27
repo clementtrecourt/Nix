@@ -108,7 +108,6 @@ in
   home.packages = with pkgs; [
     tree
     eza
-    firefox
     brave
     nitch
     foot
