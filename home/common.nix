@@ -11,6 +11,7 @@ in
 {
   imports = [
       ./caelestia.nix
+      ./hyprland-plugins.nix
     ];
   home.username = "clem";
   home.homeDirectory = "/home/clem";

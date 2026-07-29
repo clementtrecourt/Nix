@@ -12,7 +12,6 @@
       inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}
         .xdg-desktop-portal-hyprland;
   };
-
   environment.sessionVariables = {
     # Force Wayland for Qt apps
     QT_QPA_PLATFORM = "wayland;xcb";

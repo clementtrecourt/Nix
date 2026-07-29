@@ -16,6 +16,9 @@
     freeMemThreshold = 5; # Déclenche si moins de 5% de RAM disponible
     enableNotifications = true; # Envoie une notification si un processus est tué
   };
+  services.tailscale = {
+    enable = true;
+  };
   services.fstrim = {
     enable = true;
     interval = "weekly";

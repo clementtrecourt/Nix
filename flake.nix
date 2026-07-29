@@ -18,6 +18,10 @@
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    gloview = {
+      url = "github:fedsfarm/gloview";
+      inputs.hyprland.follows = "hyprland";
+    };
     caelestia-shell = {
       url = "github:caelestia-dots/shell";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -42,6 +46,13 @@
             oskars-dotfiles.overlays.spotx
           ];
         }
+
+        {
+    virtualisation.podman = {
+      enable = true;
+      dockerCompat = true;
+    };
+  }
 
         hyprland.nixosModules.default
         ./modules/hyprland.nix
