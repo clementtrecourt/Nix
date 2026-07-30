@@ -120,5 +120,7 @@ in
     hyprshot
     wl-clipboard
     qt6Packages.qt6ct
+    librewolf
+    firefox
   ];
 }
