@@ -13,22 +13,10 @@
         url = "github:qwerty-fr/qwerty-fr";
         flake = false;
     };
+    inir.url = "github:snowarch/inir";
     hyprland.url = "github:hyprwm/Hyprland";
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    gloview = {
-      url = "github:fedsfarm/gloview";
-      inputs.hyprland.follows = "hyprland";
-    };
-    caelestia-shell = {
-      url = "github:caelestia-dots/shell";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    caelestia-cli = {
-      url = "github:caelestia-dots/cli";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };

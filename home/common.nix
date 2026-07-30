@@ -10,8 +10,7 @@ let
 in
 {
   imports = [
-      ./caelestia.nix
-      ./hyprland-plugins.nix
+      ./inir.nix
     ];
   home.username = "clem";
   home.homeDirectory = "/home/clem";
@@ -29,13 +28,13 @@ in
     ".tmux.conf".source = dot ".tmux.conf";
 
     # Caelestia
-    ".config/caelestia/monitors".source = dot "caelestia/monitors";
-    ".config/caelestia/hypr-vars.lua".source = dot "caelestia/hypr-vars.lua";
-    ".config/caelestia/hypr-user.lua".source = dot "caelestia/hypr-user.lua";
-    ".config/caelestia/monitors.lua".source = dot "caelestia/monitors.lua";
-    ".config/caelestia/monitors-work.lua".source = dot "caelestia/monitors-work.lua";
-    ".config/caelestia/shell.json".source = dot "caelestia/shell.json";
-    ".config/caelestia/user-config.fish".source = dot "caelestia/user-config.fish";
+    # ".config/caelestia/monitors".source = dot "caelestia/monitors";
+    # ".config/caelestia/hypr-vars.lua".source = dot "caelestia/hypr-vars.lua";
+    # ".config/caelestia/hypr-user.lua".source = dot "caelestia/hypr-user.lua";
+    # ".config/caelestia/monitors.lua".source = dot "caelestia/monitors.lua";
+    # ".config/caelestia/monitors-work.lua".source = dot "caelestia/monitors-work.lua";
+    # ".config/caelestia/shell.json".source = dot "caelestia/shell.json";
+    # ".config/caelestia/user-config.fish".source = dot "caelestia/user-config.fish";
 
     # Hyprland
     ".config/hypr/hyprland".source = dot "hypr/hyprland";
@@ -122,5 +121,12 @@ in
     qt6Packages.qt6ct
     librewolf
     firefox
+    quickshell
+    awww
+    uv                             # <-- Indispensable pour la génération des thèmes de couleurs
+    swaylock                       # <-- Verrouillage d'écran
+    swayidle                       # <-- Gestion de la mise en veille
+    networkmanagerapplet           # <-- Menu réseau (nm-connection-editor)
+    kdePackages.plasma-integration # <-- Thème Qt
   ];
 }

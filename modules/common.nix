@@ -38,7 +38,6 @@
         symbolsFile = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
       };
   };
-  programs.ssh.startAgent = true;
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.configurationLimit = 10;
   boot.loader.timeout = 1;
@@ -55,9 +54,9 @@
   services.greetd = {
     enable = true;
     settings = {
-      initial_session = { command = "start-hyprland"; user = "clem"; };
+      initial_session = { command = "niri-session"; user = "clem"; };
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --cmd start-hyprland";
+        command = "${pkgs.tuigreet}/bin/tuigreet --cmd niri-session";
         user = "greeter";
       };
     };
@@ -125,13 +124,14 @@
       };
     };
   };
+  programs.niri.enable = true;
   environment.systemPackages = with pkgs; [
-    kitty tmux starship fish zoxide direnv fzf
+    kitty xwayland-satellite tmux starship fish zoxide direnv fzf
     bat eza ripgrep fd btop jq
     git lazygit
     neovim vim zed-editor
     wl-clipboard nemo waybar
     capitaine-cursors
-    unrar unzip tldr spotify zip yazi vlc
+    unrar unzip tldr spotify zip yazi vlc python3
   ];
 }
