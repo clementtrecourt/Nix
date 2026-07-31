@@ -10,7 +10,7 @@ let
 in
 {
   imports = [
-      ./inir.nix
+      # ./inir.nix
     ];
   home.username = "clem";
   home.homeDirectory = "/home/clem";
@@ -35,7 +35,30 @@ in
     # ".config/caelestia/monitors-work.lua".source = dot "caelestia/monitors-work.lua";
     # ".config/caelestia/shell.json".source = dot "caelestia/shell.json";
     # ".config/caelestia/user-config.fish".source = dot "caelestia/user-config.fish";
-
+    # Niri 
+    ".config/niri/".source = dot "niri/";
+    # Rofi 
+    ".config/rofi/".source = dot "rofi/";
+    # Scripts
+    ".local/bin/".source = dot "scripts/";
+    # Waybar 
+    ".config/waybar".source = dot "waybar";
+    # Quickshell 
+    ".config/quickshell/".source = dot "quickshell";
+    # Matugen 
+    ".config/matugen/".source = dot "matugen/";
+    # Kitty 
+    ".config/kitty/".source = dot "kitty/";
+    # Icons 
+    ".icons/icon_scripts".source = dot "icons/icon_scripts";
+    # Swaylock 
+    ".config/swaylock/".source = dot "swaylock";
+    # Fastfetch 
+    ".config/fastfetch/".source = dot "fastfetch/";
+    # Hyprlock 
+    ".config/hyprlock/".source = dot "hyprlock/";
+    # Dunst 
+    ".config/dunst/".source = dot "dunst/";
     # Hyprland
     ".config/hypr/hyprland".source = dot "hypr/hyprland";
     ".config/hypr/utils".source = dot "hypr/utils";
@@ -106,27 +129,73 @@ in
     "${pkgs.papirus-icon-theme}/share/icons/Papirus/48x48/apps/zen-browser.svg";
   # Packages utilisateur communs
   home.packages = with pkgs; [
-    tree
-    eza
-    brave
-    nitch
-    foot
-    hyprshade
-    material-symbols
-    papirus-icon-theme
-    cliphist
-    matugen
-    hyprshot
-    wl-clipboard
-    qt6Packages.qt6ct
-    librewolf
-    firefox
-    quickshell
-    awww
-    uv                             # <-- Indispensable pour la génération des thèmes de couleurs
-    swaylock                       # <-- Verrouillage d'écran
-    swayidle                       # <-- Gestion de la mise en veille
-    networkmanagerapplet           # <-- Menu réseau (nm-connection-editor)
-    kdePackages.plasma-integration # <-- Thème Qt
+  awww
+  bat
+  bibata-cursors
+  brightnessctl
+  btop
+  cava
+  cbonsai
+  chafa
+  cliphist
+  dunst
+  eza
+  fastfetch
+  fd
+  fzf
+  gammastep
+  git
+  greetd
+  tuigreet
+  hyprshot
+  hyprshade
+  imv
+  inter
+  iwd
+  jq
+  kitty
+  librewolf
+  material-symbols
+  matugen
+  mpv
+  neovim
+  networkmanagerapplet
+  niri
+  nwg-look
+  openssh
+  papirus-icon-theme
+  pipes
+  quickshell
+  ripgrep
+  rofi
+  rofi-calc
+  rofimoji
+  swayidle
+  swaylock
+  terminus_font_ttf
+  inter
+  trashy
+  jetbrains-mono
+  uv
+  vlc
+  waybar
+  wl-clipboard
+  yazi
+  clipse
+  zathura
+  swaybg
+  zoxide
+  playerctl
+  hyprlock
+  zsh
+  xdg-desktop-portal-gtk
+
+  # Qt
+  qt6Packages.qt6ct
+  kdePackages.plasma-integration
+
+  # Navigateurs
+  firefox
+  brave
   ];
 }

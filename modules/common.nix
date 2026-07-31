@@ -132,6 +132,8 @@
     neovim vim zed-editor
     wl-clipboard nemo waybar
     capitaine-cursors
+    gcc
+    gnumake
     unrar unzip tldr spotify zip yazi vlc python3
   ];
 }
