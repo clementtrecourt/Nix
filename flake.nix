@@ -13,7 +13,10 @@
         url = "github:qwerty-fr/qwerty-fr";
         flake = false;
     };
-    inir.url = "github:snowarch/inir";
+    noctalia = {
+      url = "github:noctalia-dev/noctalia";
+      inputs.nixpkgs.follows = "nixpkgs"; # this line is optional, prevents downloading two versions of nixpkgs but disables cache
+    };
     hyprland.url = "github:hyprwm/Hyprland";
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";

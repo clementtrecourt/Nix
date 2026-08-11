@@ -10,7 +10,7 @@ let
 in
 {
   imports = [
-      # ./inir.nix
+      ./noctalia.nix
     ];
   home.username = "clem";
   home.homeDirectory = "/home/clem";
@@ -190,6 +190,9 @@ in
   zsh
   xdg-desktop-portal-gtk
 
+  wlsunset
+  pkg-config
+  sqlite
   # Qt
   qt6Packages.qt6ct
   kdePackages.plasma-integration

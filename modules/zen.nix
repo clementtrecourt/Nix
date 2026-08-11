@@ -16,6 +16,7 @@ let
   prefs = {
     "extensions.autoDisableScopes" = 0;
     "extensions.pocket.enabled" = false;
+    "widget.non-native-theme.enabled" = false;
   };
 
   extensions = [

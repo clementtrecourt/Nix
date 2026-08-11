@@ -19,11 +19,7 @@
   services.flatpak.enable = true;
 
   programs.corectrl.enable = true;
-  hardware.amdgpu.overdrive.enable = true;
-  services.ananicy = {
-    enable = true;
-    package = pkgs.ananicy-cpp;
-  };
+  hardware.amdgpu.overdrive.enable = false;
   services.udev.packages = [ pkgs.game-devices-udev-rules ];
   programs.appimage = {
     enable = true;
@@ -44,8 +40,10 @@
   environment.systemPackages = with pkgs; [
     heroic mangohud
     wineWow64Packages.stable
+    stremio-linux-shell
     winetricks protontricks
     ludusavi
+    linux-wallpaperengine
     nvtopPackages.amd  # GPU process monitor (like btop, but for GPU)
     lm_sensors         # Command-line tool 'sensors' to check temperatures
   ];
