@@ -196,7 +196,7 @@ in
   # Qt
   qt6Packages.qt6ct
   kdePackages.plasma-integration
-
+  stremio-linux-shell
   # Navigateurs
   firefox
   brave
