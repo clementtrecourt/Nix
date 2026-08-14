@@ -197,6 +197,7 @@ in
   qt6Packages.qt6ct
   kdePackages.plasma-integration
   stremio-linux-shell
+  motrix-next
   # Navigateurs
   firefox
   brave
