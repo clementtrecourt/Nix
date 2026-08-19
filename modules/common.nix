@@ -11,6 +11,7 @@
     warn-dirty = false;
     builders-use-substitutes = true;
   };
+  hardware.graphics.enable32Bit = true;
   services.earlyoom = {
     enable = true;
     freeMemThreshold = 5; # Déclenche si moins de 5% de RAM disponible
@@ -54,9 +55,9 @@
   services.greetd = {
     enable = true;
     settings = {
-      initial_session = { command = "niri-session"; user = "clem"; };
+      initial_session = { command = "mango"; user = "clem"; };
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --cmd niri-session";
+        command = "${pkgs.tuigreet}/bin/tuigreet --cmd mango";
         user = "greeter";
       };
     };
@@ -65,6 +66,7 @@
     "net.core.default_qdisc" = "fq";
     "net.ipv4.tcp_congestion_control" = "bbr";
   };
+  programs.dconf.enable = true;
   systemd.coredump.enable = false;
   environment.variables = { EDITOR = "nvim"; VISUAL = "nvim"; };
   networking.modemmanager.enable = false;
@@ -81,22 +83,78 @@
     pulse.enable = true;
   };
   fonts = {
-    enableDefaultPackages = true;
-    packages = with pkgs; [
-      ibm-plex
-      nerd-fonts.im-writing
-      nerd-fonts.jetbrains-mono
-      nerd-fonts.symbols-only
-    ];
+      enableDefaultPackages = true;
+      packages = with pkgs; [
+        ibm-plex
+        (google-fonts.override { fonts = [ "Readex Pro" ]; })
+        nerd-fonts.im-writing
+        nerd-fonts.jetbrains-mono
+        nerd-fonts.symbols-only
+      ];
+      fontconfig = {
+        defaultFonts = {
+          monospace = [ "IBM Plex Mono" ];
+          sansSerif = [ "Readex Pro" ];
+          serif = [ "IBM Plex Serif" ];
+        };
+        localConf = ''
+          <?xml version="1.0"?>
+          <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+          <fontconfig>
+            <!-- Alias generic sans-serif -->
+            <match target="pattern">
+              <test qual="any" name="family"><string>sans-serif</string></test>
+              <edit name="family" mode="assign" binding="strong">
+                <string>Readex Pro</string>
+              </edit>
+            </match>
 
-    fontconfig = {
-      defaultFonts = {
-        monospace = [ "IBM Plex Mono" ];
-        sansSerif = [ "IBM Plex Sans" ];
-        serif = [ "IBM Plex Serif" ];
+            <!-- Force specific common font substitutions -->
+            <match target="pattern">
+              <test qual="any" name="family"><string>Arial</string></test>
+              <edit name="family" mode="assign" binding="strong">
+                <string>Readex Pro</string>
+              </edit>
+            </match>
+
+            <match target="pattern">
+              <test qual="any" name="family"><string>Helvetica</string></test>
+              <edit name="family" mode="assign" binding="strong">
+                <string>Readex Pro</string>
+              </edit>
+            </match>
+
+            <match target="pattern">
+              <test qual="any" name="family"><string>Roboto</string></test>
+              <edit name="family" mode="assign" binding="strong">
+                <string>Readex Pro</string>
+              </edit>
+            </match>
+
+            <match target="pattern">
+              <test qual="any" name="family"><string>Segoe UI</string></test>
+              <edit name="family" mode="assign" binding="strong">
+                <string>Readex Pro</string>
+              </edit>
+            </match>
+
+            <match target="pattern">
+              <test qual="any" name="family"><string>Verdana</string></test>
+              <edit name="family" mode="assign" binding="strong">
+                <string>Readex Pro</string>
+              </edit>
+            </match>
+
+            <match target="pattern">
+              <test qual="any" name="family"><string>Calibri</string></test>
+              <edit name="family" mode="assign" binding="strong">
+                <string>Readex Pro</string>
+              </edit>
+            </match>
+          </fontconfig>
+        '';
       };
     };
-  };
 
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
@@ -124,7 +182,14 @@
       };
     };
   };
-  programs.niri.enable = true;
+  programs.mango.enable = true;
+   programs.steam = {
+    enable = true;
+    remotePlay.openFirewall = true;
+    gamescopeSession.enable = true;
+    extraCompatPackages = [ pkgs.proton-ge-bin ];
+  };
+  programs.nix-ld.enable = true;
   environment.systemPackages = with pkgs; [
     kitty xwayland-satellite tmux starship fish zoxide direnv fzf
     bat eza ripgrep fd btop jq
@@ -135,5 +200,8 @@
     gcc
     gnumake
     unrar unzip tldr spotify zip yazi vlc python3
+    winetricks protontricks
+    wineWow64Packages.stable
+    helium
   ];
 }

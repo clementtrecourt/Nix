@@ -12,5 +12,6 @@
     nettools
     sshuttle
     easyeffects
+    heroic
   ];
 }

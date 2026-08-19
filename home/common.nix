@@ -16,6 +16,7 @@ in
   home.homeDirectory = "/home/clem";
   home.stateVersion = "24.11";
 
+
   # Symlinks vers ~/Dot — le dépôt git reste la seule source de vérité.
   home.file = {
     # Fish
@@ -35,29 +36,29 @@ in
     # ".config/caelestia/monitors-work.lua".source = dot "caelestia/monitors-work.lua";
     # ".config/caelestia/shell.json".source = dot "caelestia/shell.json";
     # ".config/caelestia/user-config.fish".source = dot "caelestia/user-config.fish";
-    # Niri 
-    ".config/niri/".source = dot "niri/";
-    # Rofi 
+    # Mango
+    ".config/mango".source = dot "mango";
+    # Rofi
     ".config/rofi/".source = dot "rofi/";
     # Scripts
     ".local/bin/".source = dot "scripts/";
-    # Waybar 
+    # Waybar
     ".config/waybar".source = dot "waybar";
-    # Quickshell 
+    # Quickshell
     ".config/quickshell/".source = dot "quickshell";
-    # Matugen 
+    # Matugen
     ".config/matugen/".source = dot "matugen/";
-    # Kitty 
+    # Kitty
     ".config/kitty/".source = dot "kitty/";
-    # Icons 
+    # Icons
     ".icons/icon_scripts".source = dot "icons/icon_scripts";
-    # Swaylock 
+    # Swaylock
     ".config/swaylock/".source = dot "swaylock";
-    # Fastfetch 
+    # Fastfetch
     ".config/fastfetch/".source = dot "fastfetch/";
-    # Hyprlock 
+    # Hyprlock
     ".config/hyprlock/".source = dot "hyprlock/";
-    # Dunst 
+    # Dunst
     ".config/dunst/".source = dot "dunst/";
     # Hyprland
     ".config/hypr/hyprland".source = dot "hypr/hyprland";
@@ -90,13 +91,13 @@ in
       };
     };
 
-    dconf.settings = {
-      "org/gnome/desktop/interface" = {
-        color-scheme = "prefer-dark";
-        gtk-theme = "catppuccin-mocha-blue-standard";
-        icon-theme = "Papirus-Dark";
-      };
-    };
+    # dconf.settings = {
+    #   "org/gnome/desktop/interface" = {
+    #     color-scheme = "prefer-dark";
+    #     gtk-theme = "catppuccin-mocha-blue-standard";
+    #     icon-theme = "Papirus-Dark";
+    #   };
+    # };
 
     # Cursor Hyprland / GTK
     home.pointerCursor = {
