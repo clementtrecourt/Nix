@@ -91,13 +91,13 @@ in
       };
     };
 
-    # dconf.settings = {
-    #   "org/gnome/desktop/interface" = {
-    #     color-scheme = "prefer-dark";
-    #     gtk-theme = "catppuccin-mocha-blue-standard";
-    #     icon-theme = "Papirus-Dark";
-    #   };
-    # };
+    dconf.settings = {
+      "org/gnome/desktop/interface" = {
+        color-scheme = "prefer-dark";
+        gtk-theme = "catppuccin-mocha-blue-standard";
+        icon-theme = "Papirus-Dark";
+      };
+    };
 
     # Cursor Hyprland / GTK
     home.pointerCursor = {
@@ -197,10 +197,6 @@ in
   # Qt
   qt6Packages.qt6ct
   kdePackages.plasma-integration
-  stremio-linux-shell
   motrix-next
-  # Navigateurs
-  firefox
-  brave
   ];
 }

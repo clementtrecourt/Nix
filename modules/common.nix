@@ -203,5 +203,8 @@
     winetricks protontricks
     wineWow64Packages.stable
     helium
+    brave
+    stremio-linux-shell
+    firefox
   ];
 }
