@@ -1,7 +1,7 @@
 { config, lib, pkgs, inputs, ... }:
 {
   imports = [
-      ./zen.nix
+      ./firefox.nix
     ];
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
