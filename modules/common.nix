@@ -25,11 +25,6 @@
     interval = "weekly";
   };
   boot.initrd.systemd.enable = true;
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 7d";
-  };
   services.xserver.xkb = {
       layout = "qwerty-fr";
       variant = "";
@@ -173,26 +168,17 @@
     hashedPassword = "$y$j9T$VC7rDnqaqcmhe5kp3O.KS0$bPN8wmEwcGLgl0wTF7ouClBPYh3ixUTTMz0aZhWvfB4";
   };
 
-  services.resolved = {
-    enable = true;
-    settings = {
-      Resolve = {
-        DNSOverTLS = "opportunistic";
-        FallbackDNS = [ "1.1.1.1" "9.9.9.9" ];
-      };
-    };
-  };
   programs.mango.enable = true;
-   programs.steam = {
-    enable = true;
-    remotePlay.openFirewall = true;
-    gamescopeSession.enable = true;
-    extraCompatPackages = [ pkgs.proton-ge-bin ];
-  };
   programs.nix-ld.enable = true;
+  programs.nh = {
+    enable = true;
+    clean.enable = true;
+    clean.extraArgs = "--keep-since 4d --keep 3";
+    flake = "/home/clem/Nix";
+  };
   environment.systemPackages = with pkgs; [
     kitty xwayland-satellite tmux starship fish zoxide direnv fzf
-    bat eza ripgrep fd btop jq
+    bat eza ripgrep fd btop jq tree
     git lazygit
     neovim vim zed-editor
     wl-clipboard nemo waybar
@@ -200,11 +186,7 @@
     gcc
     gnumake
     unrar unzip tldr spotify zip yazi vlc python3
-    winetricks protontricks
-    wineWow64Packages.stable
-    helium
     brave
     stremio-linux-shell
-    firefox
   ];
 }

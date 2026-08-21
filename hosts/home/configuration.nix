@@ -6,6 +6,6 @@
     ../../modules/gaming.nix
   ];
   boot.kernelPackages = pkgs.linuxPackages_zen;
-  networking.hostName = "nixos";
+  networking.hostName = "home";
   system.stateVersion = "26.05";
 }

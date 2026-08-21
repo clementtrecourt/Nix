@@ -60,12 +60,7 @@ in
     ".config/hyprlock/".source = dot "hyprlock/";
     # Dunst
     ".config/dunst/".source = dot "dunst/";
-    # Hyprland
-    ".config/hypr/hyprland".source = dot "hypr/hyprland";
-    ".config/hypr/utils".source = dot "hypr/utils";
-    ".config/hypr/hyprland.lua".source = dot "hypr/hyprland.lua";
-    ".config/hypr/hyprshade.toml".source = dot "hypr/hyprshade.toml";
-    ".config/hypr/variables.lua".source = dot "hypr/variables.lua";
+
   };
     gtk = {
       enable = true;
@@ -161,7 +156,6 @@ in
   mpv
   neovim
   networkmanagerapplet
-  niri
   nwg-look
   openssh
   papirus-icon-theme

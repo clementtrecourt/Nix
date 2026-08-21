@@ -1,32 +1,34 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    # SPOTX
-    oskars-dotfiles = {
-      url = "github:oskardotglobal/.dotfiles/nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    qwerty-fr = {
-        url = "github:qwerty-fr/qwerty-fr";
-        flake = false;
-    };
-    noctalia = {
-      url = "github:noctalia-dev/noctalia";
-      inputs.nixpkgs.follows = "nixpkgs"; # this line is optional, prevents downloading two versions of nixpkgs but disables cache
-    };
-    zen-browser = {
-      url = "github:0xc000022070/zen-browser-flake";
+
+    oskars-dotfiles = {
+      url = "github:oskardotglobal/.dotfiles/nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    helium-flake.url = "github:oxcl/nix-flake-helium-browser";
-    helium-flake.inputs.nixpkgs.follows = "nixpkgs";
+
+    qwerty-fr = {
+      url = "github:qwerty-fr/qwerty-fr";
+      flake = false;
+    };
+
+    noctalia = {
+      url = "github:noctalia-dev/noctalia";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    helium-flake = {
+      url = "github:oxcl/nix-flake-helium-browser";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, oskars-dotfiles, zen-browser, helium-flake, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, oskars-dotfiles, helium-flake, ... }@inputs:
   let
     mkHost = hostPath: homeModule: nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
@@ -36,19 +38,12 @@
 
         {
           nixpkgs.overlays = [
-            oskars-dotfiles.overlays.spotx helium-flake.overlays.default
+            oskars-dotfiles.overlays.spotx
+            helium-flake.overlays.default
           ];
         }
 
-        {
-    virtualisation.podman = {
-      enable = true;
-      dockerCompat = true;
-    };
-  }
-
         home-manager.nixosModules.home-manager
-
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
@@ -57,7 +52,6 @@
           home-manager.extraSpecialArgs = { inherit inputs; };
         }
       ];
-
     };
   in
   {

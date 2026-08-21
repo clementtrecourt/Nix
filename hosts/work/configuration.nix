@@ -5,6 +5,6 @@
     ../../modules/common.nix
   ];
   boot.kernelPackages = pkgs.linuxPackages;
-  networking.hostName = "nixos-work";
+  networking.hostName = "work";
   system.stateVersion = "26.05";
 }
