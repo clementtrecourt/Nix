@@ -1,7 +1,7 @@
 { config, lib, pkgs, inputs, ... }:
 {
   imports = [
-      ./firefox.nix
+      ./zen-browser.nix
     ];
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
@@ -163,7 +163,7 @@
   };
   users.users.clem = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ];
+    extraGroups = [ "wheel" "corectrl" ];
     shell = pkgs.fish;
     hashedPassword = "$y$j9T$VC7rDnqaqcmhe5kp3O.KS0$bPN8wmEwcGLgl0wTF7ouClBPYh3ixUTTMz0aZhWvfB4";
   };

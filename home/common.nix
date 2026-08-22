@@ -15,6 +15,25 @@ in
   home.username = "clem";
   home.homeDirectory = "/home/clem";
   home.stateVersion = "24.11";
+  systemd.user.services.polkit-gnome-authentication-agent-1 = {
+  Unit = {
+    Description = "Polkit GNOME Authentication Agent";
+    After = [ "graphical-session-pre.target" ];
+  };
+
+  Service = {
+    Type = "simple";
+    ExecStart =
+      "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
+    Restart = "on-failure";
+    RestartSec = 1;
+  };
+
+  Install = {
+    WantedBy = [ "default.target" ];
+  };
+};
+
 
 
   # Symlinks vers ~/Dot — le dépôt git reste la seule source de vérité.
