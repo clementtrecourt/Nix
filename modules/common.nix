@@ -2,7 +2,6 @@
 {
   imports = [
       ./firefox.nix
-      ./sddm.nix
     ];
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
@@ -47,7 +46,16 @@
     enable = true;
     memoryPercent = 50; # Utilise jusqu'à 50% de la RAM comme swap compressé
   };
-
+  services.greetd = {
+    enable = true;
+    settings = {
+      initial_session = { command = "mango"; user = "clem"; };
+      default_session = {
+        command = "${pkgs.tuigreet}/bin/tuigreet --cmd mango";
+        user = "greeter";
+      };
+    };
+  };
   boot.kernel.sysctl = {
     "net.core.default_qdisc" = "fq";
     "net.ipv4.tcp_congestion_control" = "bbr";
