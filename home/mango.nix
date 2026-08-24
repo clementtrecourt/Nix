@@ -184,6 +184,7 @@
       bind = [
         "SUPER,m,quit"
         "SUPER,q,killclient"
+        "SUPER,r,reload_config"
 
         # Apps
         "SUPER,T,spawn,kitty"
@@ -250,6 +251,10 @@
         "SUPER,A,spawn,noctalia msg panel-toggle launcher"
         "SUPER,s,spawn,noctalia msg panel-toggle control-center"
         "SUPER,comma,spawn,noctalia msg settings-toggle"
+        "SUPER,Escape,spawn,noctalia msg panel-toggle session"
+        "SUPER,V,spawn,noctalia msg panel-toggle clipboard"
+        "SUPER,P,spawn,noctalia msg screenshot-region"
+        "SUPER+SHIFT,w,spawn, noctalia msg panel-toggle wallpaper"
         "NONE,XF86AudioRaiseVolume,spawn,noctalia msg volume-up"
         "NONE,XF86AudioLowerVolume,spawn,noctalia msg volume-down"
         "NONE,XF86AudioMute,spawn,noctalia msg volume-mute"
