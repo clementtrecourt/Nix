@@ -32,7 +32,7 @@ in
 {
   environment.systemPackages = [
     (pkgs.wrapFirefox
-      inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.zen-browser-unwrapped
+      inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.beta-unwrapped
       {
         extraPrefs = lib.concatLines (
           lib.mapAttrsToList (

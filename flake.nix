@@ -7,6 +7,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     mango.url = "github:mangowm/mango";
+    zen-browser = {
+        url = "github:0xc000022070/zen-browser-flake";
+        inputs.nixpkgs.follows = "nixpkgs";
+      };
 
     oskars-dotfiles = {
       url = "github:oskardotglobal/.dotfiles/nix";
