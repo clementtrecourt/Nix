@@ -1,29 +1,29 @@
-{ pkgs, config, lib, ... }:
+{ pkgs, ... }:
 
 let
   organizeScript = pkgs.writeShellScriptBin "organize-files" ''
     set -euo pipefail
 
-    DOWNLOADS="${config.home.homeDirectory}/Downloads"
-    PICTURES="${config.home.homeDirectory}/Pictures"
-    DOCUMENTS="${config.home.homeDirectory}/Documents"
-    VIDEOS="${config.home.homeDirectory}/Videos"
-    MUSIC="${config.home.homeDirectory}/Music"
+    DOWNLOADS="$HOME/Downloads"
+    PICTURES="$HOME/Pictures"
+    DOCUMENTS="$HOME/Documents"
+    VIDEOS="$HOME/Videos"
+    MUSIC="$HOME/Music"
 
-    # Ne rien faire si le dossier Downloads n'existe pas
     [ -d "$DOWNLOADS" ] || exit 0
 
-    # Création de l'arborescence cible
     mkdir -p \
       "$PICTURES/Downloads" \
       "$DOCUMENTS/PDFs" \
       "$DOCUMENTS/Office" \
+      "$DOCUMENTS/Dev_Configs" \
+      "$DOCUMENTS/Certs_Keys" \
       "$VIDEOS" \
       "$MUSIC" \
       "$DOWNLOADS/Archives" \
       "$DOWNLOADS/ISOs_Torrents"
 
-    # Déplacement sécurisé par extension (insensible à la casse, ignore les fichiers en cours)
+    # Déplacement par extensions classiques
     move_ext() {
       local dest="$1"
       shift
@@ -31,59 +31,72 @@ let
         find "$DOWNLOADS" -maxdepth 1 -type f -iname "*.$ext" \
           ! -name "*.crdownload" \
           ! -name "*.part" \
+          ! -name "*.aria2" \
           ! -name ".*" \
           -exec mv -n -t "$dest" {} + 2>/dev/null || true
       done
     }
 
-    # 1. Images -> ~/Pictures/Downloads
+    # 1. Images
     move_ext "$PICTURES/Downloads" png jpg jpeg webp gif svg avif bmp ico
 
-    # 2. Documents & PDFs -> ~/Documents/...
+    # 2. Documents & PDFs
     move_ext "$DOCUMENTS/PDFs" pdf epub mobi
     move_ext "$DOCUMENTS/Office" docx doc odt xlsx xls csv pptx ppt ods odp txt
 
-    # 3. Vidéos -> ~/Videos
+    # 3. Code, Sysadmin & Configs
+    move_ext "$DOCUMENTS/Dev_Configs" yml yaml json j2 service conf sh py sql html css ts js
+
+    # 4. Certificats & Clés de sécurité
+    move_ext "$DOCUMENTS/Certs_Keys" pem p12 crt key pfx ovpn kdbx
+
+    # 5. Vidéos
     move_ext "$VIDEOS" mp4 mkv webm avi mov flv wmv
 
-    # 4. Audio -> ~/Music
+    # 6. Audio
     move_ext "$MUSIC" mp3 flac wav ogg m4a aac opus
 
-    # 5. Archives & Médias d'installation -> ~/Downloads/Archives & ISOs
+    # 7. Archives & ISOs
     move_ext "$DOWNLOADS/Archives" zip tar gz bz2 xz zst 7z rar tgz
     move_ext "$DOWNLOADS/ISOs_Torrents" iso torrent img
+
+    # 8. Détection magique des fichiers SANS EXTENSION (via MIME-type)
+    find "$DOWNLOADS" -maxdepth 1 -type f ! -name "*.*" ! -name ".*" | while read -r file; do
+      mime=$(${pkgs.file}/bin/file --brief --mime-type "$file" 2>/dev/null || true)
+      case "$mime" in
+        image/*)
+          mv -n "$file" "$PICTURES/Downloads/" ;;
+        video/*)
+          mv -n "$file" "$VIDEOS/" ;;
+        audio/*)
+          mv -n "$file" "$MUSIC/" ;;
+        application/pdf)
+          mv -n "$file" "$DOCUMENTS/PDFs/" ;;
+        application/zip|application/x-tar|application/x-7z-compressed)
+          mv -n "$file" "$DOWNLOADS/Archives/" ;;
+      esac
+    done
   '';
 in
 {
-  # Rendre la commande 'organize-files' utilisable manuellement dans le terminal
-  home.packages = [ organizeScript ];
+  environment.systemPackages = [ organizeScript ];
 
-  # Service systemd lancé au démarrage / connexion
   systemd.user.services.organize-downloads = {
-    Unit = {
-      Description = "Rangement automatique du dossier Downloads";
-      After = [ "default.target" ];
-    };
-    Service = {
+    description = "Rangement automatique du dossier Downloads";
+    wantedBy = [ "default.target" ];
+    after = [ "default.target" ];
+    serviceConfig = {
       Type = "oneshot";
       ExecStart = "${organizeScript}/bin/organize-files";
     };
-    Install = {
-      WantedBy = [ "default.target" ];
-    };
   };
 
-  # Timer systemd (toutes les heures en arrière-plan)
   systemd.user.timers.organize-downloads = {
-    Unit = {
-      Description = "Timer pour ranger périodiquement le dossier Downloads";
-    };
-    Timer = {
+    description = "Timer pour ranger périodiquement le dossier Downloads";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
       OnCalendar = "hourly";
       Persistent = true;
-    };
-    Install = {
-      WantedBy = [ "timers.target" ];
     };
   };
 }

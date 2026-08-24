@@ -3,6 +3,7 @@
   imports = [
       ./firefox.nix
       scripts/organizer.nix
+      scripts/auto-cleaner.nix
     ];
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
