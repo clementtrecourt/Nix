@@ -12,6 +12,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    umbriel.url = "git+https://github.com/noctalia-dev/umbriel";
+
+    xdg-desktop-portal-umbriel.url = "github:noctalia-dev/xdg-desktop-portal-umbriel";
+
     qwerty-fr = {
       url = "github:qwerty-fr/qwerty-fr";
       flake = false;
@@ -28,13 +32,14 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, oskars-dotfiles, helium-flake, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, oskars-dotfiles, helium-flake, umbriel, xdg-desktop-portal-umbriel, ... }@inputs:
   let
     mkHost = hostPath: homeModule: nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = { inherit inputs; };
       modules = [
         hostPath
+        umbriel.nixosModules.default
 
         {
           nixpkgs.overlays = [

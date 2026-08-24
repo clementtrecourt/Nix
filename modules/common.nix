@@ -50,9 +50,9 @@
   services.greetd = {
     enable = true;
     settings = {
-      initial_session = { command = "mango"; user = "clem"; };
+      initial_session = { command = "start-umbriel"; user = "clem"; };
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --cmd mango";
+        command = "${pkgs.tuigreet}/bin/tuigreet --cmd start-umbriel";
         user = "greeter";
       };
     };
@@ -153,6 +153,13 @@
 
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
+  programs.umbriel = {
+    enable = true;
+
+    portalPackage =
+      inputs.xdg-desktop-portal-umbriel.packages
+        .${pkgs.stdenv.hostPlatform.system}.default;
+  };
 
   programs.fish.enable = true;
   networking.firewall = {
