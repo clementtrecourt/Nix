@@ -11,6 +11,8 @@ in
 {
   imports = [
       ./noctalia.nix
+      ./mango.nix
+      ./kitty.nix
     ];
   home.username = "clem";
   home.homeDirectory = "/home/clem";
@@ -37,7 +39,7 @@ in
     # ".config/caelestia/shell.json".source = dot "caelestia/shell.json";
     # ".config/caelestia/user-config.fish".source = dot "caelestia/user-config.fish";
     # Mango
-    ".config/mango".source = dot "mango";
+    # ".config/mango".source = dot "mango";
     # Rofi
     ".config/rofi/".source = dot "rofi/";
     # Scripts

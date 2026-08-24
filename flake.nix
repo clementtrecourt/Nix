@@ -6,6 +6,7 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    mango.url = "github:mangowm/mango";
 
     oskars-dotfiles = {
       url = "github:oskardotglobal/.dotfiles/nix";
@@ -27,7 +28,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, oskars-dotfiles, helium-flake, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, oskars-dotfiles, helium-flake, mango, ... }@inputs:
   let
     mkHost = hostPath: homeModule: nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
@@ -49,6 +50,9 @@
           home-manager.backupFileExtension = "bak";
           home-manager.users.clem = import homeModule;
           home-manager.extraSpecialArgs = { inherit inputs; };
+          home-manager.sharedModules = [
+            mango.hmModules.mango # ou mango.homeManagerModules.default
+          ];
         }
       ];
     };

@@ -1,6 +1,7 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, inputs, ... }:
 
 {
+  xdg.configFile."xkb/symbols/us_qwerty-fr".source = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
   wayland.windowManager.mango = {
     enable = true;
 
@@ -15,7 +16,8 @@
 
     # 2. Source le fichier dynamique généré par Noctalia
     extraConfig = ''
-      source = ~/.config/mango/noctalia.conf
+      source-optional = ~/.config/mango/noctalia.conf
+      source-optional = ~/.config/mango/monitors.conf
     '';
 
     settings = {
@@ -32,14 +34,6 @@
         "MOZ_ENABLE_WAYLAND,1"
         "ELECTRON_OZONE_PLATFORM_HINT,auto"
         "XDG_DATA_DIRS,$HOME/.local/share:/run/current-system/sw/share:/etc/profiles/per-user/$USER/share"
-      ];
-
-      # ============================================
-      # Monitors
-      # ============================================
-      monitorrule = [
-        "name:^DP-3$,width:1920,height:1080,refresh:60,x:0,y:0,scale:1,vrr:0,rr:0"
-        "name:^HDMI-A-3$,width:1920,height:1080,refresh:60,x:1920,y:0,scale:1,vrr:0,rr:0"
       ];
 
       # ============================================
@@ -110,17 +104,17 @@
       # Layouts & Scroller
       # ============================================
       tagrule = [
-        "id:1,layout_name:TGMix"
+        "id:1,layout_name:scroller"
         "id:2,layout_name:scroller"
       ];
 
-      scroller_structs = 450;
-      scroller_default_proportion = "0.5";
+      scroller_structs = 10;
+      scroller_default_proportion = "1";
       scroller_focus_center = 0;
-      scroller_prefer_center = 0;
-      edge_scroller_pointer_focus = 0;
-      scroller_ignore_proportion_single = 0;
-      scroller_default_proportion_single = "0.743";
+      scroller_prefer_center = 1;
+      edge_scroller_pointer_focus = 1;
+      scroller_ignore_proportion_single = 1;
+      scroller_default_proportion_single = "1.0";
       scroller_proportion_preset = "0.5,0.7,1.0";
 
       new_is_master = 0;
@@ -154,16 +148,15 @@
       repeat_rate = 25;
       repeat_delay = 400;
       numlockon = 1;
-      xkb_rules_layout = "us";
+      xkb_rules_layout = "us_qwerty-fr";
+      xkb_rules_variant = "qwerty-fr";
 
       disable_trackpad = 0;
       tap_to_click = 1;
       tap_and_drag = 1;
       drag_lock = 1;
       trackpad_natural_scrolling = 0;
-      disable_while_typing = 1;
-      left_handed = 0;
-      middle_button_emulation = 0;
+      trackpad_disable_while_typing = 1;
       swipe_min_threshold = 1;
 
       mouse_natural_scrolling = 0;
@@ -189,33 +182,13 @@
       # Keybinds
       # ============================================
       bind = [
-        # System
-        "SUPER+ALT,r,spawn,$HOME/.config/mango/bin/reload.sh"
-        "SUPER+ALT,l,spawn,qs -c noctalia-shell ipc call lockScreen lock"
         "SUPER,m,quit"
         "SUPER,q,killclient"
-        "SUPER+SHIFT,q,spawn,wlogout"
-        "SUPER+SHIFT,t,spawn,$HOME/.config/mango/bin/switch-theme.sh"
-        "SUPER+SHIFT,w,spawn,$HOME/.config/mango/bin/wall-select.sh"
 
         # Apps
         "SUPER,T,spawn,kitty"
-        "SUPER+CTRL,Return,spawn,kitty -T floating-kitty"
-        "SUPER,E,spawn,kitty -e nvim"
-        "SUPER,B,spawn,helium"
-        "SUPER+ALT,E,spawn,python3 $HOME/.config/mango/bin/emoji-picker.py"
-
-        # Focus
-        "SUPER,Left,focusdir,left"
-        "SUPER,Right,focusdir,right"
-        "SUPER,Up,focusdir,up"
-        "SUPER,Down,focusdir,down"
-
-        # Move
-        "SUPER+SHIFT,Up,exchange_client,up"
-        "SUPER+SHIFT,Down,exchange_client,down"
-        "SUPER+SHIFT,Left,exchange_client,left"
-        "SUPER+SHIFT,Right,exchange_client,right"
+        "SUPER+SHIFT,UP,viewtoleft_have_client"
+        "SUPER+SHIFT,DOWN,viewtoright_have_client"
 
         # Workspaces (tags)
         "SUPER+CTRL,Up,viewtoleft,0"
@@ -257,20 +230,10 @@
         "SUPER,W,togglefloating"
         "SUPER,Tab,toggleoverview"
         "ALT,Tab,focusstack,next"
-        "ALT,f,togglefullscreen"
-        "ALT+SHIFT,f,togglefakefullscreen"
-        "ALT,a,togglemaximizescreen"
-        "SUPER,I,minimized"
-        "SUPER+SHIFT,I,restore_minimized"
-        "SUPER+SHIFT,o,toggleoverlay"
-        "SUPER+SHIFT,g,toggleglobal"
-        "ALT,z,toggle_scratchpad"
+        "SUPER,f,togglefullscreen"
 
         # Screenshots & Layouts
-        "SUPER+SHIFT,S,spawn,$HOME/.config/mango/bin/screenshot.sh"
         "CTRL+SHIFT,space,switch_layout"
-        "CTRL,space,spawn,python3 $HOME/.config/mango/bin/layout-picker.py"
-        "SUPER,s,setlayout,center_tile"
         "CTRL,d,setlayout,DW"
         "SUPER+ALT,f,set_proportion,1.0"
         "ALT,space,switch_proportion_preset"
@@ -303,12 +266,8 @@
       ];
 
       axisbind = [
-        "SUPER+ALT,UP,focusdir,left"
-        "SUPER+ALT,DOWN,focusdir,right"
-        "SUPER,UP,viewtoleft_have_client"
-        "SUPER,DOWN,viewtoright_have_client"
-        "SUPER+CTRL,UP,tagtoleft"
-        "SUPER+CTRL,DOWN,tagtoright"
+        "SUPER,UP,focusdir,left"
+        "SUPER,DOWN,focusdir,right"
       ];
 
       gesturebind = [
