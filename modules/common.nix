@@ -2,6 +2,8 @@
 {
   imports = [
       ./zen-browser.nix
+      scripts/organizer.nix
+      scripts/auto-cleaner.nix
     ];
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
@@ -36,7 +38,6 @@
   };
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.configurationLimit = 10;
-  boot.loader.timeout = 1;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.initrd.compressor = "zstd";
   services.nscd.enable = true;

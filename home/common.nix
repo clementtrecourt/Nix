@@ -10,8 +10,13 @@ let
 in
 {
   imports = [
-      ./noctalia.nix
-    ];
+    ./noctalia.nix
+    ./mango.nix
+    ./kitty.nix
+    ./fish.nix
+    ./tmux.nix
+  ];
+
   home.username = "clem";
   home.homeDirectory = "/home/clem";
   home.stateVersion = "24.11";
@@ -35,181 +40,159 @@ in
 };
 
 
+  # Active la CLI 'home-manager' et la gestion automatique du shell profile
+  programs.home-manager.enable = true;
 
-  # Symlinks vers ~/Dot — le dépôt git reste la seule source de vérité.
+  # Symlinks vers ~/Dot (ou sources directes)
   home.file = {
-    # Fish
-    ".config/fish/config.fish".source = dot "fish/config.fish";
-    ".config/fish/fish_variables".source = dot "fish/fish_variables";
-    ".config/fish/functions".source = dot "fish/functions";
-
-    # Foot & Tmux
-    ".config/foot/foot.ini".source = dot "foot/foot.ini";
-    ".tmux.conf".source = dot ".tmux.conf";
-
-    # Caelestia
-    # ".config/caelestia/monitors".source = dot "caelestia/monitors";
-    # ".config/caelestia/hypr-vars.lua".source = dot "caelestia/hypr-vars.lua";
-    # ".config/caelestia/hypr-user.lua".source = dot "caelestia/hypr-user.lua";
-    # ".config/caelestia/monitors.lua".source = dot "caelestia/monitors.lua";
-    # ".config/caelestia/monitors-work.lua".source = dot "caelestia/monitors-work.lua";
-    # ".config/caelestia/shell.json".source = dot "caelestia/shell.json";
-    # ".config/caelestia/user-config.fish".source = dot "caelestia/user-config.fish";
-    # Mango
-    ".config/mango".source = dot "mango";
-    # Rofi
-    ".config/rofi/".source = dot "rofi/";
-    # Scripts
-    ".local/bin/".source = dot "scripts/";
-    # Waybar
-    ".config/waybar".source = dot "waybar";
-    # Quickshell
-    ".config/quickshell/".source = dot "quickshell";
-    # Matugen
-    ".config/matugen/".source = dot "matugen/";
-    # Kitty
-    ".config/kitty/".source = dot "kitty/";
-    # Icons
     ".icons/icon_scripts".source = dot "icons/icon_scripts";
-    # Swaylock
-    ".config/swaylock/".source = dot "swaylock";
-    # Fastfetch
-    ".config/fastfetch/".source = dot "fastfetch/";
-    # Hyprlock
-    ".config/hyprlock/".source = dot "hyprlock/";
-    # Dunst
-    ".config/dunst/".source = dot "dunst/";
-
   };
-    gtk = {
-      enable = true;
-      theme = {
-        name = "catppuccin-mocha-blue-standard";
-        package = pkgs.catppuccin-gtk.override {
-          accents = [ "blue" ];
-          variant = "mocha";
-        };
-      };
-      iconTheme = {
-        name = "Papirus-Dark";
-        package = pkgs.papirus-icon-theme;
-      };
-      gtk3.extraConfig = {
-        gtk-application-prefer-dark-theme = 1;
-      };
-      gtk4 = {
-        theme = null;
-        extraConfig = {
-          gtk-application-prefer-dark-theme = 1;
-        };
-      };
-    };
 
-    dconf.settings = {
-      "org/gnome/desktop/interface" = {
-        color-scheme = "prefer-dark";
-        gtk-theme = "catppuccin-mocha-blue-standard";
-        icon-theme = "Papirus-Dark";
+  # Gestion déclarative des configs sans module natif
+  xdg.configFile = {
+    "cava".source = dot "cava";
+    "fastfetch".source = dot "fastfetch";
+    "btop".source = dot "btop";
+  };
+
+  # ============================================
+  # Thèmes & Apparence
+  # ============================================
+  gtk = {
+    enable = true;
+    theme = {
+      name = "catppuccin-mocha-blue-standard";
+      package = pkgs.catppuccin-gtk.override {
+        accents = [ "blue" ];
+        variant = "mocha";
       };
     };
-
-    # Cursor Hyprland / GTK
-    home.pointerCursor = {
-      enable = true; # 👈 Règle le 2ème avertissement
-      name = "capitaine-cursors";
-      package = pkgs.capitaine-cursors;
-      size = 24;
-      gtk.enable = true;
-      hyprcursor.enable = true;
+    iconTheme = {
+      name = "Papirus-Dark";
+      package = pkgs.papirus-icon-theme;
     };
+    gtk3.extraConfig.gtk-application-prefer-dark-theme = 1;
+    gtk4.extraConfig.gtk-application-prefer-dark-theme = 1;
+  };
+
+  dconf.settings = {
+    "org/gnome/desktop/interface" = {
+      color-scheme = "prefer-dark";
+      gtk-theme = "catppuccin-mocha-blue-standard";
+      icon-theme = "Papirus-Dark";
+    };
+  };
+
+  home.pointerCursor = {
+    enable = true;
+    name = "capitaine-cursors";
+    package = pkgs.capitaine-cursors;
+    size = 24;
+    gtk.enable = true;
+    hyprcursor.enable = true;
+  };
+
   qt = {
     enable = true;
     style.name = "kvantum";
     platformTheme.name = "qt6ct";
   };
 
+  # ============================================
+  # Programmes gérés nativement par Home Manager
+  # ============================================
   programs.git = {
     enable = true;
-    settings = {
-      user.name = "clementtrecourt";
-      user.email = "clementt.pro@protonmail.com";
-      init.defaultBranch = "main";
-    };
+    userName = "clementtrecourt";
+    userEmail = "clementt.pro@protonmail.com";
+    extraConfig.init.defaultBranch = "main";
   };
+
   programs.direnv = {
     enable = true;
     nix-direnv.enable = true;
   };
+
+  programs.starship = {
+    enable = true;
+    enableFishIntegration = true;
+    # Si tu as un fichier starship.toml personnalisé dans ~/Dot :
+    # settings = builtins.fromTOML (builtins.readFile "${config.home.homeDirectory}/Dot/starship.toml");
+  };
+
+  programs.yazi = {
+    enable = true;
+    enableFishIntegration = true;
+  };
+
+  programs.bat.enable = true;
+  programs.zoxide.enable = true;
+
   xdg.dataFile."icons/hicolor/scalable/apps/zen-beta.svg".source =
     "${pkgs.papirus-icon-theme}/share/icons/Papirus/48x48/apps/zen-browser.svg";
-  # Packages utilisateur communs
-  home.packages = with pkgs; [
-  awww
-  bat
-  bibata-cursors
-  brightnessctl
-  btop
-  cava
-  cbonsai
-  chafa
-  cliphist
-  dunst
-  eza
-  fastfetch
-  fd
-  fzf
-  gammastep
-  git
-  greetd
-  tuigreet
-  hyprshot
-  hyprshade
-  imv
-  inter
-  iwd
-  jq
-  kitty
-  librewolf
-  material-symbols
-  matugen
-  mpv
-  neovim
-  networkmanagerapplet
-  nwg-look
-  openssh
-  papirus-icon-theme
-  pipes
-  quickshell
-  ripgrep
-  rofi
-  rofi-calc
-  rofimoji
-  swayidle
-  swaylock
-  terminus_font_ttf
-  inter
-  trashy
-  jetbrains-mono
-  uv
-  vlc
-  waybar
-  wl-clipboard
-  yazi
-  clipse
-  zathura
-  swaybg
-  zoxide
-  playerctl
-  hyprlock
-  zsh
-  xdg-desktop-portal-gtk
 
-  wlsunset
-  pkg-config
-  sqlite
-  # Qt
-  qt6Packages.qt6ct
-  kdePackages.plasma-integration
-  motrix-next
+  # ============================================
+  # Packages utilisateur (sans doublons)
+  # ============================================
+  home.packages = with pkgs; [
+    # Outils CLI & système
+    awww
+    bibata-cursors
+    brightnessctl
+    cbonsai
+    chafa
+    cliphist
+    clipse
+    dunst
+    fd
+    fzf
+    gammastep
+    hyprshot
+    hyprshade
+    hyprlock
+    imv
+    iwd
+    jq
+    matugen
+    mpv
+    neovim
+    networkmanagerapplet
+    nwg-look
+    openssh
+    pipes
+    playerctl
+    quickshell
+    ripgrep
+    rofi
+    rofi-calc
+    rofimoji
+    swayidle
+    swaylock
+    swaybg
+    trashy
+    tuigreet
+    uv
+    vlc
+    waybar
+    wl-clipboard
+    wlsunset
+    zathura
+
+    # Polices
+    inter
+    jetbrains-mono
+    material-symbols
+    terminus_font_ttf
+
+    # Utilitaires & Dev
+    pkg-config
+    sqlite
+    librewolf
+    motrix-next
+
+    # Qt & Intégration
+    qt6Packages.qt6ct
+    kdePackages.plasma-integration
+    xdg-desktop-portal-gtk
   ];
 }
