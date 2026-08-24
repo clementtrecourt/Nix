@@ -2,6 +2,7 @@
 {
   imports = [
       ./firefox.nix
+      scripts/organizer.nix
     ];
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
