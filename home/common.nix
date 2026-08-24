@@ -23,8 +23,6 @@ in
 
   # Symlinks vers ~/Dot — le dépôt git reste la seule source de vérité.
   home.file = {
-    # Scripts
-    ".local/bin/".source = dot "scripts/";
     # Icons
     ".icons/icon_scripts".source = dot "icons/icon_scripts";
 
@@ -108,7 +106,6 @@ in
   fzf
   gammastep
   git
-  greetd
   tuigreet
   hyprshot
   hyprshade
