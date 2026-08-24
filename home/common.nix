@@ -13,6 +13,8 @@ in
       ./noctalia.nix
       ./mango.nix
       ./kitty.nix
+      ./fish.nix
+      ./tmux.nix
     ];
   home.username = "clem";
   home.homeDirectory = "/home/clem";
@@ -21,47 +23,10 @@ in
 
   # Symlinks vers ~/Dot — le dépôt git reste la seule source de vérité.
   home.file = {
-    # Fish
-    ".config/fish/config.fish".source = dot "fish/config.fish";
-    ".config/fish/fish_variables".source = dot "fish/fish_variables";
-    ".config/fish/functions".source = dot "fish/functions";
-
-    # Foot & Tmux
-    ".config/foot/foot.ini".source = dot "foot/foot.ini";
-    ".tmux.conf".source = dot ".tmux.conf";
-
-    # Caelestia
-    # ".config/caelestia/monitors".source = dot "caelestia/monitors";
-    # ".config/caelestia/hypr-vars.lua".source = dot "caelestia/hypr-vars.lua";
-    # ".config/caelestia/hypr-user.lua".source = dot "caelestia/hypr-user.lua";
-    # ".config/caelestia/monitors.lua".source = dot "caelestia/monitors.lua";
-    # ".config/caelestia/monitors-work.lua".source = dot "caelestia/monitors-work.lua";
-    # ".config/caelestia/shell.json".source = dot "caelestia/shell.json";
-    # ".config/caelestia/user-config.fish".source = dot "caelestia/user-config.fish";
-    # Mango
-    # ".config/mango".source = dot "mango";
-    # Rofi
-    ".config/rofi/".source = dot "rofi/";
     # Scripts
     ".local/bin/".source = dot "scripts/";
-    # Waybar
-    ".config/waybar".source = dot "waybar";
-    # Quickshell
-    ".config/quickshell/".source = dot "quickshell";
-    # Matugen
-    ".config/matugen/".source = dot "matugen/";
-    # Kitty
-    ".config/kitty/".source = dot "kitty/";
     # Icons
     ".icons/icon_scripts".source = dot "icons/icon_scripts";
-    # Swaylock
-    ".config/swaylock/".source = dot "swaylock";
-    # Fastfetch
-    ".config/fastfetch/".source = dot "fastfetch/";
-    # Hyprlock
-    ".config/hyprlock/".source = dot "hyprlock/";
-    # Dunst
-    ".config/dunst/".source = dot "dunst/";
 
   };
     gtk = {
