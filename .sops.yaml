@@ -1,0 +1,10 @@
+keys:
+  - &clem age1ty8cc3ps0d4ksuhuuf2n59wr3dpx9sswxzl5xhqccwcw73mc2stq7cudwq
+  - &machine_work age1wfve5dpn7f2wflma2mkzc3lqw2m006zk5amkcf9wdzqght7zz9xq8myvvz
+
+creation_rules:
+  - path_regex: secrets/[^/]+\.(yaml|json|env)$
+    key_groups:
+      - age:
+          - *clem
+          - *machine_work

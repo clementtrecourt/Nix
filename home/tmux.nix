@@ -37,7 +37,6 @@
       bind -n M-w kill-pane
       bind -n M-/ split-window -h -c "#{pane_current_path}"
       bind -n M-- split-window -v -c "#{pane_current_path}"
-
       # ---------------------------------------------------------
       # 3. NAVIGATION ENTRE LES SPLITS (Alt + hjkl)
       # ---------------------------------------------------------

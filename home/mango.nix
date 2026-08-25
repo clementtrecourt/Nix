@@ -108,7 +108,7 @@
       # Layouts & Scroller
       # ============================================
       tagrule = [
-        "id:1,layout_name:scroller"
+        "id:1,layout_name:dwindle"
         "id:2,layout_name:scroller"
       ];
 

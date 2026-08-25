@@ -18,6 +18,27 @@
     cores = 0;
     warn-dirty = false;
     builders-use-substitutes = true;
+    sops = {
+      defaultSopsFile = ../secrets/secrets.yaml;
+      defaultSopsFormat = "yaml";
+      age.sshKeyPaths = ["/etc/ssh/ssh_host_ed25519_key"];
+
+      secrets.user_password = {
+        neededForUsers = true;
+      };
+    };
+
+    # <-- 1. L'adresse de votre Homelab sur le port 8081 :
+    substituters = [
+      "https://cache.nixos.org"
+      "http://192.168.1.10:8081/main-cache"
+    ];
+
+    # <-- 2. Votre vraie clé publique générée :
+    trusted-public-keys = [
+      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+      "main-cache:sgv8zNRoeNIWhI18L7eyR7n/qHYA3HMqQq8mannz5kQ="
+    ];
   };
   hardware.graphics = {
     enable = true;
@@ -182,7 +203,7 @@
     isNormalUser = true;
     extraGroups = ["wheel" "corectrl"];
     shell = pkgs.fish;
-    hashedPassword = "$y$j9T$VC7rDnqaqcmhe5kp3O.KS0$bPN8wmEwcGLgl0wTF7ouClBPYh3ixUTTMz0aZhWvfB4";
+    hashedPasswordFile = config.sops.secrets.user_password.path;
   };
 
   programs.mango.enable = true;
@@ -216,5 +237,6 @@
     zip
     python3
     brave
+    attic-client
   ];
 }

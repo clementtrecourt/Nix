@@ -55,8 +55,8 @@
       gcl = "git clone";
 
       # NixOS & nh
-      nrs = "nix fmt; and nh os switch";
-      nru = "nix fmt; and nh os switch --update";
+      nrs = "nix fmt; and nh os switch; and attic push main-cache (readlink -f /run/current-system)";
+      nru = "nix fmt; and nh os switch --update; and attic push main-cache (readlink -f /run/current-system)";
       nrt = "nix fmt; and nh os test";
       nrb = "nh os boot";
       nrg = "nh clean all";
