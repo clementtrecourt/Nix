@@ -11,6 +11,23 @@
     scripts/auto-cleaner.nix
     scripts/copy-context.nix
   ];
+
+  # ============================================
+  # 1. Configuration SOPS (À la racine du module !)
+  # ============================================
+  sops = {
+    defaultSopsFile = ../secrets/secrets.yaml;
+    defaultSopsFormat = "yaml";
+    age.sshKeyPaths = ["/etc/ssh/ssh_host_ed25519_key"];
+
+    secrets.user_password = {
+      neededForUsers = true;
+    };
+  };
+
+  # ============================================
+  # 2. Configuration Nix & Caches
+  # ============================================
   nix.settings = {
     experimental-features = ["nix-command" "flakes"];
     auto-optimise-store = true;
@@ -18,32 +35,24 @@
     cores = 0;
     warn-dirty = false;
     builders-use-substitutes = true;
-    sops = {
-      defaultSopsFile = ../secrets/secrets.yaml;
-      defaultSopsFormat = "yaml";
-      age.sshKeyPaths = ["/etc/ssh/ssh_host_ed25519_key"];
 
-      secrets.user_password = {
-        neededForUsers = true;
-      };
-    };
-
-    # <-- 1. L'adresse de votre Homelab sur le port 8081 :
+    # Caches binaires
     substituters = [
       "https://cache.nixos.org"
       "http://192.168.1.10:8081/main-cache"
     ];
 
-    # <-- 2. Votre vraie clé publique générée :
     trusted-public-keys = [
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
       "main-cache:sgv8zNRoeNIWhI18L7eyR7n/qHYA3HMqQq8mannz5kQ="
     ];
   };
+
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
   };
+
   programs.nix-index-database.comma.enable = true;
   services.earlyoom = {
     enable = true;

@@ -16,7 +16,7 @@
   hardware.bluetooth.powerOnBoot = true;
   services.blueman.enable = true;
   services.flatpak.enable = true;
-
+  boot.kernelPackages = pkgs.linuxPackages_cachyos;
   programs.corectrl.enable = true;
   hardware.amdgpu.overdrive.enable = true;
   services.udev.packages = [pkgs.game-devices-udev-rules];

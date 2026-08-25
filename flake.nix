@@ -5,7 +5,14 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # <-- 1. Chaotic-Nyx (pour le PC Home)
+    chaotic.url = "https://flakehub.com/f/chaotic-cx/nyx/*.tar.gz";
 
+    # <-- 2. MicroVM (pour le PC Work)
+    microvm = {
+      url = "github:astro/microvm.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -56,39 +63,43 @@
     mango,
     lazyvim,
     sops-nix,
+    chaotic,
+    microvm,
     ...
   } @ inputs: let
     system = "x86_64-linux";
-    pkgs = nixpkgs.legacyPackages.${system}; # <-- Ligne ajoutée ici
+    pkgs = nixpkgs.legacyPackages.${system};
 
-    mkHost = hostPath: homeModule:
+    mkHost = hostPath: homeModule: extraModules:
       nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {inherit inputs;};
-        modules = [
-          hostPath
-          nix-index-database.nixosModules.nix-index
-          sops-nix.nixosModules.sops
+        modules =
+          [
+            hostPath
+            nix-index-database.nixosModules.nix-index
+            sops-nix.nixosModules.sops
 
-          {
-            nixpkgs.overlays = [
-              oskars-dotfiles.overlays.spotx
-              helium-flake.overlays.default
-            ];
-          }
+            {
+              nixpkgs.overlays = [
+                inputs.oskars-dotfiles.overlays.spotx
+                inputs.helium-flake.overlays.default
+              ];
+            }
 
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.backupFileExtension = "bak";
-            home-manager.users.clem = import homeModule;
-            home-manager.extraSpecialArgs = {inherit inputs;};
-            home-manager.sharedModules = [
-              mango.hmModules.mango
-            ];
-          }
-        ];
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.backupFileExtension = "bak";
+              home-manager.users.clem = import homeModule;
+              home-manager.extraSpecialArgs = {inherit inputs;};
+              home-manager.sharedModules = [
+                inputs.mango.hmModules.mango
+              ];
+            }
+          ]
+          ++ extraModules; # <-- Permet d'ajouter des modules spécifiques par machine
       };
   in {
     formatter.${system} = pkgs.writeShellScriptBin "nix-fmt" ''
@@ -100,8 +111,15 @@
     '';
 
     nixosConfigurations = {
-      home = mkHost ./hosts/home/configuration.nix ./home/common.nix;
-      work = mkHost ./hosts/work/configuration.nix ./home/work.nix;
+      # Machine Home avec Chaotic-Nyx
+      home = mkHost ./hosts/home/configuration.nix ./home/common.nix [
+        chaotic.nixosModules.default
+      ];
+
+      # Machine Work avec MicroVM
+      work = mkHost ./hosts/work/configuration.nix ./home/work.nix [
+        microvm.nixosModules.host
+      ];
     };
   };
 }
