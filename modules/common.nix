@@ -4,7 +4,7 @@
       ./zen-browser.nix
       scripts/organizer.nix
       scripts/auto-cleaner.nix
-      scripts/copy-tree.nix
+      scripts/copy-context.nix
     ];
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
