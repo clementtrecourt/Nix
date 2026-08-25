@@ -1,4 +1,4 @@
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, inputs, ... }:
 
 let
   kvantumTheme = pkgs.catppuccin-kvantum.override {
@@ -15,6 +15,8 @@ in
     ./kitty.nix
     ./fish.nix
     ./tmux.nix
+    ./zed.nix
+    inputs.lazyvim.homeManagerModules.default
   ];
 
   home.username = "clem";
@@ -25,7 +27,7 @@ in
   home.activation.cleanGtkBackups = lib.hm.dag.entryBefore ["checkLinkTargets"] ''
     rm -f $HOME/.config/gtk-4.0/gtk.css.bak $HOME/.config/gtk-3.0/gtk.css.bak
   '';
-
+  programs.lazyvim.enable = true;
   systemd.user.services.polkit-gnome-authentication-agent-1 = {
     Unit = {
       Description = "Polkit GNOME Authentication Agent";
@@ -201,7 +203,6 @@ in
     jq
     matugen
     mpv
-    neovim
     networkmanagerapplet
     nwg-look
     openssh

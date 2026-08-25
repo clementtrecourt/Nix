@@ -19,7 +19,7 @@
   services.flatpak.enable = true;
 
   programs.corectrl.enable = true;
-  hardware.amdgpu.overdrive.enable = false;
+  hardware.amdgpu.overdrive.enable = true;
   services.udev.packages = [ pkgs.game-devices-udev-rules ];
   programs.appimage = {
     enable = true;
@@ -27,16 +27,9 @@
   };
   boot.kernel.sysctl = {
     # Nécessaire pour Steam/Proton, Star Citizen et les gros jeux (évite les crashs mémoire)
-    "vm.max_map_count" = 2147483642;
-
-    # Réduit l'utilisation agressive du swap pour privilégier la RAM physique (plus rapide)
-    "vm.swappiness" = 10;
-
-    # Augmente la limite de fichiers ouverts en même temps
-    "fs.file-max" = 2097152;
+    "vm.max_map_count" = 1048576;
   };
   hardware.amdgpu.initrd.enable = true;
-  powerManagement.cpuFreqGovernor = pkgs.lib.mkDefault "performance";
   environment.systemPackages = with pkgs; [
     heroic mangohud
     wineWow64Packages.stable

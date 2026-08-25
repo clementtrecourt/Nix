@@ -11,7 +11,7 @@
         url = "github:0xc000022070/zen-browser-flake";
         inputs.nixpkgs.follows = "nixpkgs";
       };
-
+    lazyvim.url = "github:pfassina/lazyvim-nix";
     oskars-dotfiles = {
       url = "github:oskardotglobal/.dotfiles/nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -32,7 +32,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, oskars-dotfiles, helium-flake, mango, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, oskars-dotfiles, helium-flake, mango, lazyvim, ... }@inputs:
   let
     mkHost = hostPath: homeModule: nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";

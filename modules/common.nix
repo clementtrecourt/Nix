@@ -181,7 +181,7 @@
     kitty xwayland-satellite tmux starship fish zoxide direnv fzf
     bat eza ripgrep fd btop jq tree
     git lazygit
-    neovim vim zed-editor
+    neovim vim
     wl-clipboard nemo waybar
     capitaine-cursors
     gcc
