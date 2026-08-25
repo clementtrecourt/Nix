@@ -4,6 +4,7 @@
       ./zen-browser.nix
       scripts/organizer.nix
       scripts/auto-cleaner.nix
+      scripts/copy-tree.nix
     ];
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
@@ -48,16 +49,20 @@
     enable = true;
     memoryPercent = 50; # Utilise jusqu'à 50% de la RAM comme swap compressé
   };
+
   services.greetd = {
-    enable = true;
-    settings = {
-      initial_session = { command = "mango"; user = "clem"; };
-      default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --cmd mango";
-        user = "greeter";
+      enable = true;
+      settings = {
+        initial_session = {
+          command = "${pkgs.fish}/bin/fish --login -c mango";
+          user = "clem";
+        };
+        default_session = {
+          command = "${pkgs.tuigreet}/bin/tuigreet --cmd '${pkgs.fish}/bin/fish --login -c mango'";
+          user = "greeter";
+        };
       };
     };
-  };
   boot.kernel.sysctl = {
     "net.core.default_qdisc" = "fq";
     "net.ipv4.tcp_congestion_control" = "bbr";

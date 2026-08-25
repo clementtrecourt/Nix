@@ -33,7 +33,7 @@
         "XDG_SESSION_TYPE,wayland"
         "MOZ_ENABLE_WAYLAND,1"
         "ELECTRON_OZONE_PLATFORM_HINT,auto"
-        "XDG_DATA_DIRS,$HOME/.local/share:/run/current-system/sw/share:/etc/profiles/per-user/$USER/share"
+        "XDG_DATA_DIRS,${config.home.homeDirectory}/.local/share:${config.home.homeDirectory}/.nix-profile/share:/etc/profiles/per-user/${config.home.username}/share:/run/current-system/sw/share"
       ];
 
       # ============================================

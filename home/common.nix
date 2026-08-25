@@ -22,6 +22,7 @@ in
   home.username = "clem";
   home.homeDirectory = "/home/clem";
   home.stateVersion = "24.11";
+  xdg.enable = true;
 
   # Nettoie les backups bloquants avant l'activation
   home.activation.cleanGtkBackups = lib.hm.dag.entryBefore ["checkLinkTargets"] ''
