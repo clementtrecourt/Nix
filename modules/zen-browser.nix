@@ -3,8 +3,7 @@
   pkgs,
   lib,
   ...
-}:
-let
+}: let
   extension = shortId: guid: {
     name = guid;
     value = {
@@ -231,10 +230,12 @@ let
     # never gets loaded and prefs silently don't apply. The Preferences key
     # goes through /etc/zen/policies/policies.json below, which we've
     # confirmed IS read (about:policies shows Active), so this actually works.
-    Preferences = lib.mapAttrs (_name: value: {
-      Value = value;
-      Status = "locked";
-    }) prefs;
+    Preferences =
+      lib.mapAttrs (_name: value: {
+        Value = value;
+        Status = "locked";
+      })
+      prefs;
 
     SearchEngines = {
       Default = "ddg";
@@ -266,8 +267,7 @@ let
       ];
     };
   };
-in
-{
+in {
   # System-wide policy file — this is what actually fixes "Enterprise
   # Policies service is inactive" AND is now also how `prefs` get applied
   # (via the Preferences key above), since Zen's running binary resolves
@@ -282,13 +282,15 @@ in
   };
 
   environment.systemPackages = [
-    (pkgs.wrapFirefox
+    (
+      pkgs.wrapFirefox
       inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.beta-unwrapped
       {
         extraPrefs = lib.concatLines (
           lib.mapAttrsToList (
             name: value: ''lockPref(${lib.strings.toJSON name}, ${lib.strings.toJSON value});''
-          ) prefs
+          )
+          prefs
         );
 
         extraPolicies = policies;

@@ -1,7 +1,6 @@
 # ~/Dot/home-manager/noctalia.nix
-{ inputs, ... }:
-{
-  imports = [ inputs.noctalia.homeModules.default ];
+{inputs, ...}: {
+  imports = [inputs.noctalia.homeModules.default];
 
   programs.noctalia = {
     enable = true;
@@ -12,15 +11,24 @@
         background_opacity = 0.4;
         contact_shadow = true;
         end = [
-          "media" "tray" "notifications" "clipboard" "network"
-          "bluetooth" "volume" "brightness" "battery"
-          "control-center" "session" "now-playing"
+          "media"
+          "tray"
+          "notifications"
+          "clipboard"
+          "network"
+          "bluetooth"
+          "volume"
+          "brightness"
+          "battery"
+          "control-center"
+          "session"
+          "now-playing"
         ];
         font_family = "Readex Pro";
         margin_ends = 0;
         radius = 0;
         shadow = false;
-        start = [ "launcher" "wallpaper" "workspaces" "screenshot" "btn" "wallhaven" ];
+        start = ["launcher" "wallpaper" "workspaces" "screenshot" "btn" "wallhaven"];
         dead_zone.actions = {
           scroll_down = "volume-down";
           scroll_up = "volume-up";
@@ -36,7 +44,6 @@
           command = "noctalia msg panel-toggle control-center media";
         };
       };
-
 
       plugins.enabled = [
         "kenn/keybind-cheatsheet"
@@ -63,12 +70,29 @@
         wallpaper_scheme = "m3-content";
         templates = {
           builtin_ids = [
-            "alacritty" "foot" "gtk3" "gtk4" "hyprland"
-            "kcolorscheme" "kitty" "mango" "qt" "starship" "umbriel"
+            "alacritty"
+            "foot"
+            "gtk3"
+            "gtk4"
+            "hyprland"
+            "kcolorscheme"
+            "kitty"
+            "mango"
+            "qt"
+            "starship"
+            "umbriel"
           ];
           community_ids = [
-            "libreoffice" "obsidian" "zed" "heroiclauncher"
-            "vicinae" "fastfetch" "papirus-icons" "bat" "lazygit" "yazi"
+            "libreoffice"
+            "obsidian"
+            "zed"
+            "heroiclauncher"
+            "vicinae"
+            "fastfetch"
+            "papirus-icons"
+            "bat"
+            "lazygit"
+            "yazi"
           ];
         };
       };

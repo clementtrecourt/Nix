@@ -1,6 +1,4 @@
-{ pkgs, ... }:
-
-let
+{pkgs, ...}: let
   copyContext = pkgs.writeShellApplication {
     name = "copy-context";
     runtimeInputs = with pkgs; [
@@ -134,8 +132,7 @@ let
       echo -e "📋 \e[32mSuccès ! L'arborescence et ''$FILE_COUNT fichiers ont été copiés dans le presse-papier au format Markdown !\e[0m"
     '';
   };
-in
-{
+in {
   environment.systemPackages = [
     copyContext
   ];

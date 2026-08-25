@@ -1,12 +1,13 @@
-{ config, lib, pkgs, ... }:
-
 {
+  config,
+  lib,
+  pkgs,
+  ...
+}: {
   # Assure que les outils utilisés par les alias/fonctions sont présents
   home.packages = with pkgs; [
     eza
     lazygit
-    zoxide
-    direnv
   ];
 
   programs.fish = {
@@ -54,9 +55,9 @@
       gcl = "git clone";
 
       # NixOS & nh
-      nrs = "nh os switch";
-      nru = "nh os switch --update";
-      nrt = "nh os test";
+      nrs = "nix fmt; and nh os switch";
+      nru = "nix fmt; and nh os switch --update";
+      nrt = "nix fmt; and nh os test";
       nrb = "nh os boot";
       nrg = "nh clean all";
       npk = "nh search";
@@ -188,7 +189,7 @@
       command -v direnv &>/dev/null && direnv hook fish | source
 
       # 5. Attachement automatique à tmux (session 'main')
-      if not set -q TMUX
+      if not set -q TMUX; and test "$TERM_PROGRAM" != "zed"
           exec tmux new-session -A -s main
       end
     '';

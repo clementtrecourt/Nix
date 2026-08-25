@@ -1,6 +1,8 @@
-{ pkgs, lib, ... }:
-
 {
+  pkgs,
+  lib,
+  ...
+}: {
   programs.zed-editor = {
     enable = true;
     installRemoteServer = true;
@@ -23,6 +25,7 @@
 
     # Paramètres Zed déclaratifs (~/.config/zed/settings.json)
     userSettings = {
+      buffer_font_family = "BlexMono Nerd Font";
       theme = {
         mode = "system";
         light = "One Light";
@@ -33,7 +36,7 @@
       show_whitespaces = "all";
       hour_format = "hour24";
       auto_update = false;
-      vim_mode = true;
+      vim_mode = false;
       base_keymap = "VSCode";
       load_direnv = "shell_hook";
 
@@ -62,14 +65,14 @@
         dock = "bottom";
         detect_venv = {
           on = {
-            directories = [ ".env" "env" ".venv" "venv" ];
+            directories = [".env" "env" ".venv" "venv"];
             activate_script = "default";
           };
         };
         env = {
           TERM = "alacritty";
         };
-        font_family = "FiraCode Nerd Font";
+        font_family = "BlexMono Nerd Font";
         font_features = null;
         font_size = null;
         line_height = "comfortable";
@@ -109,21 +112,21 @@
       # Paramètres par langage
       languages = {
         "Elixir" = {
-          language_servers = [ "!lexical" "elixir-ls" "!next-ls" ];
+          language_servers = ["!lexical" "elixir-ls" "!next-ls"];
           format_on_save = {
             external = {
               command = "mix";
-              arguments = [ "format" "--stdin-filename" "{buffer_path}" "-" ];
+              arguments = ["format" "--stdin-filename" "{buffer_path}" "-"];
             };
           };
         };
 
         "HEEX" = {
-          language_servers = [ "!lexical" "elixir-ls" "!next-ls" ];
+          language_servers = ["!lexical" "elixir-ls" "!next-ls"];
           format_on_save = {
             external = {
               command = "mix";
-              arguments = [ "format" "--stdin-filename" "{buffer_path}" "-" ];
+              arguments = ["format" "--stdin-filename" "{buffer_path}" "-"];
             };
           };
         };

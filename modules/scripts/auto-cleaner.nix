@@ -1,6 +1,4 @@
-{ pkgs, ... }:
-
-let
+{pkgs, ...}: let
   cleanerScript = pkgs.writeShellScriptBin "clean-user-cache" ''
     set -euo pipefail
 
@@ -12,13 +10,12 @@ let
     THUMBS="$HOME/.cache/thumbnails"
     [ -d "$THUMBS" ] && find "$THUMBS" -type f -atime +30 -delete 2>/dev/null || true
   '';
-in
-{
-  environment.systemPackages = [ cleanerScript ];
+in {
+  environment.systemPackages = [cleanerScript];
 
   systemd.user.services.auto-clean-cache = {
     description = "Nettoyage automatique de la corbeille et des caches";
-    wantedBy = [ "default.target" ];
+    wantedBy = ["default.target"];
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${cleanerScript}/bin/clean-user-cache";
@@ -27,7 +24,7 @@ in
 
   systemd.user.timers.auto-clean-cache = {
     description = "Timer quotidien de nettoyage des caches";
-    wantedBy = [ "timers.target" ];
+    wantedBy = ["timers.target"];
     timerConfig = {
       OnCalendar = "daily";
       Persistent = true;

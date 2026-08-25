@@ -1,12 +1,15 @@
-{ config, lib, pkgs, ... }:
-
 {
+  config,
+  lib,
+  pkgs,
+  ...
+}: {
   programs.kitty = {
     enable = true;
 
     # Police d'écriture
     font = {
-      name = "JetBrainsMono Nerd Font";
+      name = "BlexMono Nerd Font";
       size = 15;
     };
 
@@ -59,7 +62,7 @@
   };
 
   # Crée le dossier des thèmes et le fichier vide s'il n'existe pas encore
-  home.activation.createEmptyKittyNoctaliaTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  home.activation.createEmptyKittyNoctaliaTheme = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p $HOME/.config/kitty/themes
     touch $HOME/.config/kitty/themes/noctalia.conf
   '';

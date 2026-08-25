@@ -1,6 +1,10 @@
-{ config, lib, pkgs, inputs, ... }:
-
 {
+  config,
+  lib,
+  pkgs,
+  inputs,
+  ...
+}: {
   xdg.configFile."xkb/symbols/us_qwerty-fr".source = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
   wayland.windowManager.mango = {
     enable = true;
@@ -12,7 +16,7 @@
     '';
 
     # 1. Place les directives "source" tout en bas du config.conf généré
-    bottomPrefixes = [ "source" ];
+    bottomPrefixes = ["source"];
 
     # 2. Source le fichier dynamique généré par Noctalia
     extraConfig = ''
@@ -290,7 +294,7 @@
 
   # (Optionnel) Crée un fichier vide au premier déploiement s'il n'existe pas encore
   # pour éviter que mango ne lève une erreur si Noctalia ne l'a pas encore créé.
-  home.activation.createEmptyNoctaliaConf = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  home.activation.createEmptyNoctaliaConf = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p $HOME/.config/mango
     touch $HOME/.config/mango/noctalia.conf
   '';

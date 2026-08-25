@@ -1,6 +1,4 @@
-{ pkgs, ... }:
-
-let
+{pkgs, ...}: let
   organizeScript = pkgs.writeShellScriptBin "organize-files" ''
     set -euo pipefail
 
@@ -77,14 +75,13 @@ let
       esac
     done
   '';
-in
-{
-  environment.systemPackages = [ organizeScript ];
+in {
+  environment.systemPackages = [organizeScript];
 
   systemd.user.services.organize-downloads = {
     description = "Rangement automatique du dossier Downloads";
-    wantedBy = [ "default.target" ];
-    after = [ "default.target" ];
+    wantedBy = ["default.target"];
+    after = ["default.target"];
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${organizeScript}/bin/organize-files";
@@ -93,7 +90,7 @@ in
 
   systemd.user.timers.organize-downloads = {
     description = "Timer pour ranger périodiquement le dossier Downloads";
-    wantedBy = [ "timers.target" ];
+    wantedBy = ["timers.target"];
     timerConfig = {
       OnCalendar = "hourly";
       Persistent = true;

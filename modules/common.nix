@@ -1,20 +1,29 @@
-{ config, lib, pkgs, inputs, ... }:
 {
+  config,
+  lib,
+  pkgs,
+  inputs,
+  ...
+}: {
   imports = [
-      ./zen-browser.nix
-      scripts/organizer.nix
-      scripts/auto-cleaner.nix
-      scripts/copy-context.nix
-    ];
+    ./zen-browser.nix
+    scripts/organizer.nix
+    scripts/auto-cleaner.nix
+    scripts/copy-context.nix
+  ];
   nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
+    experimental-features = ["nix-command" "flakes"];
     auto-optimise-store = true;
     max-jobs = "auto";
     cores = 0;
     warn-dirty = false;
     builders-use-substitutes = true;
   };
-  hardware.graphics.enable32Bit = true;
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+  };
+  programs.nix-index-database.comma.enable = true;
   services.earlyoom = {
     enable = true;
     freeMemThreshold = 5; # Déclenche si moins de 5% de RAM disponible
@@ -29,13 +38,13 @@
   };
   boot.initrd.systemd.enable = true;
   services.xserver.xkb = {
-      layout = "qwerty-fr";
-      variant = "";
-      extraLayouts.qwerty-fr = {
-        description = "US keyboard with french symbols - AltGr combination";
-        languages   = [ "eng" ];
-        symbolsFile = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
-      };
+    layout = "qwerty-fr";
+    variant = "";
+    extraLayouts.qwerty-fr = {
+      description = "US keyboard with french symbols - AltGr combination";
+      languages = ["eng"];
+      symbolsFile = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
+    };
   };
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.configurationLimit = 10;
@@ -51,32 +60,33 @@
   };
 
   services.greetd = {
-      enable = true;
-      settings = {
-        initial_session = {
-          command = "${pkgs.fish}/bin/fish --login -c mango";
-          user = "clem";
-        };
-        default_session = {
-          command = "${pkgs.tuigreet}/bin/tuigreet --cmd '${pkgs.fish}/bin/fish --login -c mango'";
-          user = "greeter";
-        };
+    enable = true;
+    settings = {
+      initial_session = {
+        command = "${pkgs.fish}/bin/fish --login -c mango";
+        user = "clem";
+      };
+      default_session = {
+        command = "${pkgs.tuigreet}/bin/tuigreet --cmd '${pkgs.fish}/bin/fish --login -c mango'";
+        user = "greeter";
       };
     };
+  };
   boot.kernel.sysctl = {
     "net.core.default_qdisc" = "fq";
     "net.ipv4.tcp_congestion_control" = "bbr";
   };
   programs.dconf.enable = true;
   systemd.coredump.enable = false;
-  environment.variables = { EDITOR = "nvim"; VISUAL = "nvim"; };
+  environment.variables = {
+    EDITOR = "nvim";
+    VISUAL = "nvim";
+  };
   networking.modemmanager.enable = false;
   time.timeZone = "Europe/Paris";
   services.timesyncd.enable = true;
   networking.networkmanager.enable = true;
   systemd.services.NetworkManager-wait-online.enable = false;
-
-  hardware.graphics.enable = true; # enable32Bit géré à part si gaming
 
   services.pipewire = {
     enable = true;
@@ -84,78 +94,79 @@
     pulse.enable = true;
   };
   fonts = {
-      enableDefaultPackages = true;
-      packages = with pkgs; [
-        ibm-plex
-        (google-fonts.override { fonts = [ "Readex Pro" ]; })
-        nerd-fonts.im-writing
-        nerd-fonts.jetbrains-mono
-        nerd-fonts.symbols-only
-      ];
-      fontconfig = {
-        defaultFonts = {
-          monospace = [ "IBM Plex Mono" ];
-          sansSerif = [ "Readex Pro" ];
-          serif = [ "IBM Plex Serif" ];
-        };
-        localConf = ''
-          <?xml version="1.0"?>
-          <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
-          <fontconfig>
-            <!-- Alias generic sans-serif -->
-            <match target="pattern">
-              <test qual="any" name="family"><string>sans-serif</string></test>
-              <edit name="family" mode="assign" binding="strong">
-                <string>Readex Pro</string>
-              </edit>
-            </match>
-
-            <!-- Force specific common font substitutions -->
-            <match target="pattern">
-              <test qual="any" name="family"><string>Arial</string></test>
-              <edit name="family" mode="assign" binding="strong">
-                <string>Readex Pro</string>
-              </edit>
-            </match>
-
-            <match target="pattern">
-              <test qual="any" name="family"><string>Helvetica</string></test>
-              <edit name="family" mode="assign" binding="strong">
-                <string>Readex Pro</string>
-              </edit>
-            </match>
-
-            <match target="pattern">
-              <test qual="any" name="family"><string>Roboto</string></test>
-              <edit name="family" mode="assign" binding="strong">
-                <string>Readex Pro</string>
-              </edit>
-            </match>
-
-            <match target="pattern">
-              <test qual="any" name="family"><string>Segoe UI</string></test>
-              <edit name="family" mode="assign" binding="strong">
-                <string>Readex Pro</string>
-              </edit>
-            </match>
-
-            <match target="pattern">
-              <test qual="any" name="family"><string>Verdana</string></test>
-              <edit name="family" mode="assign" binding="strong">
-                <string>Readex Pro</string>
-              </edit>
-            </match>
-
-            <match target="pattern">
-              <test qual="any" name="family"><string>Calibri</string></test>
-              <edit name="family" mode="assign" binding="strong">
-                <string>Readex Pro</string>
-              </edit>
-            </match>
-          </fontconfig>
-        '';
+    enableDefaultPackages = true;
+    packages = with pkgs; [
+      ibm-plex
+      (google-fonts.override {fonts = ["Readex Pro"];})
+      nerd-fonts.im-writing
+      nerd-fonts.jetbrains-mono
+      nerd-fonts.symbols-only
+      nerd-fonts.blex-mono
+    ];
+    fontconfig = {
+      defaultFonts = {
+        monospace = ["IBM Plex Mono"];
+        sansSerif = ["Readex Pro"];
+        serif = ["IBM Plex Serif"];
       };
+      localConf = ''
+        <?xml version="1.0"?>
+        <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+        <fontconfig>
+          <!-- Alias generic sans-serif -->
+          <match target="pattern">
+            <test qual="any" name="family"><string>sans-serif</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Readex Pro</string>
+            </edit>
+          </match>
+
+          <!-- Force specific common font substitutions -->
+          <match target="pattern">
+            <test qual="any" name="family"><string>Arial</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Readex Pro</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>Helvetica</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Readex Pro</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>Roboto</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Readex Pro</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>Segoe UI</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Readex Pro</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>Verdana</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Readex Pro</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>Calibri</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Readex Pro</string>
+            </edit>
+          </match>
+        </fontconfig>
+      '';
     };
+  };
 
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
@@ -169,7 +180,7 @@
   };
   users.users.clem = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "corectrl" ];
+    extraGroups = ["wheel" "corectrl"];
     shell = pkgs.fish;
     hashedPassword = "$y$j9T$VC7rDnqaqcmhe5kp3O.KS0$bPN8wmEwcGLgl0wTF7ouClBPYh3ixUTTMz0aZhWvfB4";
   };
@@ -183,15 +194,27 @@
     flake = "/home/clem/Nix";
   };
   environment.systemPackages = with pkgs; [
-    kitty xwayland-satellite tmux starship fish zoxide direnv fzf
-    bat eza ripgrep fd btop jq tree
-    git lazygit
-    neovim vim
-    wl-clipboard nemo waybar
+    xwayland-satellite
+    fzf
+    ripgrep
+    fd
+    btop
+    jq
+    tree
+    neovim
+    vim
+    wl-clipboard
+    nemo
+    waybar
     capitaine-cursors
     gcc
     gnumake
-    unrar unzip tldr spotify zip yazi vlc python3
+    unrar
+    unzip
+    tldr
+    spotify
+    zip
+    python3
     brave
   ];
 }

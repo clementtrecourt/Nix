@@ -6,12 +6,22 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    mango.url = "github:mangowm/mango";
+    nix-index-database = {
+      url = "github:nix-community/nix-index-database";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    mango = {
+      url = "github:mangowm/mango";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    lazyvim = {
+      url = "github:pfassina/lazyvim-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     zen-browser = {
-        url = "github:0xc000022070/zen-browser-flake";
-        inputs.nixpkgs.follows = "nixpkgs";
-      };
-    lazyvim.url = "github:pfassina/lazyvim-nix";
+      url = "github:0xc000022070/zen-browser-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     oskars-dotfiles = {
       url = "github:oskardotglobal/.dotfiles/nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -32,36 +42,57 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, oskars-dotfiles, helium-flake, mango, lazyvim, ... }@inputs:
-  let
-    mkHost = hostPath: homeModule: nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      specialArgs = { inherit inputs; };
-      modules = [
-        hostPath
+  outputs = {
+    self,
+    nixpkgs,
+    home-manager,
+    nix-index-database,
+    oskars-dotfiles,
+    helium-flake,
+    mango,
+    lazyvim,
+    ...
+  } @ inputs: let
+    system = "x86_64-linux";
+    pkgs = nixpkgs.legacyPackages.${system}; # <-- Ligne ajoutée ici
 
-        {
-          nixpkgs.overlays = [
-            oskars-dotfiles.overlays.spotx
-            helium-flake.overlays.default
-          ];
-        }
+    mkHost = hostPath: homeModule:
+      nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = {inherit inputs;};
+        modules = [
+          hostPath
+          nix-index-database.nixosModules.nix-index
 
-        home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-          home-manager.backupFileExtension = "bak";
-          home-manager.users.clem = import homeModule;
-          home-manager.extraSpecialArgs = { inherit inputs; };
-          home-manager.sharedModules = [
-            mango.hmModules.mango # ou mango.homeManagerModules.default
-          ];
-        }
-      ];
-    };
-  in
-  {
+          {
+            nixpkgs.overlays = [
+              oskars-dotfiles.overlays.spotx
+              helium-flake.overlays.default
+            ];
+          }
+
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.backupFileExtension = "bak";
+            home-manager.users.clem = import homeModule;
+            home-manager.extraSpecialArgs = {inherit inputs;};
+            home-manager.sharedModules = [
+              mango.hmModules.mango
+            ];
+          }
+        ];
+      };
+  in {
+    formatter.${system} = pkgs.writeShellScriptBin "nix-fmt" ''
+      if [ "$#" -eq 0 ]; then
+        exec ${pkgs.alejandra}/bin/alejandra .
+      else
+        exec ${pkgs.alejandra}/bin/alejandra "$@"
+      fi
+    '';
+
     nixosConfigurations = {
       home = mkHost ./hosts/home/configuration.nix ./home/common.nix;
       work = mkHost ./hosts/work/configuration.nix ./home/work.nix;

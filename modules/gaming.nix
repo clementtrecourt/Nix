@@ -1,12 +1,11 @@
-{ pkgs, ... }:
-{
+{pkgs, ...}: {
   hardware.graphics.enable32Bit = true;
 
   programs.steam = {
     enable = true;
     remotePlay.openFirewall = true;
     gamescopeSession.enable = true;
-    extraCompatPackages = [ pkgs.proton-ge-bin ];
+    extraCompatPackages = [pkgs.proton-ge-bin];
   };
 
   programs.gamescope.enable = true;
@@ -20,7 +19,7 @@
 
   programs.corectrl.enable = true;
   hardware.amdgpu.overdrive.enable = true;
-  services.udev.packages = [ pkgs.game-devices-udev-rules ];
+  services.udev.packages = [pkgs.game-devices-udev-rules];
   programs.appimage = {
     enable = true;
     binfmt = true;
@@ -31,13 +30,15 @@
   };
   hardware.amdgpu.initrd.enable = true;
   environment.systemPackages = with pkgs; [
-    heroic mangohud
+    heroic
+    mangohud
     wineWow64Packages.stable
     stremio-linux-shell
-    winetricks protontricks
+    winetricks
+    protontricks
     ludusavi
     linux-wallpaperengine
-    nvtopPackages.amd  # GPU process monitor (like btop, but for GPU)
-    lm_sensors         # Command-line tool 'sensors' to check temperatures
+    nvtopPackages.amd # GPU process monitor (like btop, but for GPU)
+    lm_sensors # Command-line tool 'sensors' to check temperatures
   ];
 }

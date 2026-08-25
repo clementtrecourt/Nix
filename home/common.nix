@@ -1,14 +1,17 @@
-{ config, pkgs, lib, inputs, ... }:
-
-let
+{
+  config,
+  pkgs,
+  lib,
+  inputs,
+  ...
+}: let
   kvantumTheme = pkgs.catppuccin-kvantum.override {
     accent = "blue";
     variant = "mocha";
   };
 
   dot = path: config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Dot/${path}";
-in
-{
+in {
   imports = [
     ./noctalia.nix
     ./mango.nix
@@ -32,7 +35,7 @@ in
   systemd.user.services.polkit-gnome-authentication-agent-1 = {
     Unit = {
       Description = "Polkit GNOME Authentication Agent";
-      After = [ "graphical-session-pre.target" ];
+      After = ["graphical-session-pre.target"];
     };
 
     Service = {
@@ -43,7 +46,7 @@ in
     };
 
     Install = {
-      WantedBy = [ "default.target" ];
+      WantedBy = ["default.target"];
     };
   };
 
@@ -70,7 +73,7 @@ in
     theme = {
       name = "catppuccin-mocha-blue-standard";
       package = pkgs.catppuccin-gtk.override {
-        accents = [ "blue" ];
+        accents = ["blue"];
         variant = "mocha";
       };
     };
@@ -135,50 +138,52 @@ in
   };
 
   programs.yazi = {
-      enable = true;
-      enableFishIntegration = true;
-      shellWrapperName = "y";
+    enable = true;
+    enableFishIntegration = true;
+    shellWrapperName = "y";
 
-      settings = {
-        opener = {
-          image = [
-            {
-              run = ''imv "$@"'';
-              orphan = true;
-              for = "unix";
-              desc = "imv";
-            }
-          ];
-        };
-        # On utilise prepend_rules pour être PRIORITAIRE sur les presets Yazi
-        open = {
-          prepend_rules = [
-            { mime = "image/*"; use = [ "image" ]; }
-          ];
-        };
+    settings = {
+      opener = {
+        image = [
+          {
+            run = ''imv "$@"'';
+            orphan = true;
+            for = "unix";
+            desc = "imv";
+          }
+        ];
+      };
+      # On utilise prepend_rules pour être PRIORITAIRE sur les presets Yazi
+      open = {
+        prepend_rules = [
+          {
+            mime = "image/*";
+            use = ["image"];
+          }
+        ];
       };
     };
+  };
 
   programs.bat.enable = true;
   programs.zoxide.enable = true;
   xdg.mimeApps = {
-      enable = true;
-      defaultApplications = {
-        "image/png" = [ "imv.desktop" ];
-        "image/jpeg" = [ "imv.desktop" ];
-        "image/gif" = [ "imv.desktop" ];
-        "image/webp" = [ "imv.desktop" ];
-        "image/bmp" = [ "imv.desktop" ];
-        "image/tiff" = [ "imv.desktop" ];
-        "image/svg+xml" = [ "imv.desktop" ];
-        "image/avif" = [ "imv.desktop" ];
-        "image/heic" = [ "imv.desktop" ];
-        "image/jxl" = [ "imv.desktop" ];
-      };
+    enable = true;
+    defaultApplications = {
+      "image/png" = ["imv.desktop"];
+      "image/jpeg" = ["imv.desktop"];
+      "image/gif" = ["imv.desktop"];
+      "image/webp" = ["imv.desktop"];
+      "image/bmp" = ["imv.desktop"];
+      "image/tiff" = ["imv.desktop"];
+      "image/svg+xml" = ["imv.desktop"];
+      "image/avif" = ["imv.desktop"];
+      "image/heic" = ["imv.desktop"];
+      "image/jxl" = ["imv.desktop"];
     };
+  };
 
-  xdg.dataFile."icons/hicolor/scalable/apps/zen-beta.svg".source =
-    "${pkgs.papirus-icon-theme}/share/icons/Papirus/48x48/apps/zen-browser.svg";
+  xdg.dataFile."icons/hicolor/scalable/apps/zen-beta.svg".source = "${pkgs.papirus-icon-theme}/share/icons/Papirus/48x48/apps/zen-browser.svg";
 
   # ============================================
   # Packages utilisateur (sans doublons)
@@ -225,8 +230,6 @@ in
     wl-clipboard
     wlsunset
     zathura
-    imv
-
     # Polices
     inter
     jetbrains-mono
