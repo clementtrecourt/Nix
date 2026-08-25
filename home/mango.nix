@@ -188,6 +188,7 @@
 
         # Apps
         "SUPER,T,spawn,kitty"
+        "SUPER,E,spawn,kitty -e yazi"
         "SUPER+SHIFT,UP,viewtoleft_have_client"
         "SUPER+SHIFT,DOWN,viewtoright_have_client"
 
@@ -250,6 +251,7 @@
         # Noctalia
         "SUPER,A,spawn,noctalia msg panel-toggle launcher"
         "SUPER,s,spawn,noctalia msg panel-toggle control-center"
+        "SUPER,l,spawn,noctalia msg session lock"
         "SUPER,comma,spawn,noctalia msg settings-toggle"
         "SUPER,Escape,spawn,noctalia msg panel-toggle session"
         "SUPER,V,spawn,noctalia msg panel-toggle clipboard"

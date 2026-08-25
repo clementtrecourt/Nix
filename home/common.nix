@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 let
   kvantumTheme = pkgs.catppuccin-kvantum.override {
@@ -20,25 +20,29 @@ in
   home.username = "clem";
   home.homeDirectory = "/home/clem";
   home.stateVersion = "24.11";
+
+  # Nettoie les backups bloquants avant l'activation
+  home.activation.cleanGtkBackups = lib.hm.dag.entryBefore ["checkLinkTargets"] ''
+    rm -f $HOME/.config/gtk-4.0/gtk.css.bak $HOME/.config/gtk-3.0/gtk.css.bak
+  '';
+
   systemd.user.services.polkit-gnome-authentication-agent-1 = {
-  Unit = {
-    Description = "Polkit GNOME Authentication Agent";
-    After = [ "graphical-session-pre.target" ];
-  };
+    Unit = {
+      Description = "Polkit GNOME Authentication Agent";
+      After = [ "graphical-session-pre.target" ];
+    };
 
-  Service = {
-    Type = "simple";
-    ExecStart =
-      "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
-    Restart = "on-failure";
-    RestartSec = 1;
-  };
+    Service = {
+      Type = "simple";
+      ExecStart = "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
+      Restart = "on-failure";
+      RestartSec = 1;
+    };
 
-  Install = {
-    WantedBy = [ "default.target" ];
+    Install = {
+      WantedBy = [ "default.target" ];
+    };
   };
-};
-
 
   # Active la CLI 'home-manager' et la gestion automatique du shell profile
   programs.home-manager.enable = true;
@@ -72,7 +76,10 @@ in
       package = pkgs.papirus-icon-theme;
     };
     gtk3.extraConfig.gtk-application-prefer-dark-theme = 1;
-    gtk4.extraConfig.gtk-application-prefer-dark-theme = 1;
+    gtk4 = {
+      theme = null; # Nouveau standard Home Manager
+      extraConfig.gtk-application-prefer-dark-theme = 1;
+    };
   };
 
   dconf.settings = {
@@ -103,9 +110,15 @@ in
   # ============================================
   programs.git = {
     enable = true;
-    userName = "clementtrecourt";
-    userEmail = "clementt.pro@protonmail.com";
-    extraConfig.init.defaultBranch = "main";
+    settings = {
+      user = {
+        name = "clementtrecourt";
+        email = "clementt.pro@protonmail.com";
+      };
+      init = {
+        defaultBranch = "main";
+      };
+    };
   };
 
   programs.direnv = {
@@ -116,17 +129,50 @@ in
   programs.starship = {
     enable = true;
     enableFishIntegration = true;
-    # Si tu as un fichier starship.toml personnalisé dans ~/Dot :
-    # settings = builtins.fromTOML (builtins.readFile "${config.home.homeDirectory}/Dot/starship.toml");
   };
 
   programs.yazi = {
-    enable = true;
-    enableFishIntegration = true;
-  };
+      enable = true;
+      enableFishIntegration = true;
+      shellWrapperName = "y";
+
+      settings = {
+        opener = {
+          image = [
+            {
+              run = ''imv "$@"'';
+              orphan = true;
+              for = "unix";
+              desc = "imv";
+            }
+          ];
+        };
+        # On utilise prepend_rules pour être PRIORITAIRE sur les presets Yazi
+        open = {
+          prepend_rules = [
+            { mime = "image/*"; use = [ "image" ]; }
+          ];
+        };
+      };
+    };
 
   programs.bat.enable = true;
   programs.zoxide.enable = true;
+  xdg.mimeApps = {
+      enable = true;
+      defaultApplications = {
+        "image/png" = [ "imv.desktop" ];
+        "image/jpeg" = [ "imv.desktop" ];
+        "image/gif" = [ "imv.desktop" ];
+        "image/webp" = [ "imv.desktop" ];
+        "image/bmp" = [ "imv.desktop" ];
+        "image/tiff" = [ "imv.desktop" ];
+        "image/svg+xml" = [ "imv.desktop" ];
+        "image/avif" = [ "imv.desktop" ];
+        "image/heic" = [ "imv.desktop" ];
+        "image/jxl" = [ "imv.desktop" ];
+      };
+    };
 
   xdg.dataFile."icons/hicolor/scalable/apps/zen-beta.svg".source =
     "${pkgs.papirus-icon-theme}/share/icons/Papirus/48x48/apps/zen-browser.svg";
@@ -177,6 +223,7 @@ in
     wl-clipboard
     wlsunset
     zathura
+    imv
 
     # Polices
     inter

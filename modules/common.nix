@@ -188,6 +188,5 @@
     gnumake
     unrar unzip tldr spotify zip yazi vlc python3
     brave
-    stremio-linux-shell
   ];
 }
