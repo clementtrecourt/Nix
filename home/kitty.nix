@@ -31,12 +31,12 @@
       remember_window_size = "no";
       window_padding_width = 10;
       hide_window_decorations = "yes";
-      background_opacity = "0.65";
-      dynamic_background_opacity = "no";
+      background_opacity = "0.8";
       confirm_os_window_close = 0;
       enable_audio_bell = "no";
       scrollback_lines = 2000;
       wheel_scroll_min_lines = 1;
+      dynamic_background_opacity = "yes";
     };
 
     # Raccourcis clavier
@@ -44,22 +44,8 @@
       # Vos raccourcis existants...
       "ctrl+shift+left" = "neighboring_window left";
       "ctrl+shift+right" = "neighboring_window right";
-      # ...
-
-      # ========================================================
-      # FLASH / JUMP STYLE NEOVIM (Natif Kitty)
-      # ========================================================
-      # Alt + s : Flashe tous les MOTS à l'écran et copie celui choisi
-      "alt+s" = "kitten hints --type word --program @";
-
-      # Alt + f : Flashe tous les CHEMINS DE FICHIERS à l'écran et les copie
-      "alt+f" = "kitten hints --type path --program @";
-
-      # Alt + h : Flashe tous les HASH GIT (commits) à l'écran et les copie
-      "alt+h" = "kitten hints --type hash --program @";
-
-      # Alt + u : Flashe et ouvre directement les URLs dans votre navigateur
-      "alt+u" = "kitten hints --type url";
+      "ctrl+shift+o" = "set_background_opacity 1.0";
+      "ctrl+shift+u" = "set_background_opacity 0.80";
     };
 
     # Inclusion du thème dynamique Noctalia

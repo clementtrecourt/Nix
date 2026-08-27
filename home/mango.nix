@@ -13,6 +13,8 @@
 
     autostart_sh = ''
       noctalia &
+      zen &
+      kitty &
     '';
 
     # 1. Place les directives "source" tout en bas du config.conf généré
@@ -71,8 +73,21 @@
       gappoh = 5;
       gappov = 5;
 
+      # Règles pour les panels / layer-shell
       layerrule = [
         "layer_name:.*noctalia-panel*,noblur:0,noanim:1"
+      ];
+
+      # Règles de fenêtres pour Spotify (Named Scratchpad)
+      windowrule = [
+        "isnamedscratchpad:1,isfullscreen:1,appid:spotify"
+        "isnamedscratchpad:1,isfullscreen:1,appid:Spotify"
+        "tags:1,appid:zen.*"
+        "tags:1,appid:zen"
+        "tags:1,appid:zen-beta"
+
+        # Kitty -> Tag / Workspace 2
+        "tags:2,appid:kitty"
       ];
 
       # ============================================
@@ -186,9 +201,13 @@
       # Keybinds
       # ============================================
       bind = [
-        "SUPER,m,quit"
+        # Session
+        "SUPER+SHIFT+CTRL,q,quit"
         "SUPER,q,killclient"
         "SUPER,r,reload_config"
+
+        # Scratchpad Spotify
+        "SUPER,s,toggle_named_scratchpad,Spotify,none,spotify"
 
         # Apps
         "SUPER,T,spawn,kitty"
@@ -254,13 +273,12 @@
 
         # Noctalia
         "SUPER,A,spawn,noctalia msg panel-toggle launcher"
-        "SUPER,s,spawn,noctalia msg panel-toggle control-center"
         "SUPER,l,spawn,noctalia msg session lock"
         "SUPER,comma,spawn,noctalia msg settings-toggle"
         "SUPER,Escape,spawn,noctalia msg panel-toggle session"
         "SUPER,V,spawn,noctalia msg panel-toggle clipboard"
         "SUPER,P,spawn,noctalia msg screenshot-region"
-        "SUPER+SHIFT,w,spawn, noctalia msg panel-toggle wallpaper"
+        "SUPER+SHIFT,w,spawn,noctalia msg panel-toggle wallpaper"
         "NONE,XF86AudioRaiseVolume,spawn,noctalia msg volume-up"
         "NONE,XF86AudioLowerVolume,spawn,noctalia msg volume-down"
         "NONE,XF86AudioMute,spawn,noctalia msg volume-mute"
@@ -292,8 +310,7 @@
     };
   };
 
-  # (Optionnel) Crée un fichier vide au premier déploiement s'il n'existe pas encore
-  # pour éviter que mango ne lève une erreur si Noctalia ne l'a pas encore créé.
+  # (Optionnel) Crée un fichier vide au premier déploiement
   home.activation.createEmptyNoctaliaConf = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p $HOME/.config/mango
     touch $HOME/.config/mango/noctalia.conf

@@ -6,5 +6,6 @@
   environment.systemPackages = with pkgs; [
     qemu
     tigervnc
+    teams-for-linux
   ];
 }
