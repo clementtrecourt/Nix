@@ -64,7 +64,7 @@
 
       theme = {
         builtin = "Ayu";
-        community_palette = "Oxocarbon";
+        community_palette = "Vesper";
         mode = "dark";
         source = "wallpaper";
         wallpaper_scheme = "m3-content";

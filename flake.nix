@@ -112,7 +112,7 @@
 
     nixosConfigurations = {
       # Machine Home avec Chaotic-Nyx
-      home = mkHost ./hosts/home/configuration.nix ./home/common.nix [
+      home = mkHost ./hosts/home/configuration.nix ./home/home.nix [
         chaotic.nixosModules.default
       ];
 
