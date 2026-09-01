@@ -1,11 +1,8 @@
 # Dans modules/gaming.nix
-{ pkgs, ... }:
-
-let
+{pkgs, ...}: let
   username = "clem";
   mountPoint = "/home/${username}/DeltaDrive";
-in
-{
+in {
   # 1. Autoriser les montages FUSE pour les utilisateurs non-root
   programs.fuse.userAllowOther = true;
 
@@ -15,7 +12,7 @@ in
     enable = true;
     remotePlay.openFirewall = true;
     gamescopeSession.enable = true;
-    extraCompatPackages = [ pkgs.proton-ge-bin ];
+    extraCompatPackages = [pkgs.proton-ge-bin];
   };
   programs.gamescope.enable = true;
   programs.gamemode.enable = true;
@@ -24,7 +21,7 @@ in
   services.flatpak.enable = true;
   programs.corectrl.enable = true;
   hardware.amdgpu.overdrive.enable = true;
-  services.udev.packages = [ pkgs.game-devices-udev-rules ];
+  services.udev.packages = [pkgs.game-devices-udev-rules];
   boot.kernel.sysctl = {
     "vm.max_map_count" = 1048576;
   };
@@ -34,7 +31,7 @@ in
   environment.systemPackages = with pkgs; [
     rclone
     fuse3
-    mgba                      # Émulateur Game Boy Advance
+    mgba # Émulateur Game Boy Advance
     heroic
     mangohud
     wineWow64Packages.stable
@@ -44,14 +41,15 @@ in
     linux-wallpaperengine
     nvtopPackages.amd
     lm_sensors
+    aerion
   ];
 
   # 4. Service Systemd automatique de montage Dropbox
   systemd.user.services.rclone-delta-mount = {
     description = "Montage automatique du Dropbox de Delta (rclone)";
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
-    wantedBy = [ "default.target" ];
+    after = ["network-online.target"];
+    wants = ["network-online.target"];
+    wantedBy = ["default.target"];
 
     # Crée le dossier s'il n'existe pas
     preStart = "${pkgs.coreutils}/bin/mkdir -p ${mountPoint}";
@@ -70,7 +68,7 @@ in
       ExecStop = "${pkgs.fuse3}/bin/fusermount3 -u ${mountPoint}";
       Restart = "on-failure";
       RestartSec = "10s";
-      Environment = [ "PATH=/run/wrappers/bin:$PATH" ];
+      Environment = ["PATH=/run/wrappers/bin:$PATH"];
     };
   };
 }
