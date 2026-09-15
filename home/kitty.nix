@@ -9,7 +9,7 @@
 
     # Police d'écriture
     font = {
-      name = "BlexMono Nerd Font";
+      name = "JetBrainsMonoNF-Regular";
       size = 15;
     };
 

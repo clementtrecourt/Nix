@@ -13,17 +13,7 @@
   ];
 
   # ============================================
-  # 1. Configuration SOPS (À la racine du module !)
   # ============================================
-  sops = {
-    defaultSopsFile = ../secrets/secrets.yaml;
-    defaultSopsFormat = "yaml";
-    age.sshKeyPaths = ["/etc/ssh/ssh_host_ed25519_key"];
-
-    secrets.user_password = {
-      neededForUsers = true;
-    };
-  };
 
   # ============================================
   # 2. Configuration Nix & Caches
@@ -212,7 +202,6 @@
     isNormalUser = true;
     extraGroups = ["wheel" "corectrl"];
     shell = pkgs.fish;
-    hashedPasswordFile = config.sops.secrets.user_password.path;
   };
 
   programs.mango.enable = true;
@@ -242,7 +231,7 @@
     unrar
     unzip
     tldr
-    spotify
+    spotify-spotx
     zip
     python3
     brave

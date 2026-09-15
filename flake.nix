@@ -1,10 +1,6 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    sops-nix = {
-      url = "github:Mic92/sops-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     # <-- 1. Chaotic-Nyx (pour le PC Home)
     chaotic.url = "https://flakehub.com/f/chaotic-cx/nyx/*.tar.gz";
 
@@ -33,8 +29,8 @@
       url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    oskars-dotfiles = {
-      url = "github:oskardotglobal/.dotfiles/nix";
+    spotx-nix = {
+      url = "github:SpotX-Official/SpotX-Nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     qwerty-fr = {
@@ -58,11 +54,9 @@
     nixpkgs,
     home-manager,
     nix-index-database,
-    oskars-dotfiles,
     helium-flake,
     mango,
     lazyvim,
-    sops-nix,
     chaotic,
     microvm,
     ...
@@ -78,11 +72,10 @@
           [
             hostPath
             nix-index-database.nixosModules.nix-index
-            sops-nix.nixosModules.sops
 
             {
               nixpkgs.overlays = [
-                inputs.oskars-dotfiles.overlays.spotx
+                inputs.spotx-nix.overlays.default
                 inputs.helium-flake.overlays.default
               ];
             }
