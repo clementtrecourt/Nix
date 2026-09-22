@@ -55,7 +55,7 @@
       gcl = "git clone";
 
       # NixOS & nh
-      nrs = "nix fmt; and nh os switch; and attic push main-cache (readlink -f /run/current-system)";
+      nrs = "cd ~/Nix; and nix fmt; and nh os switch; and git add .; and git commit -m 'nrs: '(date '+%Y-%m-%d %H:%M:%S'); and git push; and attic push main-cache (readlink -f /run/current-system)";
       nru = "nix fmt; and nh os switch --update; and attic push main-cache (readlink -f /run/current-system)";
       nrt = "nix fmt; and nh os test";
       nrb = "nh os boot";
