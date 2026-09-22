@@ -236,5 +236,6 @@
     python3
     brave
     attic-client
+    inputs.helium-flake.packages.${system}.default
   ];
 }
