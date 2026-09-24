@@ -237,5 +237,6 @@
     brave
     attic-client
     inputs.helium-flake.packages.${system}.default
+    mpvpaper
   ];
 }
