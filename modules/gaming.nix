@@ -38,7 +38,6 @@ in {
     stremio-linux-shell
     winetricks
     protontricks
-    linux-wallpaperengine
     nvtopPackages.amd
     lm_sensors
     aerion

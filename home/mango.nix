@@ -257,10 +257,8 @@
         "SUPER,f,togglefullscreen"
 
         # Screenshots & Layouts
-        "CTRL+SHIFT,space,switch_layout"
         "CTRL,d,setlayout,DW"
         "SUPER+ALT,f,set_proportion,1.0"
-        "ALT,space,switch_proportion_preset"
         "SUPER+SHIFT,c,scroller_stack,right"
         "SUPER,c,scroller_stack,left"
 

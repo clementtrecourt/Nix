@@ -2,6 +2,7 @@
   copyContext = pkgs.writeShellApplication {
     name = "copy-context";
     runtimeInputs = with pkgs; [
+      coreutils
       tree
       fd
       file
@@ -9,6 +10,12 @@
     ];
     text = ''
       TARGET_DIR="''${1:-.}"
+      # Chemin absolu pour accepter aussi les dossiers commençant par un tiret.
+      TARGET_DIR=$(realpath -e -- "$TARGET_DIR")
+      if [ ! -d "$TARGET_DIR" ]; then
+        echo "Erreur : le chemin doit être un dossier : $TARGET_DIR" >&2
+        exit 1
+      fi
 
       # Liste complète des exclusions (dossiers, caches, assets lourds, binaires)
       EXCLUDES=(
@@ -90,7 +97,12 @@
       # 1. Génération de l'arborescence
       TREE_OUTPUT=$(tree "''$TARGET_DIR" -a --gitignore -I "''$TREE_IGNORE")
 
-      TMP_OUTPUT=$(mktemp)
+      TMP_DIR=$(mktemp -d)
+      trap 'rm -rf -- "$TMP_DIR"' EXIT
+      TMP_OUTPUT="$TMP_DIR/context.md"
+
+      # Collecter avant la boucle pour propager les erreurs de fd.
+      fd . "$TARGET_DIR" --type f --hidden --print0 "''${FD_EXCLUDE_ARGS[@]}" > "$TMP_DIR/files"
 
       {
         echo "# Arborescence du projet"
@@ -105,9 +117,9 @@
       # 2. Concaténation de chaque fichier texte
       FILE_COUNT=0
 
-      while IFS= read -r filepath; do
+      while IFS= read -r -d ''' filepath; do
         # Vérification si le fichier est binaire (évite de copier des binaires corrompus)
-        MIME=$(file -b --mime-encoding "''$filepath")
+        MIME=$(file -b --mime-encoding -- "''$filepath")
         if [ "''$MIME" = "binary" ]; then
           continue
         fi
@@ -118,16 +130,15 @@
         {
           echo "## Fichier : \`''$filepath\`"
           echo "\`\`\`''$EXT"
-          cat "''$filepath"
+          cat -- "''$filepath"
           echo ""
           echo "\`\`\`"
           echo ""
         } >> "''$TMP_OUTPUT"
-      done < <(fd . "''$TARGET_DIR" --type f --hidden "''${FD_EXCLUDE_ARGS[@]}")
+      done < "$TMP_DIR/files"
 
       # 3. Copie dans le presse-papier Wayland
       wl-copy < "''$TMP_OUTPUT"
-      rm -f "''$TMP_OUTPUT"
 
       echo -e "📋 \e[32mSuccès ! L'arborescence et ''$FILE_COUNT fichiers ont été copiés dans le presse-papier au format Markdown !\e[0m"
     '';

@@ -18,6 +18,7 @@
   # ============================================
   # 2. Configuration Nix & Caches
   # ============================================
+  virtualisation.docker.enable = true;
   nix.settings = {
     experimental-features = ["nix-command" "flakes"];
     auto-optimise-store = true;
@@ -196,7 +197,7 @@
     enable = true;
     allowPing = true;
     # Add specific ports here if needed later (e.g. 8080, 22)
-    # allowedTCPPorts = [ 8080 ];
+    allowedTCPPorts = [8096];
   };
   users.users.clem = {
     isNormalUser = true;
