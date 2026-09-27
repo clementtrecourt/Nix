@@ -31,13 +31,12 @@ in {
   environment.systemPackages = with pkgs; [
     rclone
     fuse3
-    mgba # Émulateur Game Boy Advance
     heroic
     mangohud
     wineWow64Packages.stable
-    stremio-linux-shell
     winetricks
     protontricks
+    freetube
     nvtopPackages.amd
     lm_sensors
     aerion
