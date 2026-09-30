@@ -4,6 +4,7 @@
 
   virtualisation.docker.enable = true;
   # Outils système pour la virtualisation et l'accès distant
+  networking.firewall.allowedTCPPorts = [8000];
   environment.systemPackages = with pkgs; [
     qemu
     anydesk
