@@ -8,6 +8,8 @@
   environment.systemPackages = with pkgs; [
     qemu
     anydesk
+    oath-toolkit
+    ansible
     python3Packages.pip
     tigervnc
     teams-for-linux
