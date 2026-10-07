@@ -13,7 +13,6 @@
   dot = path: config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Dot/${path}";
 in {
   imports = [
-    ./noctalia.nix
     ./hyprland.nix
     ./kitty.nix
     ./fish.nix

@@ -16,7 +16,7 @@
       # Démarrage automatique
       # ============================================
       exec-once = [
-        "noctalia"
+        "caelestia shell -d"
         "zen"
         "kitty"
       ];
@@ -86,7 +86,7 @@
       };
 
       # ============================================
-      # Nouvelles Règles Hyprland (v0.53+)
+      # Règles de fenêtres
       # ============================================
       windowrule = [
         # Zen -> Workspace 1
@@ -100,9 +100,6 @@
         # Spotify -> Scratchpad spécial
         "workspace special:spotify, match:class ^(spotify)$"
         "workspace special:spotify, match:class ^(Spotify)$"
-      ];
-
-      layerrule = [
       ];
 
       # ============================================
@@ -150,19 +147,19 @@
         "SUPER SHIFT, 8, movetoworkspace, 8"
         "SUPER SHIFT, 9, movetoworkspace, 9"
 
-        # Intégration Noctalia
-        "SUPER, A, exec, noctalia msg panel-toggle launcher"
-        "SUPER, L, exec, noctalia msg session lock"
-        "SUPER, comma, exec, noctalia msg settings-toggle"
-        "SUPER, Escape, exec, noctalia msg panel-toggle session"
-        "SUPER, V, exec, noctalia msg panel-toggle clipboard"
-        "SUPER, P, exec, noctalia msg screenshot-region"
-        "SUPER SHIFT, W, exec, noctalia msg panel-toggle wallpaper"
-        ", XF86AudioRaiseVolume, exec, noctalia msg volume-up"
-        ", XF86AudioLowerVolume, exec, noctalia msg volume-down"
-        ", XF86AudioMute, exec, noctalia msg volume-mute"
-        ", XF86MonBrightnessUp, exec, noctalia msg brightness-up"
-        ", XF86MonBrightnessDown, exec, noctalia msg brightness-down"
+        # Raccourcis Système & Caelestia
+        "SUPER, A, exec, caelestia"
+        "SUPER, P, exec, hyprshot -m region"
+        "SUPER, V, exec, clipse"
+
+        # Contrôles Audio (Wireplumber / wpctl)
+        ", XF86AudioRaiseVolume, exec, wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+"
+        ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+        ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+
+        # Contrôles Luminosité (brightnessctl)
+        ", XF86MonBrightnessUp, exec, brightnessctl set 5%+"
+        ", XF86MonBrightnessDown, exec, brightnessctl set 5%-"
       ];
 
       # Souris
@@ -171,14 +168,5 @@
         "SUPER, mouse:273, resizewindow"
       ];
     };
-
-    extraConfig = ''
-      source = ~/.config/hypr/noctalia.conf
-    '';
   };
-
-  home.activation.createEmptyHyprlandNoctaliaConf = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    mkdir -p $HOME/.config/hypr
-    touch $HOME/.config/hypr/noctalia.conf
-  '';
 }
