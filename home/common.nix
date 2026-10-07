@@ -190,6 +190,7 @@ in {
   # ============================================
   home.packages = with pkgs; [
     # Outils CLI & système
+    inputs.caelestia-mango.packages.${pkgs.system}.default
     awww
     bibata-cursors
     brightnessctl
