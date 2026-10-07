@@ -38,6 +38,9 @@
     output "eDP-1" {
       scale 1.0
     }
+    environment {
+      ELECTRON_OZONE_PLATFORM_HINT "auto"
+    }
 
     layout {
       gaps 5
