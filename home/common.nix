@@ -13,7 +13,6 @@
   dot = path: config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Dot/${path}";
 in {
   imports = [
-    ./hyprland.nix
     ./kitty.nix
     ./fish.nix
     ./tmux.nix
@@ -184,14 +183,11 @@ in {
 
   xdg.dataFile."icons/hicolor/scalable/apps/zen-beta.svg".source = "${pkgs.papirus-icon-theme}/share/icons/Papirus/48x48/apps/zen-browser.svg";
 
-  programs.caelestia.enable = true;
   # ============================================
   # Packages utilisateur (sans doublons)
   # ============================================
   home.packages = with pkgs; [
-    caelestia-cli
     # Outils CLI & système
-    inputs.caelestia.packages.${pkgs.stdenv.hostPlatform.system}.with-cli
     awww
     bibata-cursors
     brightnessctl
