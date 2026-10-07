@@ -5,7 +5,6 @@
   inputs,
   ...
 }: {
-  # Déploiement de votre disposition personnalisée us_qwerty-fr
   xdg.configFile."xkb/symbols/us_qwerty-fr".source = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
 
   wayland.windowManager.hyprland = {
@@ -17,7 +16,7 @@
       # Démarrage automatique
       # ============================================
       exec-once = [
-        "caelestia shell -d"
+        "noctalia"
         "zen"
         "kitty"
       ];
@@ -83,30 +82,29 @@
       };
 
       dwindle = {
-        pseudotile = true;
         preserve_split = true;
       };
 
       # ============================================
-      # Règles de fenêtres & LayerShell
+      # Nouvelles Règles Hyprland (v0.53+)
       # ============================================
-      windowrulev2 = [
+      windowrule = [
         # Zen -> Workspace 1
-        "workspace 1, class:^(zen.*)$"
-        "workspace 1, class:^(zen)$"
-        "workspace 1, class:^(zen-beta)$"
+        "workspace 1, match:class ^(zen.*)$"
+        "workspace 1, match:class ^(zen)$"
+        "workspace 1, match:class ^(zen-beta)$"
 
         # Kitty -> Workspace 2
-        "workspace 2, class:^(kitty)$"
+        "workspace 2, match:class ^(kitty)$"
 
         # Spotify -> Scratchpad spécial
-        "workspace special:spotify, class:^(spotify)$"
-        "workspace special:spotify, class:^(Spotify)$"
+        "workspace special:spotify, match:class ^(spotify)$"
+        "workspace special:spotify, match:class ^(Spotify)$"
       ];
 
       layerrule = [
-        "noanim, noctalia-panel.*"
-        "blur, noctalia-panel.*"
+        "noanim 1, noctalia-panel.*"
+        "blur 1, noctalia-panel.*"
       ];
 
       # ============================================
@@ -169,7 +167,7 @@
         ", XF86MonBrightnessDown, exec, noctalia msg brightness-down"
       ];
 
-      # Déplacement et redimensionnement à la souris
+      # Souris
       bindm = [
         "SUPER, mouse:272, movewindow"
         "SUPER, mouse:273, resizewindow"
@@ -177,12 +175,10 @@
     };
 
     extraConfig = ''
-      # Source dynamique généré par Noctalia (si activé)
       source = ~/.config/hypr/noctalia.conf
     '';
   };
 
-  # Crée le fichier vide si absent pour éviter les warnings
   home.activation.createEmptyHyprlandNoctaliaConf = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p $HOME/.config/hypr
     touch $HOME/.config/hypr/noctalia.conf
