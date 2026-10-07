@@ -14,7 +14,7 @@
 in {
   imports = [
     ./noctalia.nix
-    ./mango.nix
+    ./hyprland.nix
     ./kitty.nix
     ./fish.nix
     ./tmux.nix

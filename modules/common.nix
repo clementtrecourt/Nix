@@ -84,11 +84,11 @@
     enable = true;
     settings = {
       initial_session = {
-        command = "${pkgs.fish}/bin/fish --login -c mango";
+        command = "${pkgs.fish}/bin/fish --login -c Hyprland";
         user = "clem";
       };
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --cmd '${pkgs.fish}/bin/fish --login -c mango'";
+        command = "${pkgs.tuigreet}/bin/tuigreet --cmd '${pkgs.fish}/bin/fish --login -c Hyprland'";
         user = "greeter";
       };
     };
@@ -205,7 +205,7 @@
     shell = pkgs.fish;
   };
 
-  programs.mango.enable = true;
+  programs.hyprland.enable = true;
   programs.nix-ld.enable = true;
   programs.nh = {
     enable = true;
