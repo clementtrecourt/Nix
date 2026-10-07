@@ -9,20 +9,8 @@
       url = "github:astro/microvm.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    caelestia-dots = {
-      url = "github:caelestia-dots/caelestia";
-      flake = false;
-    };
-    caelestia-shell = {
-      url = "github:caelestia-dots/shell";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    caelestia-cli = {
-      url = "github:caelestia-dots/cli";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    caelestia = {
-      url = "github:caelestia-dots/shell";
+    inir = {
+      url = "github:snowarch/inir";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     home-manager = {
@@ -67,8 +55,8 @@
     nix-index-database,
     helium-flake,
     mango,
-    caelestia,
     lazyvim,
+    inir,
     chaotic,
     microvm,
     ...
@@ -100,7 +88,6 @@
               home-manager.users.clem = import homeModule;
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.sharedModules = [
-                inputs.caelestia.homeManagerModules.default
               ];
             }
           ]

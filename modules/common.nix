@@ -9,6 +9,7 @@
     ./zen-browser.nix
     scripts/organizer.nix
     scripts/auto-cleaner.nix
+    inputs.inir.nixosModules.inir
     scripts/copy-context.nix
   ];
 
@@ -84,11 +85,11 @@
     enable = true;
     settings = {
       initial_session = {
-        command = "${pkgs.fish}/bin/fish --login -c start-hyprland";
+        command = "${pkgs.fish}/bin/fish --login -c niri-session";
         user = "clem";
       };
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --cmd '${pkgs.fish}/bin/fish --login -c start-hyprland'";
+        command = "${pkgs.tuigreet}/bin/tuigreet --cmd '${pkgs.fish}/bin/fish --login -c niri-session'";
         user = "greeter";
       };
     };
@@ -205,7 +206,13 @@
     shell = pkgs.fish;
   };
 
-  programs.hyprland.enable = true;
+  programs.niri.enable = true;
+
+  programs.inir = {
+    enable = true;
+    service.compositor = "niri";
+    extraPackages = [config.programs.niri.package];
+  };
   programs.nix-ld.enable = true;
   programs.nh = {
     enable = true;
