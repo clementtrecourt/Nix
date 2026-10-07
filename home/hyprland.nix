@@ -103,8 +103,6 @@
       ];
 
       layerrule = [
-        "noanim 1, noctalia-panel.*"
-        "blur 1, noctalia-panel.*"
       ];
 
       # ============================================
