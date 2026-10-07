@@ -17,6 +17,7 @@
       # Démarrage automatique
       # ============================================
       exec-once = [
+        "caelestia shell -d"
         "noctalia"
         "zen"
         "kitty"

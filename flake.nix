@@ -5,12 +5,12 @@
     chaotic.url = "https://flakehub.com/f/chaotic-cx/nyx/*.tar.gz";
 
     # <-- 2. MicroVM (pour le PC Work)
-    caelestia-mango = {
-      url = "github:evoziosk/caelestia-shell-mango";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     microvm = {
       url = "github:astro/microvm.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    caelestia = {
+      url = "github:caelestia-dots/shell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     home-manager = {
@@ -60,8 +60,8 @@
     nix-index-database,
     helium-flake,
     mango,
+    caelestia,
     lazyvim,
-    caelestia-mango,
     chaotic,
     microvm,
     ...
@@ -93,7 +93,7 @@
               home-manager.users.clem = import homeModule;
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.sharedModules = [
-                inputs.caelestia-mango.homeManagerModules.default
+                inputs.caelestia.homeManagerModules.default
               ];
             }
           ]

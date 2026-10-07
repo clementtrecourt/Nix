@@ -185,12 +185,13 @@ in {
 
   xdg.dataFile."icons/hicolor/scalable/apps/zen-beta.svg".source = "${pkgs.papirus-icon-theme}/share/icons/Papirus/48x48/apps/zen-browser.svg";
 
+  programs.caelestia.enable = true;
   # ============================================
   # Packages utilisateur (sans doublons)
   # ============================================
   home.packages = with pkgs; [
     # Outils CLI & système
-    inputs.caelestia-mango.packages.${pkgs.system}.default
+    inputs.caelestia.packages.${pkgs.stdenv.hostPlatform.system}.with-cli
     awww
     bibata-cursors
     brightnessctl

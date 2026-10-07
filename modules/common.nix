@@ -84,11 +84,11 @@
     enable = true;
     settings = {
       initial_session = {
-        command = "${pkgs.fish}/bin/fish --login -c Hyprland";
+        command = "${pkgs.fish}/bin/fish --login -c start-hyprland";
         user = "clem";
       };
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --cmd '${pkgs.fish}/bin/fish --login -c Hyprland'";
+        command = "${pkgs.tuigreet}/bin/tuigreet --cmd '${pkgs.fish}/bin/fish --login -c start-hyprland'";
         user = "greeter";
       };
     };
