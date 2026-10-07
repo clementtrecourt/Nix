@@ -9,7 +9,6 @@
     ./zen-browser.nix
     scripts/organizer.nix
     scripts/auto-cleaner.nix
-    inputs.inir.nixosModules.inir
     scripts/copy-context.nix
   ];
 
@@ -208,11 +207,6 @@
 
   programs.niri.enable = true;
 
-  programs.inir = {
-    enable = true;
-    service.compositor = "niri";
-    extraPackages = [config.programs.niri.package];
-  };
   programs.nix-ld.enable = true;
   programs.nh = {
     enable = true;

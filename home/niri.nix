@@ -5,6 +5,17 @@
   lib,
   ...
 }: {
+  imports = [
+    inputs.inir.homeModules.inir
+  ];
+
+  # 2. Configurer iNiR avec son lien symbolique
+  programs.inir = {
+    enable = true;
+    service.compositor = "niri";
+    configSymlink.enable = true;
+    extraPackages = [pkgs.niri];
+  };
   # 1. Clavier us_qwerty-fr
   xdg.configFile."xkb/symbols/us_qwerty-fr".source = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
 
