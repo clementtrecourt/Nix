@@ -13,6 +13,7 @@
   dot = path: config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Dot/${path}";
 in {
   imports = [
+    ./caelestia.nix
     ./kitty.nix
     ./fish.nix
     ./tmux.nix
