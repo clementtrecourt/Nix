@@ -237,6 +237,7 @@
     python3
     brave
     attic-client
+    (callPackage ./waveflow.nix {})
     inputs.helium-flake.packages.${system}.default
     mpvpaper
   ];
