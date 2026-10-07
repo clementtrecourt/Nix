@@ -190,6 +190,7 @@ in {
   # Packages utilisateur (sans doublons)
   # ============================================
   home.packages = with pkgs; [
+    caelestia-cli
     # Outils CLI & système
     inputs.caelestia.packages.${pkgs.stdenv.hostPlatform.system}.with-cli
     awww
