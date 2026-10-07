@@ -21,7 +21,6 @@
       }
       touchpad {
         tap
-        natural-scroll false
       }
     }
 
