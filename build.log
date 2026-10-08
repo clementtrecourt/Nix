@@ -1,0 +1,1 @@
+error: flake 'git+file:///home/clem/Nix' does not provide attribute 'packages.x86_64-linux.noctalia', 'legacyPackages.x86_64-linux.noctalia' or 'noctalia'

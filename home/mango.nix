@@ -117,8 +117,6 @@
       animation_curve_tag = "0.15,1.0,0.2,1.0";
       animation_curve_close = "0.1,1.0,0.1,1.0";
       animation_curve_focus = "0.15,1.0,0.2,1.0";
-      animation_curve_opafadeout = "0.15,1.0,0.2,1.0";
-      animation_curve_opafadein = "0.15,1.0,0.2,1.0";
 
       # ============================================
       # Layouts & Scroller (Coeur du workflow Niri)
@@ -164,7 +162,7 @@
       smartgaps = 0;
       scratchpad_width_ratio = "0.8";
       scratchpad_height_ratio = "0.85";
-       axisbind = [
+      axisbind = [
         # 1. SUPER + Molette : Scroll horizontal dans le ruban du workspace (workflow Niri)
         "SUPER,UP,focusdir,left"
         "SUPER,DOWN,focusdir,right"
@@ -264,8 +262,8 @@
         "SUPER,comma,set_proportion,0.5"
 
         "ALT,Tab,spawn,noctalia msg window-switcher hold"
-  "ALT+SHIFT,Tab,spawn,noctalia msg window-switcher hold"
-  "ALT,ISO_Left_Tab,spawn,noctalia msg window-switcher hold"
+        "ALT+SHIFT,Tab,spawn,noctalia msg window-switcher hold"
+        "ALT,ISO_Left_Tab,spawn,noctalia msg window-switcher hold"
 
         # Redimensionnement précis au clavier
         "SUPER+CTRL,h,resizewin,-50,0"
