@@ -254,7 +254,6 @@
 
         # --- Dimensions de colonnes (Niri preset widths & expansion) ---
         # Fait défiler les presets : 33% -> 50% -> 67% -> 100%
-        "SUPER,period,cycle_proportion"
         # Maximise la colonne en largeur (100% largeur écran sans être fullscreen)
         "SUPER,m,set_proportion,1.0"
         "SUPER+ALT,f,set_proportion,1.0"
