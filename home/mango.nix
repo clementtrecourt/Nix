@@ -8,7 +8,6 @@
   xdg.configFile."xkb/symbols/us_qwerty-fr".source = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
   wayland.windowManager.mango = {
     enable = true;
-
     systemd.enable = true;
 
     autostart_sh = ''
@@ -17,10 +16,8 @@
       kitty &
     '';
 
-    # 1. Place les directives "source" tout en bas du config.conf généré
     bottomPrefixes = ["source"];
 
-    # 2. Source le fichier dynamique généré par Noctalia
     extraConfig = ''
       source-optional = ~/.config/mango/noctalia.conf
       source-optional = ~/.config/mango/monitors.conf
@@ -43,7 +40,7 @@
       ];
 
       # ============================================
-      # Visual Effects (sans les couleurs qui sont dans noctalia.conf)
+      # Visual Effects
       # ============================================
       blur = 1;
       blur_layer = 1;
@@ -66,32 +63,36 @@
       border_radius = 10;
       no_radius_when_single = 0;
       focused_opacity = "1.0";
-      unfocused_opacity = "1.0";
+      unfocused_opacity = "0.95"; # Léger contraste pour identifier la fenêtre active
       borderpx = 2;
-      gappih = 5;
-      gappiv = 5;
-      gappoh = 5;
-      gappov = 5;
+      gappih = 6;
+      gappiv = 6;
+      gappoh = 6;
+      gappov = 6;
 
-      # Règles pour les panels / layer-shell
+      # Règles layer-shell
       layerrule = [
         "layer_name:.*noctalia-panel*,noblur:0,noanim:1"
       ];
 
-      # Règles de fenêtres pour Spotify (Named Scratchpad)
+      # ============================================
+      # Window Rules
+      # ============================================
       windowrule = [
+        # Scratchpads dédiés
         "isnamedscratchpad:1,isfullscreen:1,appid:spotify"
         "isnamedscratchpad:1,isfullscreen:1,appid:Spotify"
+        "isnamedscratchpad:1,appid:scratchpad-term"
+
+        # Applications fixes
         "tags:1,appid:zen.*"
         "tags:1,appid:zen"
         "tags:1,appid:zen-beta"
-
-        # Kitty -> Tag / Workspace 2
         "tags:2,appid:kitty"
       ];
 
       # ============================================
-      # Animations
+      # Animations (fluides façon Niri)
       # ============================================
       animations = 1;
       layer_animations = 1;
@@ -100,14 +101,14 @@
       animation_fade_in = 1;
       animation_fade_out = 1;
       tag_animation_direction = 0;
-      zoom_initial_ratio = "0.6";
-      zoom_end_ratio = "0.8";
+      zoom_initial_ratio = "0.7";
+      zoom_end_ratio = "0.85";
       fadein_begin_opacity = "1.0";
       fadeout_begin_opacity = "1.0";
 
-      animation_duration_move = 200;
-      animation_duration_open = 180;
-      animation_duration_tag = 180;
+      animation_duration_move = 160;
+      animation_duration_open = 160;
+      animation_duration_tag = 160;
       animation_duration_close = 100;
       animation_duration_focus = 0;
 
@@ -120,51 +121,64 @@
       animation_curve_opafadein = "0.15,1.0,0.2,1.0";
 
       # ============================================
-      # Layouts & Scroller
+      # Layouts & Scroller (Coeur du workflow Niri)
       # ============================================
+      # On force 'scroller' par défaut sur tous les tags principaux
       tagrule = [
-        "id:1,layout_name:dwindle"
+        "id:1,layout_name:scroller"
         "id:2,layout_name:scroller"
+        "id:3,layout_name:scroller"
+        "id:4,layout_name:scroller"
+        "id:5,layout_name:scroller"
       ];
 
-      scroller_structs = 10;
-      scroller_default_proportion = "1";
-      scroller_focus_center = 0;
+      scroller_focus_center = 1;
       scroller_prefer_center = 1;
+
+      # 2. Réactiver impérativement pour que le ruban défile vers les fenêtres hors-champ
       edge_scroller_pointer_focus = 1;
-      scroller_ignore_proportion_single = 1;
-      scroller_default_proportion_single = "1.0";
-      scroller_proportion_preset = "0.5,0.7,1.0";
+
+      # ============================================
+      # Keyboard-Centric & Focus (CRITIQUE)
+      # ============================================
+      # 1 = Focus-follows-mouse (permet l'activation instantanée sans clic)
+      sloppyfocus = 1;
+
+      # Téléporte instantanément la souris sur la fenêtre ciblée au clavier.
+      # Combiné avec sloppyfocus = 1, la fenêtre est activée À LA FRACTION DE SECONDE
+      # où vous appuyez sur Super+H/L, et se centre automatiquement sans toucher la souris.
+      warpcursor = 1;
+
+      # Active immédiatement toute fenêtre nouvellement créée ou appelée
+      focus_on_activate = 1;
+      scroller_structs = 15;
+      # Largeur par défaut d'une nouvelle colonne (50% de l'écran comme Niri)
+      scroller_default_proportion = "0.9";
+      # Centrage automatique de la colonne active
+      scroller_ignore_proportion_single = 0;
+      scroller_default_proportion_single = "1";
+      # Cycle de dimensions type Niri : 1/3 -> 1/2 -> 2/3 -> Pleine largeur
+      scroller_proportion_preset = "0.33,0.5,0.67,1.0";
 
       new_is_master = 0;
-      default_mfact = "0.6";
-      default_nmaster = 1;
       smartgaps = 0;
-
-      dwindle_split_ratio = "0.6";
-      dwindle_smart_split = 1;
-      dwindle_hsplit = 1;
-      dwindle_vsplit = 1;
-      dwindle_preserve_split = 1;
-      dwindle_smart_resize = 1;
-
       scratchpad_width_ratio = "0.8";
-      scratchpad_height_ratio = "0.9";
+      scratchpad_height_ratio = "0.85";
+       axisbind = [
+        # 1. SUPER + Molette : Scroll horizontal dans le ruban du workspace (workflow Niri)
+        "SUPER,UP,focusdir,left"
+        "SUPER,DOWN,focusdir,right"
 
-      # ============================================
-      # Overview
-      # ============================================
-      hotarea_size = 10;
-      enable_hotarea = 1;
-      hotarea_corner = 1;
-      overviewgappi = 5;
-      overviewgappo = 50;
+        # 2. SUPER + SHIFT + Molette : Switch du focus d'écran (entre DP-3 et HDMI-A-3)
+        "SUPER+SHIFT,UP,focusmon,left"
+        "SUPER+SHIFT,DOWN,focusmon,right"
+      ];
 
       # ============================================
       # Input & Devices
       # ============================================
-      repeat_rate = 25;
-      repeat_delay = 400;
+      repeat_rate = 50; # Plus réactif pour naviguer vite au clavier
+      repeat_delay = 250;
       numlockon = 1;
       xkb_rules_layout = "us_qwerty-fr";
       xkb_rules_variant = "qwerty-fr";
@@ -173,53 +187,106 @@
       tap_to_click = 1;
       tap_and_drag = 1;
       drag_lock = 1;
-      trackpad_natural_scrolling = 0;
+      trackpad_natural_scrolling = 1;
       trackpad_disable_while_typing = 1;
       swipe_min_threshold = 1;
 
       mouse_natural_scrolling = 0;
       cursor_size = 24;
       cursor_theme = "capitaine-cursors";
-      drag_tile_to_tile = 1;
 
       # ============================================
-      # Miscellaneous
+      # Keyboard-Centric Ergonomics
       # ============================================
-      no_border_when_single = 0;
-      axis_bind_apply_timeout = 100;
-      focus_on_activate = 0;
-      idleinhibit_ignore_visible = 0;
-      sloppyfocus = 1;
-      warpcursor = 1;
-      focus_cross_monitor = 0;
+      focus_cross_monitor = 1;
       focus_cross_tag = 0;
-      enable_floating_snap = 0;
-      snap_distance = 30;
+      enable_floating_snap = 1;
+      snap_distance = 20;
 
       # ============================================
-      # Keybinds
+      # Keybinds (Workflow Niri pur)
       # ============================================
       bind = [
-        # Session
+        # --- Gestion Système & Session ---
         "SUPER+SHIFT+CTRL,q,quit"
         "SUPER,q,killclient"
         "SUPER,r,reload_config"
+        "SUPER+SHIFT,l,spawn,noctalia msg session lock"
+        "SUPER,Escape,spawn,noctalia msg panel-toggle session"
 
-        # Scratchpad Spotify
-        "SUPER,s,toggle_named_scratchpad,Spotify,none,spotify"
-
-        # Apps
+        # --- Applications & Scratchpads ---
+        "SUPER,Return,spawn,kitty"
         "SUPER,T,spawn,kitty"
         "SUPER,E,spawn,kitty -e yazi"
-        "SUPER+SHIFT,UP,viewtoleft_have_client"
-        "SUPER+SHIFT,DOWN,viewtoright_have_client"
+        "SUPER,Space,spawn,noctalia msg panel-toggle launcher"
+        "SUPER,A,spawn,noctalia msg panel-toggle launcher"
+        "SUPER,s,toggle_named_scratchpad,Spotify,none,spotify"
+        "SUPER,u,toggle_named_scratchpad,scratchpad-term,none,kitty --class scratchpad-term"
 
-        # Workspaces (tags)
-        "SUPER+CTRL,Up,viewtoleft,0"
-        "SUPER+CTRL,Down,viewtoright,0"
-        "SUPER+CTRL+ALT,Up,tagtoleft,0"
-        "SUPER+CTRL+ALT,Down,tagtoright,0"
+        # --- Navigation dans le ruban horizontal (HJKL + Flèches) ---
+        "SUPER,h,focusdir,left"
+        "SUPER,l,focusdir,right"
+        "SUPER,k,focusdir,up"
+        "SUPER,j,focusdir,down"
+        "SUPER,Left,focusdir,left"
+        "SUPER,Right,focusdir,right"
+        "SUPER,Up,focusdir,up"
+        "SUPER,Down,focusdir,down"
 
+        # Déplacement rapide bout-à-bout du ruban
+        "SUPER,Home,focusstack,first"
+        "SUPER,End,focusstack,last"
+
+        # --- Déplacement / Échange de fenêtres et colonnes (Shift + HJKL) ---
+        "SUPER+SHIFT,h,exchange_client,left"
+        "SUPER+SHIFT,l,exchange_client,right"
+        "SUPER+SHIFT,k,exchange_client,up"
+        "SUPER+SHIFT,j,exchange_client,down"
+        "SUPER+SHIFT,Left,exchange_client,left"
+        "SUPER+SHIFT,Right,exchange_client,right"
+        "SUPER+SHIFT,Up,exchange_client,up"
+        "SUPER+SHIFT,Down,exchange_client,down"
+
+        # --- Colonnes & Stacking (Empiler comme dans Niri) ---
+        # Consomme / empile verticalement dans la colonne
+        "SUPER,bracketleft,scroller_stack,left"
+        "SUPER,bracketright,scroller_stack,right"
+        "SUPER,c,scroller_stack,left"
+        "SUPER+SHIFT,c,scroller_stack,right"
+
+        # --- Dimensions de colonnes (Niri preset widths & expansion) ---
+        # Fait défiler les presets : 33% -> 50% -> 67% -> 100%
+        "SUPER,period,cycle_proportion"
+        # Maximise la colonne en largeur (100% largeur écran sans être fullscreen)
+        "SUPER,m,set_proportion,1.0"
+        "SUPER+ALT,f,set_proportion,1.0"
+        # Réinitialise la colonne à 50%
+        "SUPER,comma,set_proportion,0.5"
+
+        "ALT,Tab,spawn,noctalia msg window-switcher hold"
+  "ALT+SHIFT,Tab,spawn,noctalia msg window-switcher hold"
+  "ALT,ISO_Left_Tab,spawn,noctalia msg window-switcher hold"
+
+        # Redimensionnement précis au clavier
+        "SUPER+CTRL,h,resizewin,-50,0"
+        "SUPER+CTRL,l,resizewin,50,0"
+        "SUPER+CTRL,k,resizewin,0,-40"
+        "SUPER+CTRL,j,resizewin,0,40"
+        "SUPER+CTRL,minus,resizewin,-50,0"
+        "SUPER+CTRL,equal,resizewin,50,0"
+
+        # --- Fenêtres & États ---
+        "SUPER,f,togglefullscreen"
+        "SUPER+SHIFT,space,togglefloating"
+        "SUPER,Tab,toggleoverview"
+
+        # --- Écrans / Moniteurs ---
+        "SUPER+ALT,h,focusmon,left"
+        "SUPER+ALT,l,focusmon,right"
+        "SUPER+SHIFT+ALT,h,tagmon,left"
+        "SUPER+SHIFT+ALT,l,tagmon,right"
+
+        # --- Workspaces / Tags ---
         "SUPER,1,view,1"
         "SUPER,2,view,2"
         "SUPER,3,view,3"
@@ -240,41 +307,13 @@
         "SUPER+SHIFT,8,tag,8"
         "SUPER+SHIFT,9,tag,9"
 
-        # Monitors
-        "SUPER+CTRL,Left,focusmon,left"
-        "SUPER+CTRL,Right,focusmon,right"
-        "SUPER+SHIFT+CTRL,Left,tagmon,left"
-        "SUPER+SHIFT+CTRL,Right,tagmon,right"
+        # Cycle rapide entre les tags occupés
+        "SUPER,Page_Up,viewtoleft_have_client"
+        "SUPER,Page_Down,viewtoright_have_client"
 
-        # Window States & Actions
-        "SUPER,equal,resizewin,5,0"
-        "SUPER,minus,resizewin,-5,0"
-        "SUPER+CTRL,equal,resizewin,0,5"
-        "SUPER+CTRL,minus,resizewin,0,-5"
-        "SUPER,W,togglefloating"
-        "SUPER,Tab,toggleoverview"
-        "ALT,Tab,focusstack,next"
-        "SUPER,f,togglefullscreen"
-
-        # Screenshots & Layouts
-        "CTRL,d,setlayout,DW"
-        "SUPER+ALT,f,set_proportion,1.0"
-        "SUPER+SHIFT,c,scroller_stack,right"
-        "SUPER,c,scroller_stack,left"
-
-        # Gaps
-        "ALT+SHIFT,X,incgaps,1"
-        "ALT+SHIFT,Z,incgaps,-1"
-        "ALT+SHIFT,R,togglegaps"
-        "SUPER+SHIFT,A,spawn,$HOME/.config/mango/bin/toggle-outer-gaps.sh"
-
-        # Noctalia
-        "SUPER,A,spawn,noctalia msg panel-toggle launcher"
-        "SUPER,l,spawn,noctalia msg session lock"
-        "SUPER,comma,spawn,noctalia msg settings-toggle"
-        "SUPER,Escape,spawn,noctalia msg panel-toggle session"
-        "SUPER,V,spawn,noctalia msg panel-toggle clipboard"
-        "SUPER,P,spawn,noctalia msg screenshot-region"
+        # --- Noctalia UI / Audio / Luminosité ---
+        "SUPER,v,spawn,noctalia msg panel-toggle clipboard"
+        "SUPER,p,spawn,noctalia msg screenshot-region"
         "SUPER+SHIFT,w,spawn,noctalia msg panel-toggle wallpaper"
         "NONE,XF86AudioRaiseVolume,spawn,noctalia msg volume-up"
         "NONE,XF86AudioLowerVolume,spawn,noctalia msg volume-down"
@@ -284,30 +323,15 @@
       ];
 
       # ============================================
-      # Mouse & Gestures
+      # Mouse (Fallback de secours uniquement)
       # ============================================
       mousebind = [
         "SUPER,btn_left,moveresize,curmove"
         "SUPER,btn_right,moveresize,curresize"
       ];
-
-      axisbind = [
-        "SUPER,UP,focusdir,left"
-        "SUPER,DOWN,focusdir,right"
-      ];
-
-      gesturebind = [
-        "none,up,4,viewtoright,0"
-        "none,down,4,viewtoleft,0"
-        "none,left,3,focusdir,left"
-        "none,right,3,focusdir,right"
-        "none,up,3,focusdir,up"
-        "none,down,3,focusdir,down"
-      ];
     };
   };
 
-  # (Optionnel) Crée un fichier vide au premier déploiement
   home.activation.createEmptyNoctaliaConf = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p $HOME/.config/mango
     touch $HOME/.config/mango/noctalia.conf
