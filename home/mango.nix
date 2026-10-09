@@ -64,10 +64,10 @@
       no_radius_when_single = 0;
       focused_opacity = "1.0";
       unfocused_opacity = "0.95"; # Léger contraste pour identifier la fenêtre active
-      gappih = 6;
-      gappiv = 6;
-      gappoh = 6;
-      gappov = 6;
+      # gappih = 6;
+      # gappiv = 6;
+      # gappoh = 6;
+      # gappov = 6;
 
       # Règles layer-shell
       layerrule = [
