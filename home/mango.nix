@@ -174,7 +174,7 @@
       # ============================================
       repeat_rate = 50; # Plus réactif pour naviguer vite au clavier
       repeat_delay = 250;
-      numlockon = 1;
+      # numlockon = 1;
       xkb_rules_layout = "us_qwerty-fr";
       xkb_rules_variant = "qwerty-fr";
 
