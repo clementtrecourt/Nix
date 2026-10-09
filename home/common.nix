@@ -13,11 +13,12 @@
   dot = path: config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Dot/${path}";
 in {
   imports = [
-    ./noctalia.nix
+    ./quickshell.nix
     ./mango.nix
     ./kitty.nix
     ./fish.nix
     ./tmux.nix
+    ./screenshot.nix
     ./zed.nix
     inputs.lazyvim.homeManagerModules.default
   ];

@@ -50,12 +50,12 @@
 
     # Inclusion du thème dynamique Noctalia
     extraConfig = ''
-      include themes/noctalia.conf
+      include themes/matugen.conf
     '';
   };
 
   # Crée le dossier des thèmes et le fichier vide s'il n'existe pas encore
-  home.activation.createEmptyKittyNoctaliaTheme = lib.hm.dag.entryAfter ["writeBoundary"] ''
+  home.activation.createEmptyKittyMatugenTheme = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p $HOME/.config/kitty/themes
     touch $HOME/.config/kitty/themes/noctalia.conf
   '';

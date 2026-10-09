@@ -25,6 +25,7 @@
       # 1. PARAMÈTRES SUPPLÉMENTAIRES
       # ---------------------------------------------------------
       setw -g pane-base-index 1
+      set -ga update-environment " MANGO_INSTANCE_SIGNATURE"
       set-window-option -g pane-base-index 1
       set-option -g renumber-windows on
       set -g focus-events on

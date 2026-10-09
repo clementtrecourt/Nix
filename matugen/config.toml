@@ -1,0 +1,18 @@
+[config]
+
+[templates.quickshell]
+input_path = "~/.config/matugen/templates/colors.json"
+output_path = "~/.local/state/quickshell/colors.json"
+
+[templates.kitty]
+input_path = "~/.config/matugen/templates/kitty.conf"
+output_path = "~/.config/kitty/themes/matugen.conf"
+
+[templates.mango]
+input_path = "~/.config/matugen/templates/mango.conf"
+output_path = "~/.config/mango/colors.conf"
+
+
+[templates.hyprlock]
+input_path = "~/.config/matugen/templates/hyprlock.conf"
+output_path = "~/.config/hypr/hyprlock.conf"

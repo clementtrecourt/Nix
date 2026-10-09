@@ -11,17 +11,20 @@
     systemd.enable = true;
 
     autostart_sh = ''
-      noctalia &
-      zen &
-      kitty &
+                awww-daemon &
+            qs -n &
+            set-wallpaper --restore &
+            zen &
+            kitty &
+            wl-paste --type text --watch cliphist store &
+      wl-paste --type image --watch cliphist store &
     '';
-
-    bottomPrefixes = ["source"];
 
     extraConfig = ''
-      source-optional = ~/.config/mango/noctalia.conf
-      source-optional = ~/.config/mango/monitors.conf
+      source_optional = ~/.config/mango/colors.conf
+      source_optional = ~/.config/mango/monitors.conf
     '';
+    bottomPrefixes = ["source"];
 
     settings = {
       # ============================================
@@ -77,18 +80,18 @@
       # ============================================
       # Window Rules
       # ============================================
-      windowrule = [
-        # Scratchpads dédiés
-        "isnamedscratchpad:1,isfullscreen:1,appid:spotify"
-        "isnamedscratchpad:1,isfullscreen:1,appid:Spotify"
-        "isnamedscratchpad:1,appid:scratchpad-term"
-
-        # Applications fixes
-        "tags:1,appid:zen.*"
-        "tags:1,appid:zen"
-        "tags:1,appid:zen-beta"
-        "tags:2,appid:kitty"
-      ];
+      # windowrule = [
+      #   # Scratchpads dédiés
+      #   "isnamedscratchpad:1,isfullscreen:1,appid:spotify"
+      #   "isnamedscratchpad:1,isfullscreen:1,appid:Spotify"
+      #   "isnamedscratchpad:1,appid:scratchpad-term"
+      #
+      #   # Applications fixes
+      #   "tags:1,appid:zen.*"
+      #   "tags:1,appid:zen"
+      #   "tags:1,appid:zen-beta"
+      #   "tags:2,appid:kitty"
+      # ];
 
       # ============================================
       # Animations (fluides façon Niri)
@@ -142,7 +145,7 @@
       # Téléporte instantanément la souris sur la fenêtre ciblée au clavier.
       # Combiné avec sloppyfocus = 1, la fenêtre est activée À LA FRACTION DE SECONDE
       # où vous appuyez sur Super+H/L, et se centre automatiquement sans toucher la souris.
-      warpcursor = 1;
+      # warpcursor = 1;
 
       # Active immédiatement toute fenêtre nouvellement créée ou appelée
       focus_on_activate = 1;
@@ -197,6 +200,9 @@
       focus_cross_tag = 0;
       enable_floating_snap = 1;
       snap_distance = 20;
+      layer_rule = [
+        "layer_name:selection,no_blur:1,no_animation:1"
+      ];
 
       # ============================================
       # Keybinds (Workflow Niri pur)
@@ -206,15 +212,11 @@
         "SUPER+SHIFT+CTRL,q,quit"
         "SUPER,q,killclient"
         "SUPER,r,reload_config"
-        "SUPER+SHIFT,l,spawn,noctalia msg session lock"
-        "SUPER,Escape,spawn,noctalia msg panel-toggle session"
 
         # --- Applications & Scratchpads ---
         "SUPER,Return,spawn,kitty"
         "SUPER,T,spawn,kitty"
         "SUPER,E,spawn,kitty -e yazi"
-        "SUPER,Space,spawn,noctalia msg panel-toggle launcher"
-        "SUPER,A,spawn,noctalia msg panel-toggle launcher"
         "SUPER,s,toggle_named_scratchpad,Spotify,none,spotify"
         "SUPER,u,toggle_named_scratchpad,scratchpad-term,none,kitty --class scratchpad-term"
 
@@ -259,7 +261,6 @@
 
         "ALT,Tab,spawn,noctalia msg window-switcher hold"
         "ALT+SHIFT,Tab,spawn,noctalia msg window-switcher hold"
-        "ALT,ISO_Left_Tab,spawn,noctalia msg window-switcher hold"
 
         # Redimensionnement précis au clavier
         "SUPER+CTRL,h,resizewin,-50,0"
@@ -305,15 +306,14 @@
         "SUPER,Page_Up,viewtoleft_have_client"
         "SUPER,Page_Down,viewtoright_have_client"
 
+        "SUPER,Escape,spawn,qs ipc call power toggle"
+        "SUPER+SHIFT,Escape,spawn,qs ipc call power lock"
         # --- Noctalia UI / Audio / Luminosité ---
-        "SUPER,v,spawn,noctalia msg panel-toggle clipboard"
-        "SUPER,p,spawn,noctalia msg screenshot-region"
-        "SUPER+SHIFT,w,spawn,noctalia msg panel-toggle wallpaper"
-        "NONE,XF86AudioRaiseVolume,spawn,noctalia msg volume-up"
-        "NONE,XF86AudioLowerVolume,spawn,noctalia msg volume-down"
-        "NONE,XF86AudioMute,spawn,noctalia msg volume-mute"
-        "NONE,XF86MonBrightnessUp,spawn,noctalia msg brightness-up"
-        "NONE,XF86MonBrightnessDown,spawn,noctalia msg brightness-down"
+        "SUPER,p,spawn,screenshot region"
+        "SUPER+SHIFT,p,spawn,screenshot screen"
+        "SUPER+CTRL,p,spawn,screenshot edit"
+        "SUPER,A,spawn,qs ipc call launcher toggle"
+        "SUPER,v,spawn,qs ipc call clipboard toggle"
       ];
 
       # ============================================
@@ -326,8 +326,8 @@
     };
   };
 
-  home.activation.createEmptyNoctaliaConf = lib.hm.dag.entryAfter ["writeBoundary"] ''
+  home.activation.createEmptyMangoColors = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p $HOME/.config/mango
-    touch $HOME/.config/mango/noctalia.conf
+    touch $HOME/.config/mango/colors.conf
   '';
 }
