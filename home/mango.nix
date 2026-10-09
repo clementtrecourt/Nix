@@ -119,16 +119,16 @@
       # Layouts & Scroller (Coeur du workflow Niri)
       # ============================================
       # On force 'scroller' par défaut sur tous les tags principaux
-      tagrule = [
-        "id:1,layout_name:scroller"
-        "id:2,layout_name:scroller"
-        "id:3,layout_name:scroller"
-        "id:4,layout_name:scroller"
-        "id:5,layout_name:scroller"
-      ];
-
-      scroller_focus_center = 1;
-      scroller_prefer_center = 1;
+      # tagrule = [
+      #   "id:1,layout_name:scroller"
+      #   "id:2,layout_name:scroller"
+      #   "id:3,layout_name:scroller"
+      #   "id:4,layout_name:scroller"
+      #   "id:5,layout_name:scroller"
+      # ];
+      #
+      # scroller_focus_center = 1;
+      # scroller_prefer_center = 1;
 
       # 2. Réactiver impérativement pour que le ruban défile vers les fenêtres hors-champ
       edge_scroller_pointer_focus = 1;
@@ -137,7 +137,7 @@
       # Keyboard-Centric & Focus (CRITIQUE)
       # ============================================
       # 1 = Focus-follows-mouse (permet l'activation instantanée sans clic)
-      sloppyfocus = 1;
+      # sloppyfocus = 1;
 
       # Téléporte instantanément la souris sur la fenêtre ciblée au clavier.
       # Combiné avec sloppyfocus = 1, la fenêtre est activée À LA FRACTION DE SECONDE
@@ -156,7 +156,7 @@
       scroller_proportion_preset = "0.33,0.5,0.67,1.0";
 
       new_is_master = 0;
-      smartgaps = 0;
+      # smartgaps = 0;
       scratchpad_width_ratio = "0.8";
       scratchpad_height_ratio = "0.85";
       axisbind = [
