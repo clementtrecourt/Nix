@@ -5,6 +5,8 @@
   virtualisation.docker.enable = true;
   # Outils système pour la virtualisation et l'accès distant
   networking.firewall.allowedTCPPorts = [8000];
+  programs.gpu-screen-recorder.enable = true;
+  hardware.graphics.enable = true;
   environment.systemPackages = with pkgs; [
     qemu
     anydesk
@@ -13,5 +15,6 @@
     python3Packages.pip
     tigervnc
     teams-for-linux
+    wf-recorder
   ];
 }

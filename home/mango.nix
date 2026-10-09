@@ -21,7 +21,7 @@
     '';
 
     extraConfig = ''
-      source_optional = ~/.config/mango/colors.conf
+      source_optional = ~/.config/mango/dms/colors.conf
       source_optional = ~/.config/mango/monitors.conf
     '';
     bottomPrefixes = ["source"];
@@ -54,7 +54,7 @@
       blur_params_brightness = 1;
       blur_params_contrast = 1;
       blur_params_saturation = "1.2";
-
+      border_px = 2;
       shadows = 1;
       layer_shadows = 0;
       shadow_only_floating = 1;
@@ -71,11 +71,6 @@
       # gappiv = 6;
       # gappoh = 6;
       # gappov = 6;
-
-      # Règles layer-shell
-      # layerrule = [
-      #   "layer_name:.*noctalia-panel*,noblur:0,noanim:1"
-      # ];
 
       # ============================================
       # Window Rules
@@ -202,6 +197,7 @@
       snap_distance = 20;
       layer_rule = [
         "layer_name:selection,no_blur:1,no_animation:1"
+        "layer_name:.*dms*,no_blur:0"
       ];
 
       # ============================================
@@ -302,19 +298,30 @@
         "SUPER+SHIFT,8,tag,8"
         "SUPER+SHIFT,9,tag,9"
 
-        # Cycle rapide entre les tags occupés
-        "SUPER,Page_Up,viewtoleft_have_client"
-        "SUPER,Page_Down,viewtoright_have_client"
+        # --- DMS : alimentation et session ---
+        "SUPER,Escape,spawn,dms ipc call powermenu toggle"
+        "SUPER+SHIFT,Escape,spawn,dms ipc call lock lock"
 
-        "SUPER,Escape,spawn,qs ipc call power toggle"
-        "SUPER+SHIFT,Escape,spawn,qs ipc call power lock"
-        # --- Noctalia UI / Audio / Luminosité ---
+        # --- DMS : interfaces ---
+        "SUPER,A,spawn,dms ipc call launcher toggle"
+        "SUPER,v,spawn,dms ipc call clipboard toggle"
+        "SUPER+SHIFT,w,spawn,dms ipc call dankdash wallpaper"
+
+        # --- DMS : centre de contrôle et notifications ---
+        "SUPER,period,spawn,dms ipc call control-center toggle"
+
+        # --- DMS : barre et thème ---
+        "SUPER+ALT,b,spawn,dms ipc call bar toggle"
+        "SUPER+ALT,t,spawn,dms ipc call theme toggle"
+
+        # --- Capture d'écran : outils existants ---
         "SUPER,p,spawn,screenshot region"
         "SUPER+SHIFT,p,spawn,screenshot screen"
         "SUPER+CTRL,p,spawn,screenshot edit"
-        "SUPER,A,spawn,qs ipc call launcher toggle"
-        "SUPER,v,spawn,qs ipc call clipboard toggle"
-        "SUPER+SHIFT,w,spawn,qs ipc call wallpaper toggle"
+
+        # Cycle rapide entre les tags occupés
+        "SUPER,Page_Up,viewtoleft_have_client"
+        "SUPER,Page_Down,viewtoright_have_client"
       ];
 
       # ============================================
@@ -329,6 +336,6 @@
 
   home.activation.createEmptyMangoColors = lib.hm.dag.entryAfter ["writeBoundary"] ''
     mkdir -p $HOME/.config/mango
-    touch $HOME/.config/mango/colors.conf
+    touch $HOME/.config/mango/dms/colors.conf
   '';
 }

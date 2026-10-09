@@ -38,6 +38,10 @@
       flake = false;
     };
 
+    dms = {
+      url = "github:AvengeMedia/DankMaterialShell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     helium-flake = {
       url = "github:oxcl/nix-flake-helium-browser";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -54,6 +58,7 @@
     lazyvim,
     chaotic,
     microvm,
+    dms,
     ...
   } @ inputs: let
     system = "x86_64-linux";

@@ -10,6 +10,7 @@
     scripts/organizer.nix
     scripts/auto-cleaner.nix
     scripts/copy-context.nix
+    inputs.dms.nixosModules.dank-material-shell
   ];
 
   # ============================================
@@ -19,6 +20,7 @@
   # 2. Configuration Nix & Caches
   # ============================================
   virtualisation.docker.enable = true;
+  programs.dank-material-shell.enable = true;
   nix.settings = {
     experimental-features = ["nix-command" "flakes"];
     auto-optimise-store = true;

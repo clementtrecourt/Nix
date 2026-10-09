@@ -47,16 +47,9 @@
       "ctrl+shift+o" = "set_background_opacity 1.0";
       "ctrl+shift+u" = "set_background_opacity 0.80";
     };
-
-    # Inclusion du thème dynamique Noctalia
     extraConfig = ''
-      include themes/matugen.conf
+      include dank-tabs.conf
+      include dank-theme.conf
     '';
   };
-
-  # Crée le dossier des thèmes et le fichier vide s'il n'existe pas encore
-  home.activation.createEmptyKittyMatugenTheme = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    mkdir -p $HOME/.config/kitty/themes
-    touch $HOME/.config/kitty/themes/noctalia.conf
-  '';
 }
