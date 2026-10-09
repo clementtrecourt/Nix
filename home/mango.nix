@@ -314,6 +314,7 @@
         "SUPER+CTRL,p,spawn,screenshot edit"
         "SUPER,A,spawn,qs ipc call launcher toggle"
         "SUPER,v,spawn,qs ipc call clipboard toggle"
+        "SUPER+SHIFT,w,spawn,qs ipc call wallpaper toggle"
       ];
 
       # ============================================

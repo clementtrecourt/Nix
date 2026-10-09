@@ -26,7 +26,7 @@
         sleep 0.1
       done
 
-      awww img "$wall" --transition-type fade --transition-duration 0.4
+      awww img "$wall" --transition-type wave --transition-duration 1.4 --transition-fps 120 --transition-angle 20 --transition-wave 40,20
       ln -sf "$wall" "$state"
       matugen image "$wall" --mode dark --source-color-index 0
       pkill -USR1 -x kitty || true   # recharge la config kitty
