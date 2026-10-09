@@ -70,9 +70,9 @@
       # gappov = 6;
 
       # Règles layer-shell
-      layerrule = [
-        "layer_name:.*noctalia-panel*,noblur:0,noanim:1"
-      ];
+      # layerrule = [
+      #   "layer_name:.*noctalia-panel*,noblur:0,noanim:1"
+      # ];
 
       # ============================================
       # Window Rules
