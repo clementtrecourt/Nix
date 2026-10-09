@@ -102,8 +102,6 @@
       tag_animation_direction = 0;
       zoom_initial_ratio = "0.7";
       zoom_end_ratio = "0.85";
-      fadein_begin_opacity = "1.0";
-      fadeout_begin_opacity = "1.0";
 
       animation_duration_move = 160;
       animation_duration_open = 160;
