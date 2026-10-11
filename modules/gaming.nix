@@ -30,6 +30,7 @@ in {
   # 3. Paquets gaming + rclone + mGBA
   environment.systemPackages = with pkgs; [
     rclone
+    discord
     fuse3
     heroic
     mangohud
