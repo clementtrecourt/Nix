@@ -11,10 +11,10 @@
     systemd.enable = true;
 
     autostart_sh = ''
-                awww-daemon &
-            zen &
-            kitty &
-            dms run
+          awww-daemon &
+      zen &
+      kitty &
+      dms run
     '';
 
     extraConfig = ''

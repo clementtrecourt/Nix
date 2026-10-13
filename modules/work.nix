@@ -11,6 +11,7 @@
     qemu
     anydesk
     oath-toolkit
+    colima
     ansible
     python3Packages.pip
     tigervnc
