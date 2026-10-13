@@ -12,12 +12,9 @@
 
     autostart_sh = ''
                 awww-daemon &
-            qs -n &
-            set-wallpaper --restore &
             zen &
             kitty &
-            wl-paste --type text --watch cliphist store &
-      wl-paste --type image --watch cliphist store &
+            dms run
     '';
 
     extraConfig = ''

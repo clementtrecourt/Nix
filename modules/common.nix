@@ -239,6 +239,7 @@
     zip
     python3
     brave
+    claude-code
     attic-client
     (callPackage ./waveflow.nix {})
     inputs.helium-flake.packages.${system}.default
