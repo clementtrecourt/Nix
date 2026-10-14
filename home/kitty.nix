@@ -29,9 +29,9 @@
 
       # Fenêtre & Apparence
       remember_window_size = "no";
-      window_padding_width = 10;
+      window_padding_width = 16;
       hide_window_decorations = "yes";
-      background_opacity = "0.7";
+      background_opacity = "0.5";
       confirm_os_window_close = 0;
       enable_audio_bell = "no";
       scrollback_lines = 2000;
@@ -45,11 +45,14 @@
       "ctrl+shift+left" = "neighboring_window left";
       "ctrl+shift+right" = "neighboring_window right";
       "ctrl+shift+o" = "set_background_opacity 1.0";
-      "ctrl+shift+u" = "set_background_opacity 0.80";
+      "ctrl+shift+u" = "set_background_opacity 0.5";
     };
     extraConfig = ''
       include dank-tabs.conf
       include dank-theme.conf
+
+      # Fond toujours noir (après le thème dynamique pour qu'il ne l'écrase pas)
+      background #000000
     '';
   };
 }
