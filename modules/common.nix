@@ -7,10 +7,10 @@
 }: {
   imports = [
     ./zen-browser.nix
+    ./sddm.nix
     scripts/organizer.nix
     scripts/auto-cleaner.nix
     scripts/copy-context.nix
-    inputs.dms.nixosModules.dank-material-shell
   ];
 
   # ============================================
@@ -20,7 +20,6 @@
   # 2. Configuration Nix & Caches
   # ============================================
   virtualisation.docker.enable = true;
-  programs.dank-material-shell.enable = true;
   nix.settings = {
     experimental-features = ["nix-command" "flakes"];
     auto-optimise-store = true;
@@ -82,19 +81,6 @@
     memoryPercent = 50; # Utilise jusqu'à 50% de la RAM comme swap compressé
   };
 
-  services.greetd = {
-    enable = true;
-    settings = {
-      initial_session = {
-        command = "${pkgs.fish}/bin/fish --login -c mango";
-        user = "clem";
-      };
-      default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --cmd '${pkgs.fish}/bin/fish --login -c mango'";
-        user = "greeter";
-      };
-    };
-  };
   boot.kernel.sysctl = {
     "net.core.default_qdisc" = "fq";
     "net.ipv4.tcp_congestion_control" = "bbr";
@@ -208,7 +194,7 @@
     shell = pkgs.fish;
   };
 
-  programs.mango.enable = true;
+  programs.hyprland.enable = true;
   programs.nix-ld.enable = true;
   programs.nh = {
     enable = true;

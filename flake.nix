@@ -17,10 +17,6 @@
       url = "github:nix-community/nix-index-database";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    mango = {
-      url = "github:mangowm/mango";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     lazyvim = {
       url = "github:pfassina/lazyvim-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -38,9 +34,17 @@
       flake = false;
     };
 
-    dms = {
-      url = "github:AvengeMedia/DankMaterialShell";
+    caelestia-shell = {
+      url = "github:caelestia-dots/shell";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+    caelestia-dots = {
+      url = "github:caelestia-dots/caelestia";
+      flake = false;
+    };
+    caelestia-sddm = {
+      url = "github:ItsABigIgloo/caelestia-sddm";
+      flake = false;
     };
     helium-flake = {
       url = "github:oxcl/nix-flake-helium-browser";
@@ -54,11 +58,10 @@
     home-manager,
     nix-index-database,
     helium-flake,
-    mango,
     lazyvim,
     chaotic,
     microvm,
-    dms,
+    caelestia-shell,
     ...
   } @ inputs: let
     system = "x86_64-linux";
@@ -88,7 +91,7 @@
               home-manager.users.clem = import homeModule;
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.sharedModules = [
-                inputs.mango.hmModules.mango
+                inputs.caelestia-shell.homeManagerModules.default
               ];
             }
           ]

@@ -13,8 +13,7 @@
   dot = path: config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Dot/${path}";
 in {
   imports = [
-    ./quickshell.nix
-    ./mango.nix
+    ./hyprland.nix
     ./kitty.nix
     ./fish.nix
     ./tmux.nix
@@ -223,8 +222,6 @@ in {
     swayidle
     swaylock
     swaybg
-    trashy
-    tuigreet
     uv
     vlc
     waybar
