@@ -22,6 +22,7 @@ in {
     "hypr/variables.lua".source = "${dots}/variables.lua";
     "hypr/hyprland".source = "${dots}/hyprland";
     "hypr/utils".source = "${dots}/utils";
+    "caelestia/hypr-user.lua".source = ./hypr-user.lua;
   };
 
   # Dépendances utilisées par les dots (execs.lua / keybinds)
