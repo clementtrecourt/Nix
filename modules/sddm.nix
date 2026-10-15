@@ -23,7 +23,6 @@
       --replace-fail '/usr/share/sddm/themes/caelestia' '${themeDir}' \
       --replace-fail '#!/usr/bin/env bash' '#!${pkgs.bash}/bin/bash'
   '';
-
 in {
   # Greeter X11 (xcb) requis par le thème pour le flou MultiEffect
   services.xserver.enable = true;

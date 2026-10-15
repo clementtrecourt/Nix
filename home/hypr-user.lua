@@ -51,6 +51,9 @@ end)
 -- Toggle manuel du filtre lumière bleue
 hl.bind("SUPER + SHIFT + B", function() hl.exec_cmd("hyprshade toggle blue-light-filter") end)
 
+-- Capture d'écran : sélection d'une région (script home/screenshot.nix), copiée dans le presse-papiers
+hl.bind("SUPER + P", function() hl.exec_cmd("screenshot region") end)
+
 -- Sélecteur de wallpaper Caelestia : ouvre le launcher (IPC) puis préremplit ">wallpaper "
 hl.bind("SUPER + SHIFT + W", function()
     hl.exec_cmd("sh -c 'caelestia shell drawers toggle launcher; sleep 0.25; wtype \">wallpaper \"'")
