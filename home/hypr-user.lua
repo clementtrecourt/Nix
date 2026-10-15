@@ -43,3 +43,8 @@ hl.config({
         kb_variant = "qwerty-fr",
     },
 })
+
+-- Overview (hyprtasking) : n'apparaît que sur ALT + TAB
+-- (le cycle de fenêtres par défaut est déplacé sur SUPER + TAB dans hypr-vars.lua)
+hl.plugin.load(require("hypr-plugins").hyprtasking)
+hl.bind("ALT + TAB", function() hl.plugin.hyprtasking.toggle("all") end)

@@ -23,6 +23,18 @@ in {
     "hypr/hyprland".source = "${dots}/hyprland";
     "hypr/utils".source = "${dots}/utils";
     "caelestia/hypr-user.lua".source = ./hypr-user.lua;
+    "caelestia/hypr-plugins.lua".text = ''
+      return { hyprtasking = "${pkgs.hyprlandPlugins.hyprtasking}/lib/libhyprtasking.so" }
+    '';
+    "caelestia/hypr-vars.lua".text = ''
+      return {
+          terminal = "kitty",
+          windowOpacity = 1,
+          -- ALT + TAB est réservé à l'overview (hypr-user.lua)
+          kbWindowCycleNext = "SUPER + TAB",
+          kbWindowCyclePrev = "SUPER + SHIFT + TAB",
+      }
+    '';
   };
 
   # Dépendances utilisées par les dots (execs.lua / keybinds)
