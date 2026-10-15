@@ -23,17 +23,25 @@ in {
     "hypr/hyprland".source = "${dots}/hyprland";
     "hypr/utils".source = "${dots}/utils";
     "caelestia/hypr-user.lua".source = ./hypr-user.lua;
-    "caelestia/hypr-plugins.lua".text = ''
-      return { hyprtasking = "${pkgs.hyprlandPlugins.hyprtasking}/lib/libhyprtasking.so" }
-    '';
     "caelestia/hypr-vars.lua".text = ''
       return {
           terminal = "kitty",
           windowOpacity = 1,
-          -- ALT + TAB est réservé à l'overview (hypr-user.lua)
           kbWindowCycleNext = "SUPER + TAB",
           kbWindowCyclePrev = "SUPER + SHIFT + TAB",
       }
+    '';
+    # Synchronise le thème SDDM (fond + couleurs) à chaque changement de wallpaper/scheme
+    "caelestia/cli.json".text = builtins.toJSON {
+      wallpaper.postHook = "caelestia-sddm-sync --posthook >/dev/null 2>&1 &";
+      theme.postHook = "caelestia-sddm-sync --posthook >/dev/null 2>&1 &";
+    };
+    "hyprshade/config.toml".text = ''
+      [[shades]]
+      name = "blue-light-filter"
+      start_time = 20:00:00
+      end_time = 07:00:00
+      config.temperature = 4500
     '';
   };
 
@@ -51,5 +59,6 @@ in {
     libqalculate
     app2unit
     kitty
+    wtype
   ];
 }

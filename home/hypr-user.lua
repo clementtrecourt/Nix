@@ -44,7 +44,14 @@ hl.config({
     },
 })
 
--- Overview (hyprtasking) : n'apparaît que sur ALT + TAB
--- (le cycle de fenêtres par défaut est déplacé sur SUPER + TAB dans hypr-vars.lua)
-hl.plugin.load(require("hypr-plugins").hyprtasking)
-hl.bind("ALT + TAB", function() hl.plugin.hyprtasking.toggle("all") end)
+-- Hyprshade : applique le shader prévu par ~/.config/hyprshade/config.toml (planning) au démarrage
+hl.on("hyprland.start", function()
+    hl.exec_cmd("hyprshade auto")
+end)
+-- Toggle manuel du filtre lumière bleue
+hl.bind("SUPER + SHIFT + B", function() hl.exec_cmd("hyprshade toggle blue-light-filter") end)
+
+-- Sélecteur de wallpaper Caelestia : ouvre le launcher (IPC) puis préremplit ">wallpaper "
+hl.bind("SUPER + SHIFT + W", function()
+    hl.exec_cmd("sh -c 'caelestia shell drawers toggle launcher; sleep 0.25; wtype \">wallpaper \"'")
+end)

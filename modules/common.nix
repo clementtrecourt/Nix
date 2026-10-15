@@ -194,7 +194,11 @@
     shell = pkgs.fish;
   };
 
-  programs.hyprland.enable = true;
+  programs.hyprland = {
+    enable = true;
+    # SDDM propose la session hyprland-uwsm : uwsm doit être installé/configuré
+    withUWSM = true;
+  };
   programs.nix-ld.enable = true;
   programs.nh = {
     enable = true;

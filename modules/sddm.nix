@@ -8,6 +8,14 @@
   # couleurs, avatar et fond d'écran (impossible dans le store).
   themeRoot = "/var/lib/caelestia-sddm/themes";
   themeDir = "${themeRoot}/caelestia";
+  rootSync = pkgs.writeShellScript "caelestia-sddm-sync-root" ''
+    export PATH=${pkgs.lib.makeBinPath (with pkgs; [coreutils gnused gnugrep file util-linux])}:/run/wrappers/bin:/run/current-system/sw/bin
+    exec ${syncScript} "$@"
+  '';
+
+  syncCmd = pkgs.writeShellScriptBin "caelestia-sddm-sync" ''
+    exec sudo ${rootSync} "$@"
+  '';
 
   syncScript = pkgs.runCommand "caelestia-sddm-sync-script" {} ''
     install -Dm755 ${inputs.caelestia-sddm}/scripts/sync.sh $out
@@ -16,11 +24,6 @@
       --replace-fail '#!/usr/bin/env bash' '#!${pkgs.bash}/bin/bash'
   '';
 
-  # À lancer après un changement de wallpaper/scheme (ou en posthook Caelestia).
-  syncCmd = pkgs.writeShellScriptBin "caelestia-sddm-sync" ''
-    export PATH=${pkgs.lib.makeBinPath (with pkgs; [coreutils gnused gnugrep file util-linux])}:/run/wrappers/bin:/run/current-system/sw/bin:$PATH
-    exec sudo "$(command -v env)" PATH="$PATH" ${syncScript} "$@"
-  '';
 in {
   # Greeter X11 (xcb) requis par le thème pour le flou MultiEffect
   services.xserver.enable = true;
@@ -54,6 +57,17 @@ in {
     '';
   };
 
+  security.sudo.extraRules = [
+    {
+      users = ["clem"];
+      commands = [
+        {
+          command = "${rootSync}";
+          options = ["NOPASSWD" "SETENV"];
+        }
+      ];
+    }
+  ];
   fonts.packages = with pkgs; [
     rubik
     roboto
