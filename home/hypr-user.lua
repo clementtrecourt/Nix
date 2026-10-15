@@ -58,3 +58,6 @@ hl.bind("SUPER + P", function() hl.exec_cmd("screenshot region") end)
 hl.bind("SUPER + SHIFT + W", function()
     hl.exec_cmd("sh -c 'caelestia shell drawers toggle launcher; sleep 0.25; wtype \">wallpaper \"'")
 end)
+
+-- Extinction immédiate sur Super + Échap
+hl.bind("SUPER + Escape", function() hl.exec_cmd("systemctl poweroff") end)
