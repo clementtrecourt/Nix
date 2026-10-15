@@ -189,8 +189,12 @@
       command -v direnv &>/dev/null && direnv hook fish | source
 
       # 5. Attachement automatique à tmux (session 'main')
-      if not set -q TMUX; and test "$TERM_PROGRAM" != "zed"
-          exec tmux new-session -A -s main
+      # (TMUX peut être hérité de la session qui a lancé Hyprland : dans ce cas
+      # kitty garde TERM=xterm-kitty alors qu'un vrai tmux met tmux-256color)
+      if test "$TERM_PROGRAM" != "zed"
+          if not set -q TMUX; or begin; set -q KITTY_WINDOW_ID; and test "$TERM" = xterm-kitty; end
+              exec env -u TMUX tmux new-session -A -s main
+          end
       end
     '';
   };
