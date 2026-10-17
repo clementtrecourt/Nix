@@ -5,11 +5,6 @@
 }: {
   imports = [./common.nix];
 
-  # Écrans du PC home : à adapter (`hyprctl monitors` pour les noms)
-  xdg.configFile."caelestia/hypr-monitors.lua".text = ''
-    hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
-    return { primary = "eDP-1", secondary = "HDMI-A-1" }
-  '';
   # ========================================================
   # Sauvegarde automatique des jeux (Ludusavi) - Gaming PC
   # ========================================================

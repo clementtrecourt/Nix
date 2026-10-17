@@ -238,7 +238,6 @@ in {
     pkg-config
     sqlite
     librewolf
-    motrix-next
 
     # Qt & Intégration
     qt6Packages.qt6ct

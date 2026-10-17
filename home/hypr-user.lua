@@ -13,14 +13,18 @@ hl.animation({ leaf = "fadeLayers", enabled = true, speed = 2.5, bezier = "snapp
 hl.animation({ leaf = "fadeDim", enabled = true, speed = 2.5, bezier = "snappy" })
 hl.animation({ leaf = "border", enabled = true, speed = 2.5, bezier = "snappy" })
 
--- Écrans : définis par machine dans hypr-monitors.lua (généré par home/home.nix / home/work.nix)
+-- Écrans : définis par machine dans ~/.config/caelestia/hypr-monitors.lua (fichier local, hors git)
 -- Workspaces 1-5 sur l'écran principal, 6-9 sur le secondaire (ignoré s'il n'y a qu'un écran)
-local m = require("hypr-monitors")
-for i = 1, 5 do
-    hl.workspace_rule({ workspace = tostring(i), monitor = m.primary, default = (i == 1), persistent = true })
-end
-for i = 6, 9 do
-    hl.workspace_rule({ workspace = tostring(i), monitor = m.secondary, default = (i == 6), persistent = true })
+local ok, m = pcall(require, "hypr-monitors")
+if ok and type(m) == "table" then
+    for i = 1, 5 do
+        hl.workspace_rule({ workspace = tostring(i), monitor = m.primary, default = (i == 1), persistent = true })
+    end
+    for i = 6, 9 do
+        hl.workspace_rule({ workspace = tostring(i), monitor = m.secondary, default = (i == 6), persistent = true })
+    end
+else
+    hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 end
 
 -- Blur propre : pas de grain (noise), plus de passes pour éviter les artefacts pixelisés
@@ -58,6 +62,13 @@ hl.bind("SUPER + P", function() hl.exec_cmd("screenshot region") end)
 hl.bind("SUPER + SHIFT + W", function()
     hl.exec_cmd("sh -c 'caelestia shell drawers toggle launcher; sleep 0.25; wtype \">wallpaper \"'")
 end)
+
+-- Super + Shift + 1..9/0 : envoie la fenêtre active vers le workspace N (0 = 10)
+for i = 1, 10 do
+    hl.bind("SUPER + SHIFT + " .. (i % 10), function()
+        hl.dispatch(hl.dsp.window.move({ workspace = i }))
+    end)
+end
 
 -- Extinction immédiate sur Super + Échap
 hl.bind("SUPER + Escape", function() hl.exec_cmd("systemctl poweroff") end)
