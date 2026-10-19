@@ -207,6 +207,7 @@
     flake = "/home/clem/Nix";
   };
   environment.systemPackages = with pkgs; [
+    megacmd
     xwayland-satellite
     fzf
     ripgrep
