@@ -26,6 +26,11 @@ in {
     "vm.max_map_count" = 1048576;
   };
   hardware.amdgpu.initrd.enable = true;
+  services.pipewire.wireplumber.extraConfig."51-no-autoswitch" = {
+    "wireplumber.settings" = {
+      "bluetooth.autoswitch-to-headset-profile" = false;
+    };
+  };
 
   # 3. Paquets gaming + rclone + mGBA
   environment.systemPackages = with pkgs; [
