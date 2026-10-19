@@ -190,7 +190,7 @@
   };
   users.users.clem = {
     isNormalUser = true;
-    extraGroups = ["wheel" "corectrl"];
+    extraGroups = ["wheel" "corectrl" "docker"];
     shell = pkgs.fish;
   };
 

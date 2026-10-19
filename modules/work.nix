@@ -1,6 +1,6 @@
 {pkgs, ...}: {
   # Autorise votre utilisateur à lancer des machines virtuelles KVM sans sudo
-  users.users.clem.extraGroups = ["kvm docker"];
+  users.users.clem.extraGroups = ["kvm"];
 
   virtualisation.docker.enable = true;
   # Outils système pour la virtualisation et l'accès distant
