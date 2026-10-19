@@ -206,6 +206,17 @@
     clean.extraArgs = "--keep-since 4d --keep 3";
     flake = "/home/clem/Nix";
   };
+  # Démon MEGAcmd : garde les syncs (ex: ~/Nix) actives en continu
+  systemd.user.services.megacmd = {
+    description = "MEGAcmd server (sync MEGA)";
+    wantedBy = ["default.target"];
+    serviceConfig = {
+      ExecStart = "${pkgs.megacmd}/bin/mega-cmd-server";
+      Restart = "on-failure";
+      RestartSec = 10;
+    };
+  };
+
   environment.systemPackages = with pkgs; [
     megacmd
     xwayland-satellite
