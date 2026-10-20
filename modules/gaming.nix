@@ -46,6 +46,7 @@ in {
     nvtopPackages.amd
     lm_sensors
     aerion
+    telegram-desktop
   ];
 
   # 4. Service Systemd automatique de montage Dropbox
