@@ -101,6 +101,22 @@
     "flake-compat": {
       "flake": false,
       "locked": {
+        "lastModified": 1761588595,
+        "narHash": "sha256-XKUZz9zewJNUj46b4AJdiRZJAvSZ0Dqj2BNfXvFlJC4=",
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "rev": "f387cd2afec9419c8ee37694406ca490c3f34ee5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
+    "flake-compat_2": {
+      "flake": false,
+      "locked": {
         "lastModified": 1767039857,
         "narHash": "sha256-vNpUSpF5Nuw8xvDLj2KCwwksIbjua2LZCqhV1LNRDns=",
         "owner": "NixOS",
@@ -153,11 +169,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792069502,
-        "narHash": "sha256-1kUc/KEp7HXRPEcmf0Lmkrl4Ymj5Kn3rNCzYw9I0oPY=",
+        "lastModified": 1792326441,
+        "narHash": "sha256-8hYZ+E0UYPpwfY39bPW4FOO+edjzAMnCGtdPYAM2TdU=",
         "owner": "oxcl",
         "repo": "nix-flake-helium-browser",
-        "rev": "3c84ccd3a45af5e954cd53ff278bd59595fa3983",
+        "rev": "827226c1345ca7529a3c4420bb4f5aafeee31d3d",
         "type": "github"
       },
       "original": {
@@ -246,6 +262,22 @@
       "original": {
         "owner": "pfassina",
         "repo": "lazyvim-nix",
+        "type": "github"
+      }
+    },
+    "libnbtplusplus": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1650031308,
+        "narHash": "sha256-TvVOjkUobYJD9itQYueELJX3wmecvEdCbJ0FinW2mL4=",
+        "owner": "PolyMC",
+        "repo": "libnbtplusplus",
+        "rev": "2203af7eeb48c45398139b583615134efd8d407f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "PolyMC",
+        "repo": "libnbtplusplus",
         "type": "github"
       }
     },
@@ -341,6 +373,43 @@
         "type": "github"
       }
     },
+    "nixpkgs_3": {
+      "locked": {
+        "lastModified": 1761880412,
+        "narHash": "sha256-QoJjGd4NstnyOG4mm4KXF+weBzA2AH/7gn1Pmpfcb0A=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "a7fc11be66bdfb5cdde611ee5ce381c183da8386",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "polymc": {
+      "inputs": {
+        "flake-compat": "flake-compat",
+        "libnbtplusplus": "libnbtplusplus",
+        "nixpkgs": "nixpkgs_3",
+        "tomlplusplus": "tomlplusplus"
+      },
+      "locked": {
+        "lastModified": 1791836783,
+        "narHash": "sha256-VRCelAhAw+yRAwrPsH/thOz/SXo3XZqYawIDP1TdmvM=",
+        "owner": "PolyMC",
+        "repo": "PolyMC",
+        "rev": "19b689453aa8dcea91cbcb28a5e5423344e4cd66",
+        "type": "github"
+      },
+      "original": {
+        "owner": "PolyMC",
+        "repo": "PolyMC",
+        "type": "github"
+      }
+    },
     "quickshell": {
       "inputs": {
         "nixpkgs": [
@@ -390,6 +459,7 @@
         "microvm": "microvm",
         "nix-index-database": "nix-index-database",
         "nixpkgs": "nixpkgs_2",
+        "polymc": "polymc",
         "qwerty-fr": "qwerty-fr",
         "spotx-nix": "spotx-nix",
         "zen-browser": "zen-browser"
@@ -429,7 +499,7 @@
     },
     "spotx-nix": {
       "inputs": {
-        "flake-compat": "flake-compat",
+        "flake-compat": "flake-compat_2",
         "nixpkgs": [
           "nixpkgs"
         ],
@@ -461,6 +531,22 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "tomlplusplus": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1756542235,
+        "narHash": "sha256-qcc8yXND9htFqjQADU60+xoJZ0acoQwcs7tIK1LgAOg=",
+        "owner": "marzer",
+        "repo": "tomlplusplus",
+        "rev": "e7aaccca3fa3dbde9818ab8313250f3da4976e37",
+        "type": "github"
+      },
+      "original": {
+        "owner": "marzer",
+        "repo": "tomlplusplus",
         "type": "github"
       }
     },

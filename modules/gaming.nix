@@ -47,6 +47,8 @@ in {
     lm_sensors
     aerion
     telegram-desktop
+    whatsapp-electron
+    rtk
   ];
 
   # 4. Service Systemd automatique de montage Dropbox

@@ -9,6 +9,7 @@
       url = "github:astro/microvm.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    polymc.url = "github:PolyMC/PolyMC";
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -80,6 +81,7 @@
               nixpkgs.overlays = [
                 inputs.spotx-nix.overlays.default
                 inputs.helium-flake.overlays.default
+                inputs.polymc.overlay
               ];
             }
 
