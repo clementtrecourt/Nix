@@ -197,7 +197,7 @@ Le cache binaire tourne dans un conteneur Docker sur le serveur Debian à l'adre
 
 `themes list|current|apply <nom>|rotate` (raccourci `ALT+R` pour passer au suivant). Palettes : `blush gilded kyanite malachite sakura vermilion versailles`.
 
-Une seule palette (section `[kitty]`) colore : Mango (bordures), mako, wofi, powyx, lookas, tmux (barre/bordures), starship, dircolors, kitty, GTK3/4 (`gtk.css`), Qt (qt6ct), Zed (thème `Osyx`), Neovim et swaylock. Les apps déjà ouvertes se rechargent à chaud quand c'est possible (kitty, GTK/libadwaita, nvim, mako, tmux).
+Une seule palette (section `[kitty]`) colore : Mango (bordures), mako, wofi, powyx, lookas, tmux (barre/bordures), starship, dircolors, kitty, GTK3/4 (`gtk.css`), Qt (qt6ct), Zed (thème `Osyx`), Neovim et swaylock. `themes` change aussi le fond d'écran (`~/Pictures/osyx/<palette>.*`). Rechargement à chaud : kitty, nvim, mako, tmux et le fond sont fiables ; GTK (bascule de `gtk-theme`) et Zed (événement sur le lien) sont en best-effort ; **les apps Qt déjà ouvertes gardent l'ancienne palette jusqu'au redémarrage** (les nouvelles prennent la bonne).
 
 **Non pilotés par `themes`** : Zen, Spotify, Obsidian, Discord et les apps Electron/Chromium ont leur propre moteur de thème. Le login SDDM (thyx) est statique (preset `cinder`).
 
@@ -216,5 +216,5 @@ Une seule palette (section `[kitty]`) colore : Mango (bordures), mako, wofi, pow
 | `SUPER+0` | Vue d'ensemble |
 | `ALT+Tab` | Fenêtre suivante |
 | `SUPER+F` / `SUPER+V` / `SUPER+S` | Maximiser / flottant / changer de layout |
-| `F9` / `F10` / `SUPER+SHIFT+S` | Capture écran / région / région annotée |
+| `Impr` / `SUPER+Impr` / `SUPER+SHIFT+S` | Capture région / écran complet / région annotée (les touches F nues ne sont pas capturées : elles restent aux applis) |
 | `SUPER+SHIFT+R` | Recharger la config Mango |

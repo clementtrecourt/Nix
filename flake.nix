@@ -107,6 +107,34 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      wlsunset-hours = pkgs.runCommand "wlsunset-hours-check" {} ''
+        grep -q -- '-S 05:00 -s 21:00' ${./home/mango/autostart.nix}
+        grep -q -- '-S 05:00 -s 21:00' ${./home/osyx/bin.nix}
+        echo ok > $out
+      '';
+      mango-no-bare-fkeys = pkgs.runCommand "mango-no-bare-fkeys-check" {} ''
+        cfg=${self.nixosConfigurations.home.config.home-manager.users.clem.xdg.configFile."mango/config.conf".source}
+        if grep -qE '^bind[a-z]* *= *NONE,F([0-9]|1[0-2]),' "$cfg"; then
+          echo "bare F-key binds steal keys from every app" >&2; exit 1
+        fi
+        grep -q 'XF86AudioRaiseVolume' "$cfg"
+        echo ok > $out
+      '';
+      desktop-services = pkgs.runCommand "desktop-services-check" {} ''
+        test ${
+          if self.nixosConfigurations.home.config.services.gnome.gnome-keyring.enable
+          then "yes"
+          else "no"
+        } = yes
+        echo ok > $out
+      '';
+      themes-live-reload = pkgs.runCommand "themes-live-reload-check" {} ''
+        s=${self.packages.${system}.themes}/bin/themes
+        grep -q 'gtk-theme' $s
+        grep -q 'touch -h' $s
+        echo ok > $out
+      '';
+
       asryx-bin = pkgs.runCommand "asryx-bin-check" {} ''
         out_text=$(${self.packages.${system}.asryx}/bin/asryx bogus 2>&1 || true)
         echo "$out_text" | grep -q "voice to text"
@@ -184,6 +212,14 @@
         $t rotate
         $t list | grep -qx "$($t current)"
         test "$($t list | wc -l)" = 7
+        $t apply versailles
+        # fond d'écran : swww factice, dossier de wallpapers factice
+        mkdir -p "$TMPDIR/wp" "$TMPDIR/bin"
+        touch "$TMPDIR/wp/versailles.jpg" "$TMPDIR/wp/sakura.png"
+        printf '#!${pkgs.runtimeShell}\necho "$@" >> "$TMPDIR/swww.log"\n' > "$TMPDIR/bin/swww"
+        chmod +x "$TMPDIR/bin/swww"
+        PATH="$TMPDIR/bin:$PATH" OSYX_WALLPAPER_DIR="$TMPDIR/wp" $t apply sakura
+        grep -q "img $TMPDIR/wp/sakura.png" "$TMPDIR/swww.log"
         $t apply versailles
         for l in kitty.conf gtk.css qt6ct.conf zed.json nvim-theme.lua swaylock.conf; do
           test -s "$HOME/.local/state/osyx/$l" || { echo "missing state link $l" >&2; exit 1; }

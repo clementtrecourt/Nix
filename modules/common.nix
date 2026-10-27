@@ -178,6 +178,8 @@
     };
   };
 
+  services.gnome.gnome-keyring.enable = true;
+  security.pam.services.sddm.enableGnomeKeyring = true;
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
 

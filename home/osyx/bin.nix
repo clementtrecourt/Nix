@@ -7,7 +7,7 @@ in {
       if pgrep -x wlsunset >/dev/null; then
         pkill -x wlsunset
       else
-        setsid wlsunset -S 21:00 -s 05:00 -t 4500 >/dev/null 2>&1 &
+        setsid wlsunset -S 05:00 -s 21:00 -t 4500 >/dev/null 2>&1 &
       fi
     '')
 

@@ -25,6 +25,9 @@ in {
       blueman
       alsa-utils
       libnotify
+      gnome-keyring
+      trash-cli
+      wl-color-picker
     ]);
 
   # Config wofi d'osyx (le style.css est généré par `themes`)

@@ -3,12 +3,13 @@
   coreutils,
   findutils,
   procps,
+  glib,
   osyx-themes,
   mmsgReload,
 }:
 writeShellApplication {
   name = "themes";
-  runtimeInputs = [coreutils findutils procps];
+  runtimeInputs = [coreutils findutils procps glib];
   text = ''
     themes_dir=''${OSYX_THEMES_DIR:-${osyx-themes}}
     state=''${OSYX_STATE_DIR:-''${XDG_STATE_HOME:-$HOME/.local/state}/osyx}
@@ -18,6 +19,16 @@ writeShellApplication {
     current() { cat "$state/theme.current" 2>/dev/null || true; }
 
     link() { ln -sfn "$themes_dir/$name/$2" "$state/$1"; }
+
+    # swww (démon lancé en parallèle au login) : attendre qu'il réponde, puis poser le fond du thème
+    wallpaper() {
+      command -v swww >/dev/null 2>&1 || return 0
+      dir=''${OSYX_WALLPAPER_DIR:-$HOME/Pictures/osyx}
+      img=$(find -L "$dir" -maxdepth 1 -name "$name.*" -print -quit 2>/dev/null || true)
+      [ -n "$img" ] || return 0
+      for _ in $(seq 1 20); do swww query >/dev/null 2>&1 && break; sleep 0.25; done
+      swww img "$img" --transition-type fade || true
+    }
 
     reload() {
       [ -n "''${OSYX_NO_RELOAD:-}" ] && return 0
@@ -29,8 +40,12 @@ writeShellApplication {
       if command -v gsettings >/dev/null 2>&1; then
         # force GTK/libadwaita à relire gtk.css
         gsettings set org.gnome.desktop.interface color-scheme default || true
+        gsettings set org.gnome.desktop.interface gtk-theme adw-gtk3 || true
+        gsettings set org.gnome.desktop.interface gtk-theme adw-gtk3-dark || true
         gsettings set org.gnome.desktop.interface color-scheme prefer-dark || true
       fi
+      # Zed surveille ~/.config/zed/themes : un événement sur le lien lui signale le changement
+      touch -h "$HOME/.config/zed/themes/osyx.json" 2>/dev/null || true
       if command -v nvim >/dev/null 2>&1; then
         for sock in "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/nvim.*.0; do
           [ -S "$sock" ] || continue
@@ -62,6 +77,7 @@ writeShellApplication {
       link nvim-theme.lua .config/nvim/osyx-theme.lua
       link swaylock.conf .config/swaylock/config
       echo "$name" > "$state/theme.current"
+      wallpaper
       reload
     }
 

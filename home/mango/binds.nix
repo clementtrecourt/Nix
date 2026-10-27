@@ -56,10 +56,9 @@ in {
       "CTRL+ALT,Right,viewtoright"
 
       # Captures et divers
-      "NONE,F9,spawn,shot-full"
       "NONE,XF86Launch2,spawn,shot-full"
-      "NONE,F10,spawn,shot-mac"
       "NONE,Print,spawn,shot-mac"
+      "SUPER,Print,spawn,shot-full"
       "SUPER+SHIFT,s,spawn_shell,grim -g \"$(slurp)\" - | swappy -f -"
       "SUPER+SHIFT,b,spawn,nightshift"
       "SUPER+SHIFT,w,spawn,wallpaper-pick"
@@ -72,11 +71,6 @@ in {
     ++ lib.optional (apps.asryx != null) "ALT,w,spawn,${apps.asryx}";
 
   bindl = [
-    (hw "F1" "pamixer -t")
-    (hw "F2" "pamixer -d 5")
-    (hw "F3" "pamixer -i 5")
-    (hw "F6" "brightnessctl set 5%-")
-    (hw "F7" "brightnessctl set +5%")
     (hw "XF86AudioMute" "pamixer -t")
     (hw "XF86AudioLowerVolume" "pamixer -d 5")
     (hw "XF86AudioRaiseVolume" "pamixer -i 5")
