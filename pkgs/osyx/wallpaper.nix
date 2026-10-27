@@ -31,7 +31,11 @@ writeShellApplication {
       echo "$img" > "$state/wallpaper"
       # le démon est lancé en parallèle au login : attendre qu'il réponde
       for _ in $(seq 1 40); do awww query >/dev/null 2>&1 && break; sleep 0.25; done
-      awww img "$img" --transition-type fade
+      awww img "$img" --transition-type fade || echo "wallpaper: awww a échoué (démon absent ?)" >&2
+      # le thème suit le wallpaper, sauf si une palette est épinglée (themes apply <nom>)
+      if command -v themes >/dev/null 2>&1 && [ "$(themes mode 2>/dev/null || echo dynamic)" = dynamic ]; then
+        themes from-wallpaper "$img" || true
+      fi
     }
 
     restore() {

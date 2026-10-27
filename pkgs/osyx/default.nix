@@ -14,5 +14,6 @@ in {
   themes = pkgs.callPackage ./themes.nix {
     inherit osyx-themes;
     inherit (osyxLib) mmsgReload;
+    flavors = ../../home/osyx/assets/flavors;
   };
 }

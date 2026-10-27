@@ -28,6 +28,7 @@ in {
       "ALT,p,spawn,${apps.power}"
       "ALT,v,spawn,vocaster"
       "ALT,r,spawn_shell,themes rotate"
+      "SUPER+ALT,r,spawn,themes dynamic"
       "ALT+SHIFT,c,spawn,${apps.browser} --new-window https://calendar.google.com"
       "ALT+SHIFT,y,spawn,${apps.browser} --new-window https://youtube.com"
       "ALT+SHIFT,s,spawn,${apps.browser} --new-window https://soundcloud.com"

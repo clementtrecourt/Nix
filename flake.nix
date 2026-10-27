@@ -107,6 +107,58 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      dynamic-palette = pkgs.runCommand "dynamic-palette-check" {nativeBuildInputs = [(pkgs.python3.withPackages (p: [p.jinja2]))];} ''
+        mkdir work
+        cp -r ${./home/osyx/assets/flavors} work/flavors
+        chmod -R u+w work
+        cd work/flavors
+        python3 generate.py --from-matugen ${./home/osyx/assets/flavors/tests/matugen-fixture.json}
+        for f in .config/kitty/osyx.conf .config/gtk-3.0/gtk.css .config/zed/themes/osyx.json \
+                 .config/mako/config .config/starship.toml .config/mango/colors.conf .dircolors; do
+          test -s "../$f" || { echo "manquant: $f" >&2; exit 1; }
+        done
+        python3 - <<'EOF'
+        import tomllib
+        ref = tomllib.load(open("palettes/versailles.toml", "rb"))
+        dyn = tomllib.load(open("palettes/dynamic.toml", "rb"))
+        a = {s: set(v) for s, v in ref.items()}
+        b = {s: set(v) for s, v in dyn.items()}
+        assert a == b, (a, b)
+        EOF
+        grep -q '^background #19120c' ../.config/kitty/osyx.conf
+        echo ok > $out
+      '';
+      themes-dynamic = pkgs.runCommand "themes-dynamic-check" {nativeBuildInputs = [pkgs.imagemagick];} ''
+        export HOME=$TMPDIR/home OSYX_NO_RELOAD=1
+        mkdir -p "$HOME"
+        magick -size 64x64 xc:'#cc5533' "$TMPDIR/img.png"
+        t=${self.packages.${system}.themes}/bin/themes
+        s=$HOME/.local/state/osyx
+        $t from-wallpaper "$TMPDIR/img.png"
+        test "$($t current)" = dynamic
+        test "$($t mode)" = dynamic
+        for l in kitty.conf gtk.css qt6ct.conf zed.json nvim-theme.lua swaylock.conf mako.conf wofi.css tmux.conf starship.toml mango-colors.conf; do
+          test -s "$s/$l" || { echo "lien d'état manquant: $l" >&2; exit 1; }
+        done
+        grep -qE '^background #[0-9a-f]{6}$' "$s/kitty.conf"
+        # palette épinglée : le suivi du wallpaper est désactivé
+        $t apply sakura
+        test "$($t mode)" = fixed
+        test "$($t current)" = sakura
+        # retour au dynamique sans wallpaper mémorisé : échec propre
+        if $t dynamic 2>err; then echo "dynamic sans wallpaper doit échouer" >&2; exit 1; fi
+        grep -q wallpaper err
+        echo "$TMPDIR/img.png" > "$s/wallpaper"
+        $t dynamic
+        test "$($t mode)" = dynamic
+        # image illisible : échec, thème inchangé
+        echo "pas une image" > "$TMPDIR/bad.png"
+        before=$($t current)
+        if $t from-wallpaper "$TMPDIR/bad.png" 2>/dev/null; then echo "image illisible doit échouer" >&2; exit 1; fi
+        test "$($t current)" = "$before"
+        echo ok > $out
+      '';
+
       themes-reload-kitty = pkgs.runCommand "themes-reload-kitty-check" {} ''
         export HOME=$TMPDIR/home
         mkdir -p "$HOME" "$TMPDIR/k"
@@ -179,6 +231,14 @@
         $h/wallpaper restore
         grep -q "img $TMPDIR/wp/a.png" "$TMPDIR/awww.log"
         if $h/wallpaper set "$TMPDIR/wp/inexistant.png" 2>/dev/null; then echo "set sur fichier absent doit échouer" >&2; exit 1; fi
+        # thème dynamique : déclenché seulement si le mode n'est pas épinglé
+        printf '#!${pkgs.runtimeShell}\nif [ "$1" = mode ]; then echo "$FAKE_MODE"; else echo "$@" >> "$TMPDIR/themes.log"; fi\n' > "$TMPDIR/bin/themes"
+        chmod +x "$TMPDIR/bin/themes"
+        FAKE_MODE=dynamic $h/wallpaper set "$TMPDIR/wp/a.png"
+        grep -q "from-wallpaper $TMPDIR/wp/a.png" "$TMPDIR/themes.log"
+        rm -f "$TMPDIR/themes.log"
+        FAKE_MODE=fixed $h/wallpaper set "$TMPDIR/wp/b.png"
+        test ! -e "$TMPDIR/themes.log"
         echo ok > $out
       '';
       no-swww = pkgs.runCommand "no-swww-check" {} ''

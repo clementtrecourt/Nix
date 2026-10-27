@@ -195,11 +195,19 @@ Le cache binaire tourne dans un conteneur Docker sur le serveur Debian à l'adre
 
 ## 🎨 Thème système (`themes`)
 
-`themes list|current|apply <nom>|rotate` (raccourci `ALT+R` pour passer au suivant). Palettes : `blush gilded kyanite malachite sakura vermilion versailles`.
+**Par défaut, les couleurs viennent du fond d'écran** : `SUPER+SHIFT+W` choisit un wallpaper (`~/Pictures/Wallpapers` et `~/Pictures/wallpapers`, via `awww`), `matugen` en tire une palette Material sombre, et tout le système la prend : Mango (bordures), mako, wofi, powyx, lookas, tmux (barre/bordures), starship, dircolors, kitty, GTK3/4 (`gtk.css`), Qt (qt6ct), Zed (thème `Osyx`), Neovim et swaylock. Le choix du wallpaper est mémorisé et réappliqué à chaque login ; les palettes générées sont mises en cache.
 
-Une seule palette (section `[kitty]`) colore : Mango (bordures), mako, wofi, powyx, lookas, tmux (barre/bordures), starship, dircolors, kitty, GTK3/4 (`gtk.css`), Qt (qt6ct), Zed (thème `Osyx`), Neovim et swaylock. Le fond d'écran n'est **pas** lié au thème : `SUPER+SHIFT+W` ouvre un sélecteur sur `~/Pictures/Wallpapers` et `~/Pictures/wallpapers` (`awww`), ton choix est mémorisé et restauré à chaque login. Rechargement à chaud : kitty, nvim, mako, tmux et le fond sont fiables ; GTK (bascule de `gtk-theme`) et Zed (événement sur le lien) sont en best-effort ; **les apps Qt déjà ouvertes gardent l'ancienne palette jusqu'au redémarrage** (les nouvelles prennent la bonne).
+| Commande | Effet |
+| :--- | :--- |
+| `themes dynamic` / `SUPER+ALT+R` | Revenir aux couleurs du wallpaper actuel |
+| `themes rotate` / `ALT+R` | Palette fixe suivante (le thème ne suit plus le wallpaper) |
+| `themes apply <nom>` | Épingler une palette : `blush gilded kyanite malachite sakura vermilion versailles` |
+| `themes from-wallpaper <image>` | Forcer les couleurs d'une image |
+| `themes mode` / `current` / `list` | État : `dynamic` ou `fixed`, thème courant, palettes |
 
-**Non pilotés par `themes`** : Zen, Spotify, Obsidian, Discord et les apps Electron/Chromium ont leur propre moteur de thème. Le login SDDM (thyx) est statique (preset `cinder`).
+Rechargement à chaud : kitty, nvim, mako, tmux sont fiables ; GTK (bascule de `gtk-theme`) et Zed (événement sur le lien) sont en best-effort ; **les apps Qt déjà ouvertes gardent l'ancienne palette jusqu'au redémarrage** (les nouvelles prennent la bonne). Si `matugen` ne peut pas lire une image, le thème actuel est conservé.
+
+**Non pilotés par `themes`** : Zen, Spotify, Obsidian, Discord et les apps Electron/Chromium ont leur propre moteur de thème. Le login SDDM (thyx) est statique.
 
 ## ⌨️ Raccourcis principaux (MangoWM)
 
