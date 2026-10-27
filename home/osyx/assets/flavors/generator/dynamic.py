@@ -2,6 +2,7 @@
 
 Les couleurs viennent des rôles Material (mode sombre). La palette `base16` de matugen n'est
 volontairement pas utilisée : avec le backend wal elle donne des gris presque identiques.
+Le rôle tertiary est décalé de 60° de teinte (vert pour une source orange) : il ne sert qu'au vert ANSI.
 """
 from __future__ import annotations
 
@@ -25,7 +26,7 @@ def palette_from_matugen(data: dict[str, Any]) -> dict[str, dict[str, str]]:
 
     ansi = [
         "surface", "error", "tertiary", "secondary",
-        "primary", "primary_fixed_dim", "tertiary_fixed_dim", "on_surface_variant",
+        "primary", "primary_fixed_dim", "secondary_fixed", "on_surface_variant",
         "outline", "error", "tertiary_fixed", "secondary_fixed",
         "primary_fixed", "inverse_primary", "secondary_fixed_dim", "on_surface",
     ]
@@ -46,15 +47,15 @@ def palette_from_matugen(data: dict[str, Any]) -> dict[str, dict[str, str]]:
             "os_fg": c("on_primary"),
             "dir_bg": c("secondary_container"),
             "dir_fg": c("on_secondary_container"),
-            "git_branch_bg": c("tertiary_container"),
-            "git_branch_fg": c("on_tertiary_container"),
-            "git_status_bg": c("tertiary_container"),
-            "git_status_fg": c("tertiary"),
+            "git_branch_bg": c("primary_container"),
+            "git_branch_fg": c("on_primary_container"),
+            "git_status_bg": c("primary_container"),
+            "git_status_fg": c("primary"),
             "langs_bg": c("surface_container_high"),
             "langs_fg": c("on_surface"),
             "time_bg": c("surface_container"),
             "time_fg": c("primary"),
-            "success": c("tertiary"),
+            "success": c("primary"),
             "error": c("error"),
         },
         "tmux": {
@@ -92,9 +93,9 @@ def palette_from_matugen(data: dict[str, Any]) -> dict[str, dict[str, str]]:
         "theme_names": {"nvim": "kanagawa-dragon"},
         "dircolors": {
             "dir": c("primary"),
-            "link": c("tertiary"),
+            "link": c("primary_fixed_dim"),
             "archive": c("secondary"),
-            "media": c("tertiary"),
+            "media": c("secondary_fixed"),
             "source": c("on_surface"),
             "exec": c("secondary"),
             "ignored": c("outline"),

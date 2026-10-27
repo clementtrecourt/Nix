@@ -124,6 +124,16 @@
         a = {s: set(v) for s, v in ref.items()}
         b = {s: set(v) for s, v in dyn.items()}
         assert a == b, (a, b)
+        # le tertiaire Material est décalé de 60° de teinte (vert pour une source orange) :
+        # il ne doit servir qu'au vert ANSI du terminal (color2/color10)
+        import json
+        roles = json.load(open("${./home/osyx/assets/flavors/tests/matugen-fixture.json}"))["colors"]
+        tert = {roles[r]["dark"]["color"].lstrip("#").lower() for r in roles if "tertiary" in r}
+        leaks = [
+            f"{s}.{k}" for s, v in dyn.items() for k, x in v.items()
+            if x in tert and (s, k) not in {("kitty", "color2"), ("kitty", "color10")}
+        ]
+        assert not leaks, f"tertiaire utilisé hors vert ANSI: {leaks}"
         EOF
         grep -q '^background #19120c' ../.config/kitty/osyx.conf
         echo ok > $out
