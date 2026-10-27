@@ -107,6 +107,27 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      mango-commands-exist = let
+        cfg = self.nixosConfigurations.home.config;
+        hm = cfg.home-manager.users.clem;
+      in
+        pkgs.runCommand "mango-commands-exist-check" {} ''
+          conf=${hm.xdg.configFile."mango/config.conf".source}
+          auto=${hm.xdg.configFile."mango/autostart.sh".source}
+          missing=0
+          {
+            sed -nE 's/^bind[a-z]* *= *[^,]*,[^,]*,spawn(_shell)?,//p' "$conf"
+            grep -vE '^(#|$|/nix|command )' "$auto" | sed 's/ *&$//'
+          } | awk '{print $1}' | sort -u | while read -r c; do
+            test -n "$c" || continue
+            if [ -x "${hm.home.path}/bin/$c" ] || [ -x "${cfg.system.path}/bin/$c" ]; then :; else
+              echo "commande introuvable: $c" >&2; echo "$c" >> missing.txt
+            fi
+          done
+          test ! -e missing.txt
+          echo ok > $out
+        '';
+
       wallpaper-cli = pkgs.runCommand "wallpaper-cli-check" {} ''
         export HOME=$TMPDIR/home OSYX_WALLPAPER_DIRS="$TMPDIR/wp"
         mkdir -p "$HOME" "$TMPDIR/wp" "$TMPDIR/bin"

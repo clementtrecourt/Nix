@@ -19,7 +19,6 @@ in {
       "ALT,k,spawn,${apps.term}"
       "ALT,q,spawn,${apps.term}"
       "SUPER,space,spawn,${apps.menu}"
-      "ALT,o,spawn,obsidian"
       "ALT,e,spawn,${apps.editor}"
       "SUPER+ALT,f,spawn,${apps.files}"
       "SUPER+ALT,s,spawn,spotify"

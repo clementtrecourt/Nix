@@ -23,7 +23,7 @@ in {
       menu = lib.mkDefault "wofi --show drun";
       editor = lib.mkDefault "zeditor";
       files = lib.mkDefault "nemo";
-      browser = lib.mkDefault "zen";
+      browser = lib.mkDefault "zen-beta";
       lock = lib.mkDefault "swaylock";
       power = lib.mkDefault "powyx";
       control = lib.mkDefault "ctrlyx-lite";

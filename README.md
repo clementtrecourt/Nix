@@ -207,7 +207,7 @@ Une seule palette (section `[kitty]`) colore : Mango (bordures), mako, wofi, pow
 | :--- | :--- |
 | `ALT+Entrée` / `ALT+K` / `ALT+Q` | Terminal (kitty) |
 | `SUPER+Espace` | Lanceur wofi |
-| `ALT+E` / `ALT+G` / `ALT+O` | Zed / Zen / Obsidian |
+| `ALT+E` / `ALT+G` | Zed / Zen |
 | `SUPER+ALT+F` / `SUPER+ALT+S` | nemo / Spotify (évite les hints Kitty `Alt+f`/`Alt+s`) |
 | `ALT+P` / `ALT+M` / `ALT+L` | Menu power / centre de contrôle / verrouillage |
 | `SUPER+Q` | Fermer la fenêtre |
