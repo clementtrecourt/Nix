@@ -16,6 +16,15 @@ in {
   };
 
   config = {
+    # Mango ne relit pas sa config après un switch : on la recharge. L'activation HM tourne dans
+    # un service système sans MANGO_INSTANCE_SIGNATURE, donc on retrouve le socket du compositeur.
+    home.activation.reloadMango = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      sock=$(ls /run/user/$(id -u)/mango-*.sock 2>/dev/null | head -n 1 || true)
+      if [ -n "$sock" ]; then
+        MANGO_INSTANCE_SIGNATURE="$sock" ${(import ../../pkgs/osyx/lib.nix {inherit pkgs inputs;}).mmsgReload} || true
+      fi
+    '';
+
     xdg.configFile."xkb/symbols/us_qwerty-fr".source = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
 
     osyx.apps = {

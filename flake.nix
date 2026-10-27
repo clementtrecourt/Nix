@@ -107,6 +107,15 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      mango-reload-on-switch = pkgs.runCommand "mango-reload-on-switch-check" {} ''
+        test ${
+          if self.nixosConfigurations.home.config.home-manager.users.clem.home.activation ? reloadMango
+          then "yes"
+          else "no"
+        } = yes
+        echo ok > $out
+      '';
+
       mango-commands-exist = let
         cfg = self.nixosConfigurations.home.config;
         hm = cfg.home-manager.users.clem;
