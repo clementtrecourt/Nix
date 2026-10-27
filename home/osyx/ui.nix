@@ -7,7 +7,7 @@
   osyxPkgs = inputs.self.packages.${pkgs.stdenv.hostPlatform.system};
 in {
   home.packages =
-    [osyxPkgs.powyx osyxPkgs.ctrlyx-lite osyxPkgs.lookas osyxPkgs.asryx osyxPkgs.wallpaper]
+    [osyxPkgs.powyx osyxPkgs.ctrlyx-lite osyxPkgs.lookas osyxPkgs.asryx osyxPkgs.wallpaper inputs.matuwall.packages.${pkgs.stdenv.hostPlatform.system}.matuwall]
     ++ (with pkgs; [
       wofi
       mako

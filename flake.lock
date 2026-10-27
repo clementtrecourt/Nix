@@ -296,6 +296,26 @@
         "type": "github"
       }
     },
+    "matuwall": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792788436,
+        "narHash": "sha256-9Z5Bi2UnMC3I8KC15ngTNccDA7KqSVRfp5Y2DWyPNDU=",
+        "owner": "naurissteins",
+        "repo": "Matuwall",
+        "rev": "f6ea58d8ae7f07f7b4681f9f2ce9b633988a8568",
+        "type": "github"
+      },
+      "original": {
+        "owner": "naurissteins",
+        "repo": "Matuwall",
+        "type": "github"
+      }
+    },
     "microvm": {
       "inputs": {
         "nixpkgs": [
@@ -443,6 +463,7 @@
         "lazyvim": "lazyvim",
         "lookas": "lookas",
         "mango": "mango",
+        "matuwall": "matuwall",
         "microvm": "microvm",
         "nix-index-database": "nix-index-database",
         "nixpkgs": "nixpkgs_2",

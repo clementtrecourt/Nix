@@ -195,7 +195,7 @@ Le cache binaire tourne dans un conteneur Docker sur le serveur Debian à l'adre
 
 ## 🎨 Thème système (`themes`)
 
-**Par défaut, les couleurs viennent du fond d'écran** : `SUPER+SHIFT+W` choisit un wallpaper (`~/Pictures/Wallpapers` et `~/Pictures/wallpapers`, via `awww`), `matugen` en tire une palette Material sombre, et tout le système la prend : Mango (bordures), mako, wofi, powyx, lookas, tmux (barre/bordures), starship, dircolors, kitty, GTK3/4 (`gtk.css`), Qt (qt6ct), Zed (thème `Osyx`), Neovim et swaylock. Le choix du wallpaper est mémorisé et réappliqué à chaque login ; les palettes générées sont mises en cache.
+**Par défaut, les couleurs viennent du fond d'écran** : `SUPER+SHIFT+W` ouvre [Matuwall](https://github.com/naurissteins/Matuwall) (carrousel à vignettes, aux couleurs du thème courant) sur `~/Pictures/Wallpapers` et `~/Pictures/wallpapers`, sous-dossiers compris, et applique le choix via `awww` ; `SUPER+ALT+W` ouvre l'ancien sélecteur waypaper en secours, `matugen` en tire une palette Material sombre, et tout le système la prend : Mango (bordures), mako, wofi, powyx, lookas, tmux (barre/bordures), starship, dircolors, kitty, GTK3/4 (`gtk.css`), Qt (qt6ct), Zed (thème `Osyx`), Neovim et swaylock. Le choix du wallpaper est mémorisé et réappliqué à chaque login ; les palettes générées sont mises en cache.
 
 | Commande | Effet |
 | :--- | :--- |
@@ -225,4 +225,5 @@ Rechargement à chaud : kitty, nvim, mako, tmux sont fiables ; GTK (bascule de `
 | `ALT+Tab` | Fenêtre suivante |
 | `SUPER+F` / `SUPER+V` / `SUPER+S` | Maximiser / flottant / changer de layout |
 | `Impr` / `SUPER+Impr` / `SUPER+SHIFT+S` | Capture région / écran complet / région annotée (les touches F nues ne sont pas capturées : elles restent aux applis) |
+| `SUPER+SHIFT+W` / `SUPER+ALT+W` | Choisir un wallpaper (Matuwall) / sélecteur de secours (waypaper) |
 | `SUPER+SHIFT+R` | Recharger la config Mango |

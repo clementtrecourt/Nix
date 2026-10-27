@@ -13,7 +13,7 @@ writeShellApplication {
 
     images() {
       IFS=: read -ra arr <<< "$dirs"
-      find -L "''${arr[@]}" -maxdepth 2 -type f \
+      find -L "''${arr[@]}" -type f \
         \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.gif' \) \
         2>/dev/null | sort
     }
@@ -26,6 +26,8 @@ writeShellApplication {
         echo "wallpaper: fichier introuvable: $img" >&2
         exit 1
       fi
+      # le pool de matuwall ne contient que des liens : on mémorise l'image réelle
+      img=$(readlink -f "$img")
       mkdir -p "$state"
       echo "$img" > "$state/wallpaper"
       if command -v themes >/dev/null 2>&1 && [ "$(themes mode 2>/dev/null || echo dynamic)" = dynamic ]; then
@@ -52,8 +54,63 @@ writeShellApplication {
       set_wallpaper "$img"
     }
 
-    # Sélecteur graphique à vignettes (waypaper) ; il pose le fond avec awww puis appelle `remember`.
+    # Un dossier unique pour matuwall : liens vers toutes les images (sous-dossiers compris),
+    # noms sans espace pour que le hook {path} reste un seul argument.
+    build_pool() {
+      pool="$state/wallpaper-pool"
+      rm -rf "$pool"
+      mkdir -p "$pool"
+      images | while read -r p; do
+        parent=$(basename "$(dirname "$p")")
+        name=$(printf '%s__%s' "$parent" "$(basename "$p")" | tr -c 'A-Za-z0-9._\n-' '_')
+        ln -sfn "$p" "$pool/$name"
+      done
+    }
+
+    # couleur "#rrggbb" d'une clé du thème courant (kitty.conf généré par `themes`), sinon défaut
+    theme_color() {
+      c=$(sed -n "s/^$1 \(#[0-9a-fA-F]\{6\}\)$/\1/p" "$state/kitty.conf" 2>/dev/null | head -n 1 || true)
+      printf '%s' "''${c:-$2}"
+    }
+
     pick() {
+      mkdir -p "$state"
+      build_pool
+      bg=$(theme_color background '#11111b')
+      accent=$(theme_color cursor '#f2cdcd')
+      cfg="$state/matuwall.toml"
+      cat > "$cfg" <<EOF
+    [general]
+    directory = "$state/wallpaper-pool"
+    recursive = false
+    backend = "awww"
+
+    [backend.awww]
+    args = ["--transition-type", "fade", "--transition-duration", "1"]
+
+    [window]
+    position = "bottom"
+    background = "''${bg}e6"
+
+    [input]
+    mouse = true
+
+    [grid]
+    carousel = true
+    columns = 5
+    ring_width = 4
+
+    [colors]
+    ring = "$accent"
+
+    [hooks]
+    on_apply = ["wallpaper remember {path}"]
+    EOF
+      exec matuwall --config "$cfg"
+    }
+
+    # Ancien sélecteur à vignettes (waypaper) ; il pose le fond avec awww puis appelle `remember`.
+    pick_classic() {
       mkdir -p "$state"
       cfg="$state/waypaper.ini"
       {
@@ -87,7 +144,8 @@ writeShellApplication {
         remember "$2" ;;
       restore) restore ;;
       pick) pick ;;
-      *) echo "usage: wallpaper set <image>|remember <image>|restore|pick" >&2; exit 2 ;;
+      pick-classic) pick_classic ;;
+      *) echo "usage: wallpaper set <image>|remember <image>|restore|pick|pick-classic" >&2; exit 2 ;;
     esac
   '';
 }

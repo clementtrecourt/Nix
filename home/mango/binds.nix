@@ -51,7 +51,7 @@ in {
       "ALT+SHIFT,Tab,focusstack,prev"
 
       # Tags
-      "SUPER,0,toggleoverview"
+      "SUPER,TAB,toggleoverview"
       "CTRL+ALT,Left,viewtoleft"
       "CTRL+ALT,Right,viewtoright"
 
@@ -62,6 +62,7 @@ in {
       "SUPER+SHIFT,s,spawn_shell,grim -g \"$(slurp)\" - | swappy -f -"
       "SUPER+SHIFT,b,spawn,nightshift"
       "SUPER+SHIFT,w,spawn,wallpaper pick"
+      "SUPER+ALT,w,spawn,wallpaper pick-classic"
       "SUPER+SHIFT,r,reload_config"
       "SUPER,Escape,spawn,systemctl poweroff"
       "SUPER,x,spawn,clip-menu"

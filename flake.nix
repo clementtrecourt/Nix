@@ -39,6 +39,10 @@
       url = "github:DreamMaoMao/mango";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    matuwall = {
+      url = "github:naurissteins/Matuwall";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     lookas = {
       url = "github:rccyx/lookas";
       flake = false;
@@ -107,6 +111,18 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      matuwall-config = pkgs.runCommand "matuwall-config-check" {} ''
+        export HOME=$TMPDIR/home
+        mkdir -p "$HOME/wp" "$TMPDIR/bin"
+        touch "$HOME/wp/a.png"
+        printf '#!${pkgs.runtimeShell}\ntrue\n' > "$TMPDIR/bin/matuwall"
+        chmod +x "$TMPDIR/bin/matuwall"
+        PATH="$TMPDIR/bin:$PATH" OSYX_WALLPAPER_DIRS="$HOME/wp" ${self.packages.${system}.wallpaper}/bin/wallpaper pick
+        ${inputs.matuwall.packages.${system}.matuwall}/bin/matuwall --config "$HOME/.local/state/osyx/matuwall.toml" --print-config > out.toml
+        grep -q 'wallpaper remember' out.toml
+        echo ok > $out
+      '';
+
       wofi-narrow = pkgs.runCommand "wofi-narrow-check" {} ''
         cfg=${self.nixosConfigurations.home.config.home-manager.users.clem.xdg.configFile."wofi/config".source}
         w=$(sed -nE 's/^width=([0-9]+)$/\1/p' "$cfg")
@@ -296,7 +312,7 @@
         mkdir -p "$TMPDIR/wp2"
         printf '#!${pkgs.runtimeShell}\necho "$@" >> "$TMPDIR/waypaper.log"\n' > "$TMPDIR/bin/waypaper"
         chmod +x "$TMPDIR/bin/waypaper"
-        OSYX_WALLPAPER_DIRS="$TMPDIR/wp:$TMPDIR/wp2" $h/wallpaper pick
+        OSYX_WALLPAPER_DIRS="$TMPDIR/wp:$TMPDIR/wp2" $h/wallpaper pick-classic
         ini="$HOME/.local/state/osyx/waypaper.ini"
         grep -q "^backend = awww" "$ini"
         grep -q "^subfolders = True" "$ini"
@@ -304,6 +320,32 @@
         grep -q "^folder = $TMPDIR/wp$" "$ini"
         grep -q "^  $TMPDIR/wp2$" "$ini"
         grep -q -- "--config-file $ini" "$TMPDIR/waypaper.log"
+        # --- matuwall (sélecteur par défaut) ---
+        # pool : toutes les images des deux dossiers, sous-dossiers compris, sans espace dans les noms
+        mkdir -p "$TMPDIR/wp/sous dossier"
+        mkdir -p "$TMPDIR/wp/niv1/niv2"
+        touch "$TMPDIR/wp/sous dossier/c d.jpg" "$TMPDIR/wp2/e.webp" "$TMPDIR/wp/niv1/niv2/profonde.png"
+        # couleurs du thème courant reprises dans la config
+        mkdir -p "$HOME/.local/state/osyx"
+        printf 'background #112233\ncursor #aabbcc\n' > "$HOME/.local/state/osyx/kitty.conf"
+        printf '#!${pkgs.runtimeShell}\necho "$@" >> "$TMPDIR/matuwall.log"\n' > "$TMPDIR/bin/matuwall"
+        chmod +x "$TMPDIR/bin/matuwall"
+        OSYX_WALLPAPER_DIRS="$TMPDIR/wp:$TMPDIR/wp2" $h/wallpaper pick
+        mcfg="$HOME/.local/state/osyx/matuwall.toml"
+        grep -q -- "--config $mcfg" "$TMPDIR/matuwall.log"
+        pool="$HOME/.local/state/osyx/wallpaper-pool"
+        grep -q "^directory = \"$pool\"" "$mcfg"
+        grep -q '^backend = "awww"' "$mcfg"
+        grep -q 'on_apply = \["wallpaper remember {path}"\]' "$mcfg"
+        grep -q '^background = "#112233' "$mcfg"
+        grep -q '^ring = "#aabbcc' "$mcfg"
+        test "$(find "$pool" -type l | wc -l)" = 5
+        test -z "$(find "$pool" -name '* *')"
+        test -e "$pool/sous_dossier__c_d.jpg"
+        test -e "$pool/niv2__profonde.png"
+        # remember résout le lien du pool vers l'image réelle
+        FAKE_MODE=fixed $h/wallpaper remember "$pool/sous_dossier__c_d.jpg"
+        test "$(cat "$HOME/.local/state/osyx/wallpaper")" = "$TMPDIR/wp/sous dossier/c d.jpg"
         echo ok > $out
       '';
       no-swww = pkgs.runCommand "no-swww-check" {} ''
@@ -448,7 +490,7 @@
 
       osyx-bin = pkgs.runCommand "osyx-bin-check" {} ''
         p=${self.nixosConfigurations.home.config.home-manager.users.clem.home.path}/bin
-        for b in shot-full shot-mac vocaster nightshift waypaper wallpaper clip-menu clip-purge; do
+        for b in shot-full shot-mac vocaster nightshift waypaper wallpaper matuwall clip-menu clip-purge; do
           test -x "$p/$b" || { echo "missing binary: $b" >&2; exit 1; }
         done
         echo ok > $out
