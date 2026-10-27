@@ -5,10 +5,10 @@
 }: {
   imports = [./common.nix];
 
-  # Écrans de l'hôte home uniquement (jamais dans common.nix : work a d'autres sorties)
+  # Écrans de l'hôte home uniquement (DP-3 BenQ à gauche, DP-2 Samsung à droite) — jamais dans common.nix : work a d'autres sorties
   wayland.windowManager.mango.extraConfig = ''
-    monitor_rule=name:^DP-3$,width:1920,height:1080,refresh:60,x:0,y:0,scale:1,vrr:0,rr:0
-    monitor_rule=name:^HDMI-A-3$,width:1920,height:1080,refresh:60,x:1920,y:0,scale:1,vrr:0,rr:0
+    monitor_rule=name:^DP-3$,width:1920,height:1080,refresh:60,x:0,y:0,scale:1
+    monitor_rule=name:^DP-2$,width:2560,height:1440,refresh:143.998,x:1920,y:0,scale:1,primary:1
   '';
 
   # ========================================================

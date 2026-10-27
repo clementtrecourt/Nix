@@ -107,6 +107,14 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      monitors-match-hardware = pkgs.runCommand "monitors-match-hardware-check" {} ''
+        cfg=${self.nixosConfigurations.home.config.home-manager.users.clem.xdg.configFile."mango/config.conf".source}
+        if grep -q 'HDMI-A-3' "$cfg"; then echo "règle pour un écran inexistant (HDMI-A-3)" >&2; exit 1; fi
+        grep -q 'monitor_rule=name:^DP-2$,width:2560,height:1440,refresh:143.998,x:1920,y:0' "$cfg"
+        grep -q 'monitor_rule=name:^DP-3$,width:1920,height:1080,refresh:60,x:0,y:0' "$cfg"
+        echo ok > $out
+      '';
+
       mango-reload-on-switch = pkgs.runCommand "mango-reload-on-switch-check" {} ''
         test ${
           if self.nixosConfigurations.home.config.home-manager.users.clem.home.activation ? reloadMango
