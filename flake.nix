@@ -107,6 +107,17 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      sddm-x11-greeter = pkgs.runCommand "sddm-x11-greeter-check" {} ''
+        test ${
+          if
+            !self.nixosConfigurations.home.config.services.displayManager.sddm.wayland.enable
+            && self.nixosConfigurations.home.config.services.xserver.enable
+          then "yes"
+          else "no"
+        } = yes
+        echo ok > $out
+      '';
+
       wlsunset-hours = pkgs.runCommand "wlsunset-hours-check" {} ''
         grep -q -- '-S 05:00 -s 21:00' ${./home/mango/autostart.nix}
         grep -q -- '-S 05:00 -s 21:00' ${./home/osyx/bin.nix}
