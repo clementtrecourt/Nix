@@ -122,8 +122,9 @@
         ref = tomllib.load(open("palettes/versailles.toml", "rb"))
         dyn = tomllib.load(open("palettes/dynamic.toml", "rb"))
         a = {s: set(v) for s, v in ref.items()}
-        b = {s: set(v) for s, v in dyn.items()}
+        b = {s: set(v) for s, v in dyn.items() if s != "ui"}
         assert a == b, (a, b)
+        assert set(dyn["ui"]) == {"surface", "raised", "hover", "border", "muted"}, dyn["ui"]
         # le tertiaire Material est décalé de 60° de teinte (vert pour une source orange) :
         # il ne doit servir qu'au vert ANSI du terminal (color2/color10)
         import json
@@ -134,8 +135,30 @@
             if x in tert and (s, k) not in {("kitty", "color2"), ("kitty", "color10")}
         ]
         assert not leaks, f"tertiaire utilisé hors vert ANSI: {leaks}"
+
+        import colorsys
+        def rgb(h):
+            h = h.lstrip("#")
+            return [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        def lum(h):
+            f = lambda c: c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+            r, g, b = map(f, rgb(h))
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b
+        # fond neutre : saturation <= 15 % (35 % en tonal-spot brut), pas de brun partout
+        sat = colorsys.rgb_to_hls(*rgb(dyn["kitty"]["bg"]))[2]
+        assert sat <= 0.15, f"fond trop teinté: {sat:.2f}"
+        # les surfaces de Zed doivent rester sombres (pas de beige pêche)
+        style = json.load(open("../.config/zed/themes/osyx.json"))["themes"][0]["style"]
+        for key in ["elevated_surface.background", "element.background", "tab.active_background",
+                    "editor.active_line.background", "border", "ghost_element.hover"]:
+            assert lum(style[key]) <= 0.12, f"{key} trop clair: {style[key]}"
+        # le texte secondaire reste lisible sur le fond (contraste >= 3)
+        def cr(a, b):
+            x, y = sorted((lum(a), lum(b)), reverse=True)
+            return (x + 0.05) / (y + 0.05)
+        assert cr(style["text.muted"], style["background"]) >= 3, style["text.muted"]
         EOF
-        grep -q '^background #19120c' ../.config/kitty/osyx.conf
+        grep -qE '^background #[0-9a-f]{6}$' ../.config/kitty/osyx.conf
         echo ok > $out
       '';
       themes-dynamic = pkgs.runCommand "themes-dynamic-check" {nativeBuildInputs = [pkgs.imagemagick];} ''
@@ -151,6 +174,11 @@
           test -s "$s/$l" || { echo "lien d'état manquant: $l" >&2; exit 1; }
         done
         grep -qE '^background #[0-9a-f]{6}$' "$s/kitty.conf"
+        bg_default=$(grep '^background ' "$s/kitty.conf")
+        OSYX_TINT=1.0 $t from-wallpaper "$TMPDIR/img.png"
+        test "$(grep '^background ' "$s/kitty.conf")" != "$bg_default" || { echo "OSYX_TINT ignoré (cache ?)" >&2; exit 1; }
+        $t from-wallpaper "$TMPDIR/img.png"
+        test "$(grep '^background ' "$s/kitty.conf")" = "$bg_default"
         # palette épinglée : le suivi du wallpaper est désactivé
         $t apply sakura
         test "$($t mode)" = fixed
@@ -351,6 +379,7 @@
         done
         test "$n" = 7
         grep -q 'focus_color=0xbcaaa4ff' "$t/versailles/.config/mango/colors.conf"
+        grep -q '"element.background": "#6d4c41"' "$t/versailles/.config/zed/themes/osyx.json"
         for p in blush gilded kyanite malachite sakura vermilion versailles; do
           for f in .config/kitty/osyx.conf .config/gtk-3.0/gtk.css .config/gtk-4.0/gtk.css \
                    .config/qt6ct/colors/osyx.conf .config/zed/themes/osyx.json \

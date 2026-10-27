@@ -1,10 +1,10 @@
 vim.o.termguicolors = true
 vim.o.background = "dark"
 vim.api.nvim_set_hl(0, "Normal", { fg = "#{{ kitty_fg }}", bg = "#{{ kitty_bg }}" })
-vim.api.nvim_set_hl(0, "NormalFloat", { fg = "#{{ kitty_fg }}", bg = "#{{ kitty_color6 }}" })
-vim.api.nvim_set_hl(0, "CursorLine", { bg = "#{{ kitty_color6 }}" })
+vim.api.nvim_set_hl(0, "NormalFloat", { fg = "#{{ kitty_fg }}", bg = "#{{ ui_raised }}" })
+vim.api.nvim_set_hl(0, "CursorLine", { bg = "#{{ ui_raised }}" })
 vim.api.nvim_set_hl(0, "Visual", { fg = "#{{ kitty_selection_fg }}", bg = "#{{ kitty_selection_bg }}" })
-vim.api.nvim_set_hl(0, "Comment", { fg = "#{{ kitty_color5 }}" })
+vim.api.nvim_set_hl(0, "Comment", { fg = "#{{ ui_muted }}" })
 vim.api.nvim_set_hl(0, "String", { fg = "#{{ kitty_color2 }}" })
 vim.api.nvim_set_hl(0, "Function", { fg = "#{{ kitty_cursor }}" })
 vim.api.nvim_set_hl(0, "Keyword", { fg = "#{{ kitty_color1 }}" })
@@ -13,12 +13,12 @@ vim.api.nvim_set_hl(0, "Identifier", { fg = "#{{ kitty_fg }}" })
 vim.api.nvim_set_hl(0, "Statement", { fg = "#{{ kitty_color1 }}" })
 vim.api.nvim_set_hl(0, "PreProc", { fg = "#{{ kitty_color4 }}" })
 vim.api.nvim_set_hl(0, "Special", { fg = "#{{ kitty_color5 }}" })
-vim.api.nvim_set_hl(0, "LineNr", { fg = "#{{ kitty_color5 }}" })
+vim.api.nvim_set_hl(0, "LineNr", { fg = "#{{ ui_muted }}" })
 vim.api.nvim_set_hl(0, "CursorLineNr", { fg = "#{{ kitty_cursor }}" })
-vim.api.nvim_set_hl(0, "StatusLine", { fg = "#{{ kitty_fg }}", bg = "#{{ kitty_color6 }}" })
-vim.api.nvim_set_hl(0, "Pmenu", { fg = "#{{ kitty_fg }}", bg = "#{{ kitty_color6 }}" })
+vim.api.nvim_set_hl(0, "StatusLine", { fg = "#{{ kitty_fg }}", bg = "#{{ ui_raised }}" })
+vim.api.nvim_set_hl(0, "Pmenu", { fg = "#{{ kitty_fg }}", bg = "#{{ ui_raised }}" })
 vim.api.nvim_set_hl(0, "PmenuSel", { fg = "#{{ kitty_bg }}", bg = "#{{ kitty_cursor }}" })
-vim.api.nvim_set_hl(0, "WinSeparator", { fg = "#{{ kitty_color6 }}" })
+vim.api.nvim_set_hl(0, "WinSeparator", { fg = "#{{ ui_border }}" })
 vim.g.terminal_color_0 = "#{{ kitty_color0 }}"
 vim.g.terminal_color_1 = "#{{ kitty_color1 }}"
 vim.g.terminal_color_2 = "#{{ kitty_color2 }}"

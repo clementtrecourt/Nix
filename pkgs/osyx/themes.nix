@@ -19,6 +19,11 @@ writeShellApplication {
     state=''${OSYX_STATE_DIR:-''${XDG_STATE_HOME:-$HOME/.local/state}/osyx}
     default=versailles
     contrast=''${OSYX_CONTRAST:-0.0}
+    # saturation | value | less-saturation | darkness | lightness : quelle couleur de l'image sert de base
+    prefer=''${OSYX_PREFER:-saturation}
+    # 0 = fonds gris, 1 = teinte Material brute
+    tint=''${OSYX_TINT:-0.25}
+    export OSYX_TINT=$tint
 
     list() { find "$themes_dir" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort; }
     current() { cat "$state/theme.current" 2>/dev/null || true; }
@@ -93,12 +98,13 @@ writeShellApplication {
         echo "themes: image introuvable: $img" >&2
         exit 1
       fi
-      hash=$(sha256sum "$img" | cut -d' ' -f1)
+      # la clé du cache couvre l'image, les réglages et la version des templates (chemin du store)
+      hash=$(printf '%s|%s|%s|%s|%s' "$(sha256sum "$img" | cut -d' ' -f1)" "${flavors}" "$tint" "$contrast" "$prefer" | sha256sum | cut -d' ' -f1)
       cache="$state/dynamic-cache/$hash"
       if [ ! -d "$cache" ]; then
         mkdir -p "$state/dynamic-cache"
         work=$(mktemp -d "$state/dynamic-work.XXXXXX")
-        if ! json=$(matugen image "$img" --json hex --dry-run --mode dark --prefer saturation --contrast "$contrast" 2>"$work/err"); then
+        if ! json=$(matugen image "$img" --json hex --dry-run --mode dark --prefer "$prefer" --contrast "$contrast" 2>"$work/err"); then
           msg=$(head -n 3 "$work/err" | tr '\n' ' ')
           echo "themes: matugen a échoué sur $img: $msg" >&2
           notify-send "Thème" "Impossible de tirer les couleurs de l'image" 2>/dev/null || true

@@ -28,7 +28,7 @@ def generate_theme(theme_name: str) -> None:
         raise ThemeError(f"theme file not found: {theme_file}")
 
     palette = load_palette(theme_file)
-    mapping = build_mapping(palette)
+    mapping = _with_ui_defaults(build_mapping(palette))
     env = _jinja_env(TEMPLATES_DIR)
 
     print(f"Generating theme: {theme_name}")
@@ -37,6 +37,21 @@ def generate_theme(theme_name: str) -> None:
         render_template(env, template_name.split("#")[0], rel_out_path, mapping)
 
     write_theme_names(theme_name, palette)
+
+
+def _with_ui_defaults(mapping: dict[str, str]) -> dict[str, str]:
+    # Couleurs d'interface (surfaces, bordures, texte discret). Les palettes fixes n'ont pas de
+    # section [ui] : elles reprennent les tons que les templates empruntaient aux slots ANSI 5 et 6.
+    fallbacks = {
+        "ui_surface": "kitty_bg",
+        "ui_raised": "kitty_color6",
+        "ui_hover": "kitty_color5",
+        "ui_border": "kitty_color6",
+        "ui_muted": "kitty_color5",
+    }
+    for key, source in fallbacks.items():
+        mapping.setdefault(key, mapping[source])
+    return mapping
 
 
 def render_template(

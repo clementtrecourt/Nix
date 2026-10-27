@@ -6,12 +6,29 @@ Le rôle tertiary est décalé de 60° de teinte (vert pour une source orange) :
 """
 from __future__ import annotations
 
+import colorsys
+import os
 from pathlib import Path
 from typing import Any
 
 from .config import PALETTES_DIR
 
 DYNAMIC_NAME = "dynamic"
+
+
+def _tint_factor() -> float:
+    # 0 = surfaces grises, 1 = teinte Material brute (brune pour une source orange). Défaut 0.25.
+    try:
+        return min(max(float(os.environ.get("OSYX_TINT", "0.25")), 0.0), 1.0)
+    except ValueError:
+        return 0.25
+
+
+def _desaturate(hex_color: str, factor: float) -> str:
+    r, g, b = (int(hex_color[i : i + 2], 16) / 255 for i in (0, 2, 4))
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    r, g, b = colorsys.hls_to_rgb(h, l, s * factor)
+    return "%02x%02x%02x" % tuple(round(x * 255) for x in (r, g, b))
 
 
 def _hex(colors: dict[str, Any], role: str) -> str:
@@ -21,8 +38,14 @@ def _hex(colors: dict[str, Any], role: str) -> str:
 def palette_from_matugen(data: dict[str, Any]) -> dict[str, dict[str, str]]:
     colors = data["colors"]
 
+    tint = _tint_factor()
+
     def c(role: str) -> str:
         return _hex(colors, role)
+
+    def neutral(role: str, strength: float = 1.0) -> str:
+        # surfaces et textes : on garde la luminosité Material mais on retire la teinte du wallpaper
+        return _desaturate(c(role), tint * strength)
 
     ansi = [
         "surface", "error", "tertiary", "secondary",
@@ -32,63 +55,71 @@ def palette_from_matugen(data: dict[str, Any]) -> dict[str, dict[str, str]]:
     ]
 
     kitty = {
-        "bg": c("surface"),
-        "fg": c("on_surface"),
+        "bg": neutral("surface"),
+        "fg": neutral("on_surface", 2.0),
         "cursor": c("primary"),
         "selection_bg": c("primary"),
         "selection_fg": c("on_primary"),
     }
     for index, role in enumerate(ansi):
         kitty[f"color{index}"] = c(role)
+    kitty["color0"] = neutral("surface")
 
     return {
         "starship": {
             "os_bg": c("primary"),
             "os_fg": c("on_primary"),
-            "dir_bg": c("secondary_container"),
+            "dir_bg": neutral("secondary_container", 2.0),
             "dir_fg": c("on_secondary_container"),
-            "git_branch_bg": c("primary_container"),
+            "git_branch_bg": neutral("primary_container", 2.0),
             "git_branch_fg": c("on_primary_container"),
-            "git_status_bg": c("primary_container"),
+            "git_status_bg": neutral("primary_container", 2.0),
             "git_status_fg": c("primary"),
-            "langs_bg": c("surface_container_high"),
-            "langs_fg": c("on_surface"),
-            "time_bg": c("surface_container"),
+            "langs_bg": neutral("surface_container_high"),
+            "langs_fg": neutral("on_surface", 2.0),
+            "time_bg": neutral("surface_container"),
             "time_fg": c("primary"),
             "success": c("primary"),
             "error": c("error"),
         },
         "tmux": {
-            "pane_border": c("outline"),
+            "pane_border": neutral("outline", 2.0),
             "pane_active_border": c("primary"),
             "message_bg": c("primary"),
             "message_fg": c("on_primary"),
-            "git_bg": c("primary_container"),
+            "git_bg": neutral("primary_container", 2.0),
             "git_fg": c("on_primary_container"),
-            "host_bg": c("surface_container_high"),
-            "host_fg": c("on_surface"),
-            "time_bg": c("surface_container"),
-            "time_fg": c("on_surface"),
+            "host_bg": neutral("surface_container_high"),
+            "host_fg": neutral("on_surface", 2.0),
+            "time_bg": neutral("surface_container"),
+            "time_fg": neutral("on_surface", 2.0),
         },
         "hyprland": {
             "active_border": c("primary"),
-            "inactive_border": c("outline"),
+            "inactive_border": neutral("outline", 2.0),
         },
         "mako": {
-            "bg": c("surface"),
-            "text": c("on_surface"),
-            "border": c("outline"),
+            "bg": neutral("surface"),
+            "text": neutral("on_surface", 2.0),
+            "border": neutral("outline", 2.0),
             "progress": c("primary"),
         },
         "kitty": kitty,
         "wofi": {
-            "bg": c("surface"),
+            "bg": neutral("surface"),
             "border": c("primary"),
-            "input_bg": c("surface_container_high"),
-            "input_border": c("outline"),
-            "text": c("on_surface"),
+            "input_bg": neutral("surface_container_high"),
+            "input_border": neutral("outline", 2.0),
+            "text": neutral("on_surface", 2.0),
             "selected_bg": c("primary"),
             "selected_text": c("on_primary"),
+        },
+        "ui": {
+            "surface": neutral("surface"),
+            "raised": neutral("surface_container_high"),
+            "hover": neutral("surface_container_highest", 2.0),
+            "border": neutral("outline_variant", 2.0),
+            "muted": neutral("outline", 2.0),
         },
         "theme_names": {"nvim": "kanagawa-dragon"},
         "dircolors": {
@@ -98,9 +129,9 @@ def palette_from_matugen(data: dict[str, Any]) -> dict[str, dict[str, str]]:
             "media": c("secondary_fixed"),
             "source": c("on_surface"),
             "exec": c("secondary"),
-            "ignored": c("outline"),
-            "bg": c("surface"),
-            "fg": c("on_surface"),
+            "ignored": neutral("outline", 2.0),
+            "bg": neutral("surface"),
+            "fg": neutral("on_surface", 2.0),
             "orphan": c("error"),
         },
     }
