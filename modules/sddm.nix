@@ -6,7 +6,7 @@
   imports = ["${inputs.thyx}/module.nix"];
 
   services.displayManager = {
-    # Mango est la session par défaut ; Hyprland reste proposé jusqu'à son retrait
+    # Mango est la session par défaut
     defaultSession = "mango";
     sddm = {
       enable = true;

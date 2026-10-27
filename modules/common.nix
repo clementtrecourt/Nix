@@ -97,7 +97,6 @@
   networking.networkmanager.enable = true;
   systemd.services.NetworkManager-wait-online.enable = false;
 
-  security.pam.services.hyprlock = {};
   security.pam.services.swaylock = {};
   services.pipewire = {
     enable = true;
@@ -195,11 +194,6 @@
     shell = pkgs.fish;
   };
 
-  programs.hyprland = {
-    enable = true;
-    # SDDM propose la session hyprland-uwsm : uwsm doit être installé/configuré
-    withUWSM = true;
-  };
   programs.nix-ld.enable = true;
   programs.nh = {
     enable = true;

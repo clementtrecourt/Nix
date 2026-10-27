@@ -16,85 +16,6 @@
         "type": "github"
       }
     },
-    "caelestia-cli": {
-      "inputs": {
-        "caelestia-shell": [
-          "caelestia-shell"
-        ],
-        "nixpkgs": [
-          "caelestia-shell",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1792841684,
-        "narHash": "sha256-e5NI28/bKQ6EmjC1E46LiSzU7yT04iXdT0T7liPSBGo=",
-        "owner": "caelestia-dots",
-        "repo": "cli",
-        "rev": "679af941c03f1899d017964c654f57d71cec47e5",
-        "type": "github"
-      },
-      "original": {
-        "owner": "caelestia-dots",
-        "repo": "cli",
-        "type": "github"
-      }
-    },
-    "caelestia-dots": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1792678867,
-        "narHash": "sha256-RX9Op+g62pQiWtgPyWyOTcPuQ+Nq92iyrOgLDnMN4cM=",
-        "owner": "caelestia-dots",
-        "repo": "caelestia",
-        "rev": "c034621845453260b245692b13ce514e7371d735",
-        "type": "github"
-      },
-      "original": {
-        "owner": "caelestia-dots",
-        "repo": "caelestia",
-        "type": "github"
-      }
-    },
-    "caelestia-sddm": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1790822684,
-        "narHash": "sha256-xvTdX1tthiL7lHoODlGz4pbuSvhPa7LZHmFgxeIIO94=",
-        "owner": "ItsABigIgloo",
-        "repo": "caelestia-sddm",
-        "rev": "dd69abbb7eb122546cbabe84e116ba03e67a4ccc",
-        "type": "github"
-      },
-      "original": {
-        "owner": "ItsABigIgloo",
-        "repo": "caelestia-sddm",
-        "type": "github"
-      }
-    },
-    "caelestia-shell": {
-      "inputs": {
-        "caelestia-cli": "caelestia-cli",
-        "m3shapes": "m3shapes",
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "quickshell": "quickshell"
-      },
-      "locked": {
-        "lastModified": 1792917524,
-        "narHash": "sha256-5iMV8fzaU2ohZiUkzxtRFEJNQiQazfNcomOqQbs4Ie0=",
-        "owner": "caelestia-dots",
-        "repo": "shell",
-        "rev": "4b1dae84b1b3b28bf486776ba30c1c1ec74fb64d",
-        "type": "github"
-      },
-      "original": {
-        "owner": "caelestia-dots",
-        "repo": "shell",
-        "type": "github"
-      }
-    },
     "chaotic": {
       "inputs": {
         "flake-schemas": "flake-schemas",
@@ -353,28 +274,6 @@
         "type": "github"
       }
     },
-    "m3shapes": {
-      "inputs": {
-        "nixpkgs": [
-          "caelestia-shell",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1787906858,
-        "narHash": "sha256-YZelgEZflFNwGutX4/tIzBdbOeghJgE2oDw0uWYGxns=",
-        "owner": "soramanew",
-        "repo": "m3shapes",
-        "rev": "32ad9ce328bb77ed349b40a3be10ee9ea610b8ab",
-        "type": "github"
-      },
-      "original": {
-        "owner": "soramanew",
-        "repo": "m3shapes",
-        "rev": "32ad9ce328bb77ed349b40a3be10ee9ea610b8ab",
-        "type": "github"
-      }
-    },
     "mango": {
       "inputs": {
         "flake-parts": "flake-parts",
@@ -519,27 +418,6 @@
         "type": "github"
       }
     },
-    "quickshell": {
-      "inputs": {
-        "nixpkgs": [
-          "caelestia-shell",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1792651682,
-        "narHash": "sha256-TiCGqLMpNIy7FERewgfKVluPsLVF96uc6x6xwZnMjdQ=",
-        "ref": "refs/heads/master",
-        "rev": "9b0f339b19057f4731bf3b48293307d7ef241671",
-        "revCount": 879,
-        "type": "git",
-        "url": "https://git.outfoxxed.me/outfoxxed/quickshell"
-      },
-      "original": {
-        "type": "git",
-        "url": "https://git.outfoxxed.me/outfoxxed/quickshell"
-      }
-    },
     "qwerty-fr": {
       "flake": false,
       "locked": {
@@ -559,9 +437,6 @@
     "root": {
       "inputs": {
         "asryx": "asryx",
-        "caelestia-dots": "caelestia-dots",
-        "caelestia-sddm": "caelestia-sddm",
-        "caelestia-shell": "caelestia-shell",
         "chaotic": "chaotic",
         "helium-flake": "helium-flake",
         "home-manager": "home-manager_2",

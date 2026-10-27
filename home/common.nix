@@ -13,7 +13,6 @@
   dot = path: config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Dot/${path}";
 in {
   imports = [
-    ./hyprland.nix
     ./mango
     ./osyx
     ./kitty.nix
@@ -101,7 +100,6 @@ in {
     package = pkgs.capitaine-cursors;
     size = 24;
     gtk.enable = true;
-    hyprcursor.enable = true;
   };
 
   qt = {
@@ -200,9 +198,6 @@ in {
     fd
     fzf
     gammastep
-    hyprshot
-    hyprshade
-    hyprlock
     imv
     iwd
     jq

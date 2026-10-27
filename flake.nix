@@ -35,18 +35,6 @@
       flake = false;
     };
 
-    caelestia-shell = {
-      url = "github:caelestia-dots/shell";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    caelestia-dots = {
-      url = "github:caelestia-dots/caelestia";
-      flake = false;
-    };
-    caelestia-sddm = {
-      url = "github:ItsABigIgloo/caelestia-sddm";
-      flake = false;
-    };
     mango = {
       url = "github:DreamMaoMao/mango";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -78,7 +66,6 @@
     lazyvim,
     chaotic,
     microvm,
-    caelestia-shell,
     ...
   } @ inputs: let
     system = "x86_64-linux";
@@ -110,7 +97,6 @@
               home-manager.users.clem = import homeModule;
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.sharedModules = [
-                inputs.caelestia-shell.homeManagerModules.default
                 inputs.mango.hmModules.mango
               ];
             }
