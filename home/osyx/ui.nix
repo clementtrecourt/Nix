@@ -25,6 +25,7 @@ in {
       blueman
       alsa-utils
       libnotify
+      waypaper
       gnome-keyring
       trash-cli
       wl-color-picker
@@ -40,8 +41,8 @@ in {
     allow_markup=true
     image_size=24
     columns=1
-    width=760
-    height=460
+    width=520
+    height=380
     location=center
     orientation=vertical
     halign=center

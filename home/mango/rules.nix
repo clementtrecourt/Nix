@@ -2,6 +2,7 @@
   window_rule = [
     "is_floating:1,is_fullscreen:1,no_animation:1,title:^powyx$"
     "is_floating:1,is_fullscreen:1,no_animation:1,title:^ctrlyx-lite$"
+    "is_floating:1,width:0.55,height:0.7,app_id:waypaper"
     "unfocused_opacity:0.97,app_id:^(kitty)$"
     "focused_opacity:0.9,app_id:^(dev.zed.Zed|zen|zen-beta)$"
   ];

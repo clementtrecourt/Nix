@@ -107,6 +107,15 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      wofi-narrow = pkgs.runCommand "wofi-narrow-check" {} ''
+        cfg=${self.nixosConfigurations.home.config.home-manager.users.clem.xdg.configFile."wofi/config".source}
+        w=$(sed -nE 's/^width=([0-9]+)$/\1/p' "$cfg")
+        h=$(sed -nE 's/^height=([0-9]+)$/\1/p' "$cfg")
+        test -n "$w" && test "$w" -le 560 || { echo "lanceur trop large: $w" >&2; exit 1; }
+        test -n "$h" && test "$h" -le 420 || { echo "lanceur trop haut: $h" >&2; exit 1; }
+        echo ok > $out
+      '';
+
       dynamic-palette = pkgs.runCommand "dynamic-palette-check" {nativeBuildInputs = [(pkgs.python3.withPackages (p: [p.jinja2]))];} ''
         mkdir work
         cp -r ${./home/osyx/assets/flavors} work/flavors
@@ -277,10 +286,29 @@
         rm -f "$TMPDIR/themes.log"
         FAKE_MODE=fixed $h/wallpaper set "$TMPDIR/wp/b.png"
         test ! -e "$TMPDIR/themes.log"
+        # remember : appelé par waypaper après qu'il a posé le fond lui-même (donc sans awww)
+        : > "$TMPDIR/awww.log"
+        FAKE_MODE=dynamic $h/wallpaper remember "$TMPDIR/wp/a.png"
+        test "$(cat "$HOME/.local/state/osyx/wallpaper")" = "$TMPDIR/wp/a.png"
+        grep -q "from-wallpaper $TMPDIR/wp/a.png" "$TMPDIR/themes.log"
+        test ! -s "$TMPDIR/awww.log"
+        # pick : lance waypaper (vignettes) avec une config générée
+        mkdir -p "$TMPDIR/wp2"
+        printf '#!${pkgs.runtimeShell}\necho "$@" >> "$TMPDIR/waypaper.log"\n' > "$TMPDIR/bin/waypaper"
+        chmod +x "$TMPDIR/bin/waypaper"
+        OSYX_WALLPAPER_DIRS="$TMPDIR/wp:$TMPDIR/wp2" $h/wallpaper pick
+        ini="$HOME/.local/state/osyx/waypaper.ini"
+        grep -q "^backend = awww" "$ini"
+        grep -q "^subfolders = True" "$ini"
+        grep -q 'post_command = wallpaper remember $wallpaper' "$ini"
+        grep -q "^folder = $TMPDIR/wp$" "$ini"
+        grep -q "^  $TMPDIR/wp2$" "$ini"
+        grep -q -- "--config-file $ini" "$TMPDIR/waypaper.log"
         echo ok > $out
       '';
       no-swww = pkgs.runCommand "no-swww-check" {} ''
-        if grep -rn swww ${./home} ${./pkgs} ${./modules}; then
+        # les clés swww_transition_* sont les vrais noms de réglages de waypaper pour awww
+        if grep -rn swww ${./home} ${./pkgs} ${./modules} | grep -v swww_transition; then
           echo "swww a été renommé awww : binaires swww/swww-daemon introuvables" >&2; exit 1
         fi
         test -x ${pkgs.awww}/bin/awww-daemon
@@ -420,7 +448,7 @@
 
       osyx-bin = pkgs.runCommand "osyx-bin-check" {} ''
         p=${self.nixosConfigurations.home.config.home-manager.users.clem.home.path}/bin
-        for b in shot-full shot-mac vocaster nightshift clip-menu clip-purge; do
+        for b in shot-full shot-mac vocaster nightshift waypaper wallpaper clip-menu clip-purge; do
           test -x "$p/$b" || { echo "missing binary: $b" >&2; exit 1; }
         done
         echo ok > $out
