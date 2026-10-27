@@ -20,6 +20,7 @@
 - `ALT+S`/`ALT+F` interdits (hints Kitty) : spotify = `SUPER+ALT+S`, nemo = `SUPER+ALT+F`.
 - Écrans (hôte `home` uniquement, jamais dans `common.nix`) : `DP-3` 1920x1080@60 en x=0, `HDMI-A-3` 1920x1080@60 en x=1920.
 - Palette par défaut `versailles`. Palettes : `blush gilded kyanite malachite sakura vermilion versailles`.
+- Le thème système (`themes`) doit couvrir : mango, mako, wofi, powyx, lookas, tmux, starship, dircolors, kitty, GTK3/4, Qt (qt6ct), Zed, nvim, swaylock. Source unique : section `[kitty]` des palettes.
 - État runtime des thèmes : `${XDG_STATE_HOME:-~/.local/state}/osyx/`.
 - Mango partagé par les hôtes `home` et `work` (via `home/common.nix` / `modules/common.nix`).
 - Hors périmètre : provisioning, zsh, jarvis, CI. `jarvis` et `ctrlyx` ne sont jamais référencés.
@@ -32,6 +33,7 @@
 - `themes rotate` sans `theme.current` existant → choisit une palette valide, pas de crash (Tâche 4).
 - `asryx` ne se package pas → build vert, pas de bind `ALT+W`, aucune erreur d'éval (Tâche 8).
 - Caractères spéciaux Nix/Mango dans les binds (`$(slurp)`, `|`, `%`, `"`) → config validée par `mango -p` (Tâche 2).
+- Une app GTK/Qt/Zed/nvim déjà ouverte doit changer de couleurs au `themes apply` sans redémarrage (Tâche 4b).
 - `powyx` lancé deux fois → un seul processus (Tâche 6).
 
 ---
@@ -122,6 +124,39 @@
 - [ ] **Step 6: Intégration** (`home/osyx/themes.nix`) : `programs.kitty.extraConfig` inchangé (kitty n'a pas de template) ; `programs.tmux.extraConfig += "source-file -q ~/.local/state/osyx/tmux.conf"` en dernier ; `programs.fish.shellInit += "set -gx STARSHIP_CONFIG ~/.local/state/osyx/starship.toml"` avec repli `~/.config/starship.toml` si absent ; `xdg.configFile."mako/config"` et `wofi/style.css` deviennent des liens vers l'état (`mkOutOfStoreSymlink`) ; `DIRCOLORS` via `eval (dircolors -c …)` dans fish. Garder `themes` dans `home.packages`. Ajouter `ALT,r` déjà présent (Tâche 2) → `spawn_shell,themes rotate`.
 - [ ] **Step 7: Vérifier** : `nh os test .`, relancer la session Mango, `themes versailles` puis `themes sakura` : les bordures, mako (`notify-send test`), tmux et le prompt changent.
 - [ ] **Step 8: Commit** `feat(osyx): moteur de thèmes flavors + commande themes`.
+
+---
+
+### Task 4b: Thème système sur toutes les apps (kitty, GTK, Qt, Zed, nvim, swaylock)
+
+**Files:**
+- Create: templates `kitty.conf.j2`, `gtk.css.j2`, `qt6ct-colors.conf.j2`, `zed-theme.json.j2`, `nvim-theme.lua.j2`, `swaylock.conf.j2` dans `home/osyx/assets/flavors/templates/`
+- Modify: `generator/config.py` (OUTPUTS), `pkgs/osyx/themes.nix` (liens + rechargements), `home/kitty.nix`, `home/common.nix` (gtk/qt), `home/zed.nix`, LazyVim (`home/osyx/themes.nix`), `home/osyx/ui.nix` (swaylock)
+- Test: `checks.x86_64-linux.osyx-themes` étendu, `checks.x86_64-linux.themes-cli` étendu
+
+**Interfaces:**
+- Consumes: variables de palette de la section `[kitty]` (`kitty_bg`, `kitty_fg`, `kitty_cursor`, `kitty_selection_bg`, `kitty_selection_fg`, `kitty_color0..15`) ; c'est la **source unique** de toutes les couleurs ci-dessous (aucune palette modifiée).
+- Produces, par palette `P`, dans `$out/P/` : `.config/kitty/osyx.conf`, `.config/gtk-3.0/gtk.css`, `.config/gtk-4.0/gtk.css`, `.config/qt6ct/colors/osyx.conf`, `.config/zed/themes/osyx.json`, `.config/nvim/osyx-theme.lua`, `.config/swaylock/config`. `themes apply` ajoute à l'état les liens `kitty.conf gtk.css qt6ct.conf zed.json nvim-theme.lua swaylock.conf` et les installe aux emplacements ci-dessus via liens symboliques depuis `~/.config/…` (déclarés dans HM par `mkOutOfStoreSymlink` vers `~/.local/state/osyx/…`).
+- Rechargements ajoutés à `themes apply` (tous tolérants) : kitty = `pkill -USR1 -x kitty` ; GTK = `gsettings set org.gnome.desktop.interface color-scheme prefer-dark` puis re-signal par `dconf write /org/gnome/desktop/interface/gtk-theme` vers sa valeur courante pour forcer la relecture de `gtk.css` ; Zed = écrire `"theme": "Osyx"` (Zed relit le dossier `themes/` à chaud) ; nvim = pour chaque socket `nvim --server` actif envoyer `<Cmd>lua dofile(vim.fn.expand("~/.config/nvim/osyx-theme.lua"))<CR>` ; swaylock = lu à chaque lancement (rien à recharger).
+
+- [ ] **Step 1: Étendre les checks (échouent)** : `osyx-themes` exige les 7 fichiers ci-dessus non vides pour chaque palette ; vérifier que `kitty/osyx.conf` contient `background #<kitty_bg>` pour `versailles` (`background #3e2723`) et que `zed/themes/osyx.json` est du JSON valide (`jq empty`). `themes-cli` : après `themes apply versailles`, les 7 liens existent dans `OSYX_STATE_DIR`. Lancer → **FAIL**.
+- [ ] **Step 2: Templates** :
+  - `kitty.conf.j2` : `foreground`, `background`, `cursor`, `selection_background/foreground`, `color0..15`, `active_border_color`, `url_color`, tabs (`active_tab_background` = `kitty_cursor`). Pas d'opacité (elle reste dans `home/kitty.nix`).
+  - `gtk.css.j2` : `@define-color accent_bg_color`, `accent_color`, `window_bg_color`, `window_fg_color`, `view_bg_color`, `view_fg_color`, `headerbar_bg_color`, `card_bg_color`, `popover_bg_color` (libadwaita) + règles `window`, `headerbar`, `.view`, `entry` pour GTK3. Même contenu pour GTK3 et GTK4.
+  - `qt6ct-colors.conf.j2` : section `[ColorScheme]` avec `active_colors`, `inactive_colors`, `disabled_colors` (20 entrées `#AARRGGBB` : WindowText, Button, Light, Midlight, Dark, Mid, Text, BrightText, ButtonText, Base, Window, Shadow, Highlight, HighlightedText, Link, LinkVisited, AlternateBase, NoRole, ToolTipBase, ToolTipText).
+  - `zed-theme.json.j2` : schéma Zed (`$schema`, `name: "Osyx"`, `author`, un thème `Osyx` `appearance: "dark"` avec `style` : `background`, `editor.background`, `text`, `border`, `element.*`, `terminal.*` (ansi depuis `kitty_color*`), `syntax` (comment, keyword, string, function, type…) mappés sur `color1..color6`).
+  - `nvim-theme.lua.j2` : `vim.cmd("hi clear")`, `vim.o.termguicolors = true`, puis `vim.api.nvim_set_hl(0, group, {fg=, bg=})` pour `Normal NormalFloat CursorLine Visual Comment String Function Keyword Type Identifier Statement PreProc Special LineNr StatusLine Pmenu PmenuSel` + `vim.g.terminal_color_0..15`.
+  - `swaylock.conf.j2` : `color=<kitty_bg>`, `inside-color`, `ring-color=<kitty_cursor>`, `key-hl-color`, `text-color=<kitty_fg>`.
+- [ ] **Step 3: `OUTPUTS`** : ajouter les 7 couples (template → chemin relatif ci-dessus) ; les tests de la Tâche 4 restent verts.
+- [ ] **Step 4: Intégration par app** :
+  - `home/kitty.nix` : remplacer `include dank-tabs.conf` et `include dank-theme.conf` par `include ~/.local/state/osyx/kitty.conf` ; conserver le `background #000000` forcé **uniquement** si l'utilisateur le demande (sinon retirer : le fond vient du thème).
+  - `home/common.nix` : `gtk.theme` passe à un thème neutre sombre libadwaita (`adw-gtk3-dark`) ; `gtk.gtk3.extraCss`/`gtk4.extraCss` inutiles, `~/.config/gtk-{3,4}.0/gtk.css` sont des liens vers l'état ; `qt` : `platformTheme.name = "qt6ct"`, `style.name = "Fusion"` (kvantum retiré), `~/.config/qt6ct/qt6ct.conf` contient `color_scheme_path=~/.config/qt6ct/colors/osyx.conf` et `custom_palette=true`.
+  - `home/zed.nix` : `userSettings.theme = "Osyx"` et `~/.config/zed/themes/osyx.json` lien vers l'état.
+  - LazyVim : `~/.config/nvim/lua/plugins/osyx.lua` (via `programs.lazyvim.extraConfig` ou `xdg.configFile`) exécutant `dofile(osyx-theme.lua)` à `ColorScheme`/`VimEnter`.
+  - `swaylock` : `swaylock` lancé avec `-C ~/.local/state/osyx/swaylock.conf` dans les binds et dans `powyx.toml`.
+- [ ] **Step 5: Vérifier** : checks **PASS**. `nh os test .`, session Mango : `themes sakura` puis `themes versailles` ; observer le changement **sans relancer** les apps dans kitty, nemo (GTK), pavucontrol (GTK), un client Qt (`qt6ct`), Zed (thème `Osyx`), nvim ouvert, et `ALT+L` (swaylock coloré).
+- [ ] **Step 6: Limites documentées dans le README** (Tâche 9) : le navigateur zen, Spotify, Obsidian, Discord et les applis Electron/Chromium ont leur propre moteur de thème et **ne sont pas** pilotés par `themes`. Les lister, sans promesse. Le login SDDM est statique (preset `cinder`).
+- [ ] **Step 7: Commit** `feat(osyx): thème système sur kitty, GTK, Qt, Zed, nvim, swaylock`.
 
 ---
 
