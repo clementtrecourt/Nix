@@ -23,7 +23,9 @@ writeShellApplication {
     reload() {
       [ -n "''${OSYX_NO_RELOAD:-}" ] && return 0
       if command -v makoctl >/dev/null 2>&1; then makoctl reload || true; fi
+      # sous Nix le processus s'appelle .kitty-wrapped
       pkill -USR1 -x kitty || true
+      pkill -USR1 -x .kitty-wrapped || true
       if command -v tmux >/dev/null 2>&1 && tmux list-sessions >/dev/null 2>&1; then
         tmux source-file "$state/tmux.conf" || true
       fi

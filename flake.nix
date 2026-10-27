@@ -107,6 +107,22 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      themes-reload-kitty = pkgs.runCommand "themes-reload-kitty-check" {} ''
+        export HOME=$TMPDIR/home
+        mkdir -p "$HOME" "$TMPDIR/k"
+        # sous Nix le processus kitty s'appelle .kitty-wrapped
+        printf '#!${pkgs.runtimeShell}\ntrap "touch $TMPDIR/got-usr1" USR1\nwhile true; do sleep 0.1; done\n' > "$TMPDIR/k/.kitty-wrapped"
+        chmod +x "$TMPDIR/k/.kitty-wrapped"
+        "$TMPDIR/k/.kitty-wrapped" &
+        pid=$!
+        sleep 0.5
+        ${self.packages.${system}.themes}/bin/themes apply sakura
+        sleep 0.5
+        kill $pid 2>/dev/null || true
+        test -e "$TMPDIR/got-usr1"
+        echo ok > $out
+      '';
+
       monitors-match-hardware = pkgs.runCommand "monitors-match-hardware-check" {} ''
         cfg=${self.nixosConfigurations.home.config.home-manager.users.clem.xdg.configFile."mango/config.conf".source}
         if grep -q 'HDMI-A-3' "$cfg"; then echo "règle pour un écran inexistant (HDMI-A-3)" >&2; exit 1; fi
