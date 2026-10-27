@@ -1,26 +1,31 @@
 {
   pkgs,
   config,
+  inputs,
   ...
-}: {
-  home.packages = with pkgs; [
-    wofi
-    mako
-    swww
-    wlsunset
-    swaylock
-    grim
-    slurp
-    swappy
-    cliphist
-    wl-clipboard
-    pamixer
-    brightnessctl
-    pavucontrol
-    blueman
-    alsa-utils
-    libnotify
-  ];
+}: let
+  osyxPkgs = inputs.self.packages.${pkgs.stdenv.hostPlatform.system};
+in {
+  home.packages =
+    [osyxPkgs.powyx osyxPkgs.ctrlyx-lite osyxPkgs.lookas osyxPkgs.asryx]
+    ++ (with pkgs; [
+      wofi
+      mako
+      swww
+      wlsunset
+      swaylock
+      grim
+      slurp
+      swappy
+      cliphist
+      wl-clipboard
+      pamixer
+      brightnessctl
+      pavucontrol
+      blueman
+      alsa-utils
+      libnotify
+    ]);
 
   # Config wofi d'osyx (le style.css est généré par `themes`)
   xdg.configFile."wofi/config".text = ''

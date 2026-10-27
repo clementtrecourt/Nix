@@ -27,7 +27,7 @@ in {
       lock = lib.mkDefault "swaylock";
       power = lib.mkDefault "powyx";
       control = lib.mkDefault "ctrlyx-lite";
-      asryx = lib.mkDefault null;
+      asryx = lib.mkDefault "asryx";
     };
 
     wayland.windowManager.mango = {

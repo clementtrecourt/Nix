@@ -17,7 +17,7 @@
 ## ⚡ Stack & Environnement
 
 * **Compositeur Wayland** : [MangoWM](https://github.com/mangowm/mango) avec layout *Scroller* & animations fluides.
-* **Barre & Thème Dynamique** : [Noctalia](https://github.com/noctalia-dev/noctalia) (panneau de contrôle, widgets, thèmes dynamiques).
+* **Stack UI [osyx](https://github.com/rccyx/osyx)** : login SDDM *thyx*, menu power *powyx*, visualiseur audio *lookas*, dictée locale *asryx* (si le build passe), wofi/mako/swww/swaylock, et un moteur de thèmes (`themes`) qui colore le système entier depuis une palette.
 * **Navigateur Web** : [Zen Browser](https://zen-browser.app) optimisé avec **Betterfox v148** et **Smoothfox** injectés via les Enterprise Policies NixOS.
 * **Éditeur de Code** : **Zed Editor** & **Neovim (LazyVim)** déclaratifs avec serveurs LSP intégrés (`nixd`, `rust-analyzer`, Node.js).
 * **Terminal & Shell** : **Kitty** (typographie *IBM Plex Mono / BlexMono Nerd Font*, hints natifs) + **Fish** (Starship, Zoxide, Direnv, abréviations).
@@ -43,6 +43,7 @@
 │   └── work/             # Configuration spécifique de la machine de Travail
 │       ├── configuration.nix
 │       └── hardware-configuration.nix
+├── pkgs/osyx/            # Paquets osyx (powyx, lookas, asryx, themes, ctrlyx-lite)
 ├── modules/
 │   ├── common.nix        # Socle commun NixOS (Polices, Pipewire, Greetd, SOPS, Caches)
 │   ├── gaming.nix        # Optimisations jeux (Steam, Gamemode, sysctl max_map_count)
@@ -57,8 +58,8 @@
     ├── common.nix        # Socle Home Manager (GTK, Qt, Curseur, Git, Yazi, Paquets)
     ├── fish.nix          # Shell Fish (abréviations nrs, fonctions personnalisées)
     ├── kitty.nix         # Terminal Kitty (polices, opacité, raccourcis hints)
-    ├── mango.nix         # Configuration MangoWM (keybinds, layout scroller, animations)
-    ├── noctalia.nix      # Widgets, barre et gestionnaire de session Noctalia
+    ├── mango/            # MangoWM : settings, keybinds, règles, autostart
+    ├── osyx/             # Stack UI osyx : wofi/mako, scripts, moteur de thèmes (flavors)
     ├── tmux.nix          # Configuration Tmux
     ├── work.nix          # Overrides utilisateur machine pro
     └── zed.nix           # Configuration complète de Zed Editor
@@ -189,3 +190,31 @@ Le cache binaire tourne dans un conteneur Docker sur le serveur Debian à l'adre
   attic push main-cache $(readlink -f /run/current-system)
   ```
 - **Nettoyage automatique** : Une tâche cron sur le serveur exécute `atticadm garbage-collect` tous les dimanches pour supprimer les paquets non utilisés depuis plus de 30 jours.
+
+---
+
+## 🎨 Thème système (`themes`)
+
+`themes list|current|apply <nom>|rotate` (raccourci `ALT+R` pour passer au suivant). Palettes : `blush gilded kyanite malachite sakura vermilion versailles`.
+
+Une seule palette (section `[kitty]`) colore : Mango (bordures), mako, wofi, powyx, lookas, tmux (barre/bordures), starship, dircolors, kitty, GTK3/4 (`gtk.css`), Qt (qt6ct), Zed (thème `Osyx`), Neovim et swaylock. Les apps déjà ouvertes se rechargent à chaud quand c'est possible (kitty, GTK/libadwaita, nvim, mako, tmux).
+
+**Non pilotés par `themes`** : Zen, Spotify, Obsidian, Discord et les apps Electron/Chromium ont leur propre moteur de thème. Le login SDDM (thyx) est statique (preset `cinder`).
+
+## ⌨️ Raccourcis principaux (MangoWM)
+
+| Touches | Action |
+| :--- | :--- |
+| `ALT+Entrée` / `ALT+K` / `ALT+Q` | Terminal (kitty) |
+| `SUPER+Espace` | Lanceur wofi |
+| `ALT+E` / `ALT+G` / `ALT+O` | Zed / Zen / Obsidian |
+| `SUPER+ALT+F` / `SUPER+ALT+S` | nemo / Spotify (évite les hints Kitty `Alt+f`/`Alt+s`) |
+| `ALT+P` / `ALT+M` / `ALT+L` | Menu power / centre de contrôle / verrouillage |
+| `SUPER+Q` | Fermer la fenêtre |
+| `SUPER+←↑↓→` / `+SHIFT` | Focus / déplacer la fenêtre |
+| `SUPER+1..9` / `+SHIFT` | Aller au tag / y envoyer la fenêtre |
+| `SUPER+0` | Vue d'ensemble |
+| `ALT+Tab` | Fenêtre suivante |
+| `SUPER+F` / `SUPER+V` / `SUPER+S` | Maximiser / flottant / changer de layout |
+| `F9` / `F10` / `SUPER+SHIFT+S` | Capture écran / région / région annotée |
+| `SUPER+SHIFT+R` | Recharger la config Mango |

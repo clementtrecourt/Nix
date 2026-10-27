@@ -121,6 +121,48 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      asryx-bin = pkgs.runCommand "asryx-bin-check" {} ''
+        out_text=$(${self.packages.${system}.asryx}/bin/asryx bogus 2>&1 || true)
+        echo "$out_text" | grep -q "voice to text"
+        echo ok > $out
+      '';
+
+      lookas-bin = pkgs.runCommand "lookas-bin-check" {} ''
+        b=${self.packages.${system}.lookas}/bin/lookas
+        test -x "$b"
+        ${pkgs.glibc.bin}/bin/ldd "$b" | grep -q libasound
+        echo ok > $out
+      '';
+
+      powyx-lock = pkgs.runCommand "powyx-lock-check" {} ''
+        export XDG_RUNTIME_DIR=$TMPDIR/run XDG_CONFIG_HOME=$TMPDIR/cfg
+        mkdir -p "$XDG_RUNTIME_DIR" "$XDG_CONFIG_HOME/powyx"
+        cat > "$XDG_CONFIG_HOME/powyx/powyx.toml" <<'EOF'
+        [actions]
+        lock = "true"
+        suspend = "true"
+        reboot = "true"
+        shutdown = "true"
+
+        [theme]
+        confirm = "#E7BE5B"
+        EOF
+        sed -i 's/^ *//' "$XDG_CONFIG_HOME/powyx/powyx.toml"
+        printf '#!${pkgs.runtimeShell}\necho x >> "$COUNT"\nsleep 2\n' > runner
+        chmod +x runner
+        export POWYX_QML_RUNNER=$PWD/runner COUNT=$PWD/count
+        ${self.packages.${system}.powyx}/bin/powyx &
+        sleep 0.7
+        ${self.packages.${system}.powyx}/bin/powyx
+        wait
+        test "$(wc -l < count)" = 1
+        echo ok > $out
+      '';
+      osyx-qml-lint = pkgs.runCommand "osyx-qml-lint" {nativeBuildInputs = [pkgs.qt6.qtdeclarative];} ''
+        qmllint $(find ${./home/osyx/assets/powyx/src} -name '*.qml' | sort)
+        echo ok > $out
+      '';
+
       osyx-themes = pkgs.runCommand "osyx-themes-check" {} ''
         t=${self.packages.${system}.osyx-themes}
         n=0
