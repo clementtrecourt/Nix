@@ -47,6 +47,22 @@
       url = "github:ItsABigIgloo/caelestia-sddm";
       flake = false;
     };
+    mango = {
+      url = "github:DreamMaoMao/mango";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    lookas = {
+      url = "github:rccyx/lookas";
+      flake = false;
+    };
+    asryx = {
+      url = "github:rccyx/asryx";
+      flake = false;
+    };
+    thyx = {
+      url = "github:rccyx/thyx";
+      flake = false;
+    };
     helium-flake = {
       url = "github:oxcl/nix-flake-helium-browser";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -85,6 +101,7 @@
               ];
             }
 
+            inputs.mango.nixosModules.mango
             home-manager.nixosModules.home-manager
             {
               home-manager.useGlobalPkgs = true;
@@ -94,12 +111,24 @@
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.sharedModules = [
                 inputs.caelestia-shell.homeManagerModules.default
+                inputs.mango.hmModules.mango
               ];
             }
           ]
           ++ extraModules; # <-- Permet d'ajouter des modules spécifiques par machine
       };
   in {
+    packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
+
+    checks.${system} = {
+      # La source du fichier est déjà validée par `mango -c … -p` dans le module HM.
+      mango-config = pkgs.runCommand "mango-config-check" {} ''
+        cfg=${self.nixosConfigurations.home.config.home-manager.users.clem.xdg.configFile."mango/config.conf".source}
+        grep -q "killclient" "$cfg"
+        touch $out
+      '';
+    };
+
     formatter.${system} = pkgs.writeShellScriptBin "nix-fmt" ''
       if [ "$#" -eq 0 ]; then
         exec ${pkgs.alejandra}/bin/alejandra .

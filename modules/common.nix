@@ -8,6 +8,7 @@
   imports = [
     ./zen-browser.nix
     ./sddm.nix
+    ./mango.nix
     scripts/organizer.nix
     scripts/auto-cleaner.nix
     scripts/copy-context.nix
@@ -58,7 +59,6 @@
     enable = true;
     interval = "weekly";
   };
-  boot.initrd.systemd.enable = true;
   services.xserver.xkb = {
     layout = "qwerty-fr";
     variant = "";
