@@ -20,12 +20,6 @@ in {
       notify-send "Presse-papier" "Historique vidé"
     '')
 
-    (mk "wallpaper-pick" [pkgs.swww pkgs.wofi pkgs.coreutils pkgs.findutils] ''
-      dir="$HOME/Pictures/osyx"
-      choice=$(find -L "$dir" -maxdepth 1 -type f -printf '%f\n' | sort | wofi --dmenu --prompt wallpaper) || exit 0
-      [ -n "$choice" ] && swww img "$dir/$choice" --transition-type fade
-    '')
-
     (mk "vocaster" [pkgs.alsa-utils pkgs.util-linux pkgs.gawk pkgs.coreutils] ''
       device="Vocaster One"
       control="name='Line In 1 Mute Capture Switch'"

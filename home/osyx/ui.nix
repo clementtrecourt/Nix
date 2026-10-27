@@ -7,11 +7,11 @@
   osyxPkgs = inputs.self.packages.${pkgs.stdenv.hostPlatform.system};
 in {
   home.packages =
-    [osyxPkgs.powyx osyxPkgs.ctrlyx-lite osyxPkgs.lookas osyxPkgs.asryx]
+    [osyxPkgs.powyx osyxPkgs.ctrlyx-lite osyxPkgs.lookas osyxPkgs.asryx osyxPkgs.wallpaper]
     ++ (with pkgs; [
       wofi
       mako
-      swww
+      awww
       wlsunset
       swaylock
       grim
@@ -50,7 +50,4 @@ in {
     sparse_search=true
     no_actions=true
   '';
-
-  # Wallpapers osyx
-  home.file."Pictures/osyx".source = ./assets/wallpapers;
 }

@@ -6,6 +6,7 @@
   osyx-themes = pkgs.callPackage ./osyx-themes.nix {};
 in {
   inherit osyx-themes;
+  wallpaper = pkgs.callPackage ./wallpaper.nix {};
   powyx = pkgs.callPackage ./powyx.nix {};
   lookas = pkgs.callPackage ./lookas.nix {src = inputs.lookas;};
   asryx = pkgs.callPackage ./asryx.nix {src = inputs.asryx;};

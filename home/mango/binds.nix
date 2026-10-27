@@ -61,7 +61,7 @@ in {
       "SUPER,Print,spawn,shot-full"
       "SUPER+SHIFT,s,spawn_shell,grim -g \"$(slurp)\" - | swappy -f -"
       "SUPER+SHIFT,b,spawn,nightshift"
-      "SUPER+SHIFT,w,spawn,wallpaper-pick"
+      "SUPER+SHIFT,w,spawn,wallpaper pick"
       "SUPER+SHIFT,r,reload_config"
       "SUPER,Escape,spawn,systemctl poweroff"
       "SUPER,x,spawn,clip-menu"

@@ -107,6 +107,34 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      wallpaper-cli = pkgs.runCommand "wallpaper-cli-check" {} ''
+        export HOME=$TMPDIR/home OSYX_WALLPAPER_DIRS="$TMPDIR/wp"
+        mkdir -p "$HOME" "$TMPDIR/wp" "$TMPDIR/bin"
+        touch "$TMPDIR/wp/a.png" "$TMPDIR/wp/b.png"
+        printf '#!${pkgs.runtimeShell}\necho "$@" >> "$TMPDIR/awww.log"\n' > "$TMPDIR/bin/awww"
+        chmod +x "$TMPDIR/bin/awww"
+        export PATH="$TMPDIR/bin:$PATH"
+        h=${self.packages.${system}.wallpaper}/bin
+        $h/wallpaper set "$TMPDIR/wp/b.png"
+        grep -q "img $TMPDIR/wp/b.png" "$TMPDIR/awww.log"
+        test "$(cat "$HOME/.local/state/osyx/wallpaper")" = "$TMPDIR/wp/b.png"
+        : > "$TMPDIR/awww.log"
+        $h/wallpaper restore
+        grep -q "img $TMPDIR/wp/b.png" "$TMPDIR/awww.log"
+        rm "$HOME/.local/state/osyx/wallpaper"; : > "$TMPDIR/awww.log"
+        $h/wallpaper restore
+        grep -q "img $TMPDIR/wp/a.png" "$TMPDIR/awww.log"
+        if $h/wallpaper set "$TMPDIR/wp/inexistant.png" 2>/dev/null; then echo "set sur fichier absent doit échouer" >&2; exit 1; fi
+        echo ok > $out
+      '';
+      no-swww = pkgs.runCommand "no-swww-check" {} ''
+        if grep -rn swww ${./home} ${./pkgs} ${./modules}; then
+          echo "swww a été renommé awww : binaires swww/swww-daemon introuvables" >&2; exit 1
+        fi
+        test -x ${pkgs.awww}/bin/awww-daemon
+        echo ok > $out
+      '';
+
       sddm-x11-greeter = pkgs.runCommand "sddm-x11-greeter-check" {} ''
         test ${
           if
@@ -224,13 +252,12 @@
         $t list | grep -qx "$($t current)"
         test "$($t list | wc -l)" = 7
         $t apply versailles
-        # fond d'écran : swww factice, dossier de wallpapers factice
-        mkdir -p "$TMPDIR/wp" "$TMPDIR/bin"
-        touch "$TMPDIR/wp/versailles.jpg" "$TMPDIR/wp/sakura.png"
-        printf '#!${pkgs.runtimeShell}\necho "$@" >> "$TMPDIR/swww.log"\n' > "$TMPDIR/bin/swww"
-        chmod +x "$TMPDIR/bin/swww"
-        PATH="$TMPDIR/bin:$PATH" OSYX_WALLPAPER_DIR="$TMPDIR/wp" $t apply sakura
-        grep -q "img $TMPDIR/wp/sakura.png" "$TMPDIR/swww.log"
+        # le thème ne doit PAS toucher au fond d'écran de l'utilisateur
+        mkdir -p "$TMPDIR/bin"
+        printf '#!${pkgs.runtimeShell}\necho "$@" >> "$TMPDIR/awww.log"\n' > "$TMPDIR/bin/awww"
+        chmod +x "$TMPDIR/bin/awww"
+        PATH="$TMPDIR/bin:$PATH" $t apply sakura
+        test ! -e "$TMPDIR/awww.log"
         $t apply versailles
         for l in kitty.conf gtk.css qt6ct.conf zed.json nvim-theme.lua swaylock.conf; do
           test -s "$HOME/.local/state/osyx/$l" || { echo "missing state link $l" >&2; exit 1; }
@@ -240,7 +267,7 @@
 
       osyx-bin = pkgs.runCommand "osyx-bin-check" {} ''
         p=${self.nixosConfigurations.home.config.home-manager.users.clem.home.path}/bin
-        for b in shot-full shot-mac vocaster wallpaper-pick nightshift clip-menu clip-purge; do
+        for b in shot-full shot-mac vocaster nightshift clip-menu clip-purge; do
           test -x "$p/$b" || { echo "missing binary: $b" >&2; exit 1; }
         done
         echo ok > $out
