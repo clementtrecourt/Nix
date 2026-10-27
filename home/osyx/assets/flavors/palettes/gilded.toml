@@ -1,0 +1,86 @@
+[starship]
+os_bg = "ca8732"
+os_fg = "0b0d0a"
+dir_bg = "d19a45"
+dir_fg = "0b0d0a"
+git_branch_bg = "a15c1d"
+git_branch_fg = "fff1cf"
+git_status_bg = "a15c1d"
+git_status_fg = "fff1cf"
+langs_bg = "894418"
+langs_fg = "fff1cf"
+time_bg = "17140e"
+time_fg = "d19a45"
+success = "d19a45"
+error = "ff6a3d"
+
+[tmux]
+pane_border = "332618"
+pane_active_border = "d19a45"
+message_bg = "ca8732"
+message_fg = "0b0d0a"
+git_bg = "a15c1d"
+git_fg = "fff1cf"
+host_bg = "653714"
+host_fg = "fff1cf"
+time_bg = "0b0d0a"
+time_fg = "d19a45"
+
+[hyprland]
+active_border = "d19a45"
+inactive_border = "653714"
+
+[mako]
+bg = "0b0d0a"
+text = "efe2c7"
+border = "ca8732"
+progress = "d19a45"
+
+[kitty]
+bg = "0b0d0a"
+fg = "efe2c7"
+cursor = "d19a45"
+selection_bg = "d19a45"
+selection_fg = "0b0d0a"
+color0 = "0b0d0a"
+color1 = "a15c1d"
+color2 = "ca8732"
+color3 = "d19a45"
+color4 = "ca8732"
+color5 = "a15c1d"
+color6 = "894418"
+color7 = "efe2c7"
+color8 = "17140e"
+color9 = "c86b2b"
+color10 = "d19a45"
+color11 = "f0bf6b"
+color12 = "d19a45"
+color13 = "ca8732"
+color14 = "b86a22"
+color15 = "fff1cf"
+
+[wofi]
+bg = "0b0d0a"
+border = "ca8732"
+input_bg = "17140e"
+input_border = "a15c1d"
+text = "efe2c7"
+selected_bg = "d19a45"
+selected_text = "0b0d0a"
+
+
+
+[theme_names]
+nvim = "gruvbox"
+
+[dircolors]
+dir = "d19a45"
+link = "f0bf6b"
+archive = "c86b2b"
+media = "ca8732"
+source = "fff1cf"
+exec = "d19a45"
+ignored = "9a7447"
+bg = "17140e"
+fg = "efe2c7"
+orphan = "ff6a3d"

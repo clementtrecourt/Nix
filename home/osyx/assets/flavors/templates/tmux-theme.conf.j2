@@ -1,0 +1,31 @@
+# ================= Theme =================
+
+# borders and messages
+set -g pane-border-style         "fg=#{{ tmux_pane_border }}"
+set -g pane-active-border-style  "fg=#{{ tmux_pane_active_border }}"
+set -g message-style             "bg=#{{ tmux_message_bg }},fg=#{{ tmux_message_fg }}"
+set -g message-command-style     "bg=#{{ tmux_message_bg }},fg=#{{ tmux_message_fg }}"
+
+# statusline base
+set -g status on
+set -g status-interval 1
+set -g status-position bottom
+set -g status-justify left
+set -g status-left-length 80
+set -g status-right-length 160
+set -g status-style "bg=default,fg=#{{ tmux_pane_active_border }}"
+
+# left bubble: session
+set -g status-left "#[fg=#{{ tmux_pane_active_border }}]#[bg=#{{ tmux_pane_active_border }}]#[fg=#{{ tmux_message_fg }}]#[bold]   #S #[nobold]#[fg=#{{ tmux_pane_active_border }}]#[bg=default] "
+
+# right bubbles: prefix, git branch, host, time
+set -g status-right '#{?client_prefix,#[fg=#{{ tmux_git_bg }}]#[bg=#{{ tmux_git_bg }}]#[fg=#{{ tmux_git_fg }}]#[bold] ⏽ PREFIX #[nobold]#[fg=#{{ tmux_git_bg }}]#[bg=default] ,}#[fg=#{{ tmux_git_bg }}]#[bg=#{{ tmux_git_bg }}]#[fg=#{{ tmux_git_fg }}]  #(cd #{pane_current_path}; git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "-") #[fg=#{{ tmux_git_bg }}]#[bg=default] #[fg=#{{ tmux_host_bg }}]#[bg=#{{ tmux_host_bg }}]#[fg=#{{ tmux_host_fg }}] #H #[fg=#{{ tmux_host_bg }}]#[bg=default] #[fg=#{{ tmux_time_bg }}]#[bg=#{{ tmux_time_bg }}]#[fg=#{{ tmux_time_fg }}] %Y-%m-%d %H:%M #[fg=#{{ tmux_time_bg }}]#[bg=default]'
+
+# window tabs
+set -g window-status-separator ""
+set -g window-status-format         " #[fg=#{{ tmux_host_bg }}]#I #[fg=#{{ tmux_host_fg }}]#W "
+set -g window-status-current-format "#[fg=#{{ tmux_pane_active_border }}]#[bg=#{{ tmux_pane_active_border }}]#[fg=#{{ tmux_message_fg }}]#[bold] #I: #W #[nobold]#[fg=#{{ tmux_pane_active_border }}]#[bg=default]"
+
+# nuke the entire right side of the status bar, it's annoying with starship
+set -g status-right ""
+set -g status-right-length 0

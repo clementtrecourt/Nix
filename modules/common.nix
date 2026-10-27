@@ -98,6 +98,7 @@
   systemd.services.NetworkManager-wait-online.enable = false;
 
   security.pam.services.hyprlock = {};
+  security.pam.services.swaylock = {};
   services.pipewire = {
     enable = true;
     alsa.enable = true;

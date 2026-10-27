@@ -35,6 +35,21 @@
       fi
     '';
   };
+  shotFull = pkgs.writeShellApplication {
+    name = "shot-full";
+    runtimeInputs = with pkgs; [grim wl-clipboard libnotify coreutils];
+    text = ''
+      dir="$HOME/Pictures/Screenshots"
+      mkdir -p "$dir"
+      file="$dir/$(date +%Y-%m-%d_%H-%M-%S).png"
+      grim "$file"
+      wl-copy < "$file"
+      notify-send -i "$file" "Capture enregistrée" "$file"
+    '';
+  };
+  shotMac = pkgs.writeShellScriptBin "shot-mac" ''
+    exec ${screenshot}/bin/screenshot region
+  '';
 in {
-  home.packages = [screenshot];
+  home.packages = [screenshot shotFull shotMac];
 }

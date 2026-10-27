@@ -15,6 +15,7 @@ in {
   imports = [
     ./hyprland.nix
     ./mango
+    ./osyx
     ./kitty.nix
     ./fish.nix
     ./tmux.nix

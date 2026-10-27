@@ -121,6 +121,43 @@
     packages.${system} = import ./pkgs/osyx {inherit pkgs inputs;};
 
     checks.${system} = {
+      osyx-themes = pkgs.runCommand "osyx-themes-check" {} ''
+        t=${self.packages.${system}.osyx-themes}
+        n=0
+        for p in blush gilded kyanite malachite sakura vermilion versailles; do
+          test -s "$t/$p/.config/mako/config"
+          test -s "$t/$p/.config/mango/colors.conf"
+          test -s "$t/$p/.config/tmux/osyx-theme.conf"
+          n=$((n+1))
+        done
+        test "$n" = 7
+        grep -q 'focus_color=0xbcaaa4ff' "$t/versailles/.config/mango/colors.conf"
+        echo ok > $out
+      '';
+      themes-cli = pkgs.runCommand "themes-cli-check" {} ''
+        export HOME=$TMPDIR/home OSYX_NO_RELOAD=1
+        mkdir -p "$HOME"
+        t=${self.packages.${system}.themes}/bin/themes
+        $t apply versailles
+        test "$($t current)" = versailles
+        if $t apply nope 2>err; then echo "apply nope should fail" >&2; exit 1; fi
+        grep -q inconnu err
+        test "$($t current)" = versailles
+        rm "$HOME/.local/state/osyx/theme.current"
+        $t rotate
+        $t list | grep -qx "$($t current)"
+        test "$($t list | wc -l)" = 7
+        echo ok > $out
+      '';
+
+      osyx-bin = pkgs.runCommand "osyx-bin-check" {} ''
+        p=${self.nixosConfigurations.home.config.home-manager.users.clem.home.path}/bin
+        for b in shot-full shot-mac vocaster wallpaper-pick nightshift clip-menu clip-purge; do
+          test -x "$p/$b" || { echo "missing binary: $b" >&2; exit 1; }
+        done
+        echo ok > $out
+      '';
+
       # La source du fichier est déjà validée par `mango -c … -p` dans le module HM.
       mango-config = pkgs.runCommand "mango-config-check" {} ''
         cfg=${self.nixosConfigurations.home.config.home-manager.users.clem.xdg.configFile."mango/config.conf".source}
