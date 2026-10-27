@@ -34,7 +34,7 @@ def generate_theme(theme_name: str) -> None:
     print(f"Generating theme: {theme_name}")
 
     for template_name, rel_out_path in OUTPUTS.items():
-        render_template(env, template_name, rel_out_path, mapping)
+        render_template(env, template_name.split("#")[0], rel_out_path, mapping)
 
     write_theme_names(theme_name, palette)
 

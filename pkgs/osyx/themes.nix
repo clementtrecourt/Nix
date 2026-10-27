@@ -26,6 +26,17 @@ writeShellApplication {
       if command -v tmux >/dev/null 2>&1 && tmux list-sessions >/dev/null 2>&1; then
         tmux source-file "$state/tmux.conf" || true
       fi
+      if command -v gsettings >/dev/null 2>&1; then
+        # force GTK/libadwaita à relire gtk.css
+        gsettings set org.gnome.desktop.interface color-scheme default || true
+        gsettings set org.gnome.desktop.interface color-scheme prefer-dark || true
+      fi
+      if command -v nvim >/dev/null 2>&1; then
+        for sock in "''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/nvim.*.0; do
+          [ -S "$sock" ] || continue
+          nvim --server "$sock" --remote-send "<Cmd>lua dofile('$state/nvim-theme.lua')<CR>" || true
+        done
+      fi
       ${mmsgReload} || true
     }
 
@@ -44,6 +55,12 @@ writeShellApplication {
       link mango-colors.conf .config/mango/colors.conf
       link lookas.toml .config/lookas.toml
       link powyx.toml .config/powyx/powyx.toml
+      link kitty.conf .config/kitty/osyx.conf
+      link gtk.css .config/gtk-3.0/gtk.css
+      link qt6ct.conf .config/qt6ct/colors/osyx.conf
+      link zed.json .config/zed/themes/osyx.json
+      link nvim-theme.lua .config/nvim/osyx-theme.lua
+      link swaylock.conf .config/swaylock/config
       echo "$name" > "$state/theme.current"
       reload
     }

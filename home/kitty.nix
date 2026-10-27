@@ -48,11 +48,7 @@
       "ctrl+shift+u" = "set_background_opacity 0.5";
     };
     extraConfig = ''
-      include dank-tabs.conf
-      include dank-theme.conf
-
-      # Fond toujours noir (après le thème dynamique pour qu'il ne l'écrase pas)
-      background #000000
+      # Couleurs : ~/.local/state/osyx/kitty.conf (généré par `themes`, voir home/osyx/themes.nix)
     '';
   };
 }

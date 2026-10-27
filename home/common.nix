@@ -73,11 +73,8 @@ in {
   gtk = {
     enable = true;
     theme = {
-      name = "catppuccin-mocha-blue-standard";
-      package = pkgs.catppuccin-gtk.override {
-        accents = ["blue"];
-        variant = "mocha";
-      };
+      name = "adw-gtk3-dark";
+      package = pkgs.adw-gtk3;
     };
     iconTheme = {
       name = "Papirus-Dark";
@@ -93,7 +90,7 @@ in {
   dconf.settings = {
     "org/gnome/desktop/interface" = {
       color-scheme = "prefer-dark";
-      gtk-theme = "catppuccin-mocha-blue-standard";
+      gtk-theme = "adw-gtk3-dark";
       icon-theme = "Papirus-Dark";
     };
   };

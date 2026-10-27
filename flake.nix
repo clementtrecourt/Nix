@@ -132,6 +132,15 @@
         done
         test "$n" = 7
         grep -q 'focus_color=0xbcaaa4ff' "$t/versailles/.config/mango/colors.conf"
+        for p in blush gilded kyanite malachite sakura vermilion versailles; do
+          for f in .config/kitty/osyx.conf .config/gtk-3.0/gtk.css .config/gtk-4.0/gtk.css \
+                   .config/qt6ct/colors/osyx.conf .config/zed/themes/osyx.json \
+                   .config/nvim/osyx-theme.lua .config/swaylock/config; do
+            test -s "$t/$p/$f" || { echo "missing $p/$f" >&2; exit 1; }
+          done
+          ${pkgs.jq}/bin/jq empty "$t/$p/.config/zed/themes/osyx.json"
+        done
+        grep -q '^background #3e2723' "$t/versailles/.config/kitty/osyx.conf"
         echo ok > $out
       '';
       themes-cli = pkgs.runCommand "themes-cli-check" {} ''
@@ -147,6 +156,10 @@
         $t rotate
         $t list | grep -qx "$($t current)"
         test "$($t list | wc -l)" = 7
+        $t apply versailles
+        for l in kitty.conf gtk.css qt6ct.conf zed.json nvim-theme.lua swaylock.conf; do
+          test -s "$HOME/.local/state/osyx/$l" || { echo "missing state link $l" >&2; exit 1; }
+        done
         echo ok > $out
       '';
 
