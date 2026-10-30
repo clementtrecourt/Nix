@@ -9,7 +9,6 @@ in {
   home.packages =
     [osyxPkgs.powyx osyxPkgs.ctrlyx-lite osyxPkgs.lookas osyxPkgs.asryx osyxPkgs.wallpaper inputs.matuwall.packages.${pkgs.stdenv.hostPlatform.system}.matuwall]
     ++ (with pkgs; [
-      wofi
       mako
       awww
       wlsunset
@@ -17,7 +16,6 @@ in {
       grim
       slurp
       swappy
-      cliphist
       wl-clipboard
       pamixer
       brightnessctl
@@ -31,24 +29,36 @@ in {
       wl-color-picker
     ]);
 
-  # Config wofi d'osyx (le style.css est généré par `themes`)
-  xdg.configFile."wofi/config".text = ''
-    show=drun
-    prompt=Run
-    matching=fuzzy
-    insensitive=true
-    allow_images=true
-    allow_markup=true
-    image_size=24
-    columns=1
-    width=520
-    height=380
-    location=center
-    orientation=vertical
-    halign=center
-    hide_scroll=true
-    term=kitty
-    sparse_search=true
-    no_actions=true
-  '';
+  # Vicinae : lanceur, presse-papier, menu power, menus de listes (daemon en service systemd utilisateur).
+  programs.vicinae = {
+    enable = true;
+    systemd.enable = true;
+    # Vicinae réécrit settings.json (changement de thème dans l'interface) : les réglages du flake
+    # vont dans home-manager.json, importé par settings.json.
+    mutableSettings = true;
+    # thème généré par `themes` (home/osyx/themes.nix)
+    settings.theme = {
+      dark.name = "osyx";
+      light.name = "osyx";
+    };
+    # même translucidité que kitty (background_opacity) ; le flou vient de Mango (blur_layer)
+    extensions = [
+      # Bluetooth (bluetoothctl) : commandes Scan / Devices / Discoverable — MIT, 2 000 lignes de TS,
+      # seul accès système : spawn("bluetoothctl")
+      (config.lib.vicinae.mkExtension {
+        name = "bluetooth";
+        src = pkgs.fetchgit {
+          url = "https://codeberg.org/gelei/vicinae-bluetooth";
+          rev = "16204787e0ac3925e7e466df38f3a959294b440f";
+          hash = "sha256-xOemsBLnXKfcCVOZew2vm0mlylfFvcX4s/AnpjF3kBo=";
+        };
+        npmDepsHash = "sha256-cpyuJTc3a7oLibKUY2EhD33w8/35frfwIaGFKFezvts=";
+      })
+    ];
+    settings.search_files_in_root = true;
+    settings.launcher_window = {
+      opacity = 0.5;
+      material = "none";
+    };
+  };
 }

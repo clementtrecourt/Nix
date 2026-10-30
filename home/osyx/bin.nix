@@ -7,17 +7,9 @@ in {
       if pgrep -x wlsunset >/dev/null; then
         pkill -x wlsunset
       else
-        setsid wlsunset -S 05:00 -s 21:00 -t 4500 >/dev/null 2>&1 &
+        # dégradé de 30 min à partir de maintenant, jusqu'au lever du jour (05:00)
+        setsid wlsunset -S 05:00 -s "$(date +%H:%M)" -d 1800 -t 4500 -T 6500 >/dev/null 2>&1 &
       fi
-    '')
-
-    (mk "clip-menu" [pkgs.cliphist pkgs.wofi pkgs.wl-clipboard] ''
-      cliphist list | wofi --dmenu --prompt clipboard | cliphist decode | wl-copy
-    '')
-
-    (mk "clip-purge" [pkgs.cliphist pkgs.libnotify] ''
-      cliphist wipe
-      notify-send "Presse-papier" "Historique vidé"
     '')
 
     (mk "vocaster" [pkgs.alsa-utils pkgs.util-linux pkgs.gawk pkgs.coreutils] ''

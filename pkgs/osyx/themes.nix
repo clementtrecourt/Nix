@@ -40,6 +40,8 @@ writeShellApplication {
       pkill -USR1 -x .kitty-wrapped || true
       if command -v tmux >/dev/null 2>&1 && tmux list-sessions >/dev/null 2>&1; then
         tmux source-file "$state/tmux.conf" || true
+        # l'environnement global de tmux hérite d'un ancien STARSHIP_CONFIG : les nouvelles fenêtres le prennent
+        tmux set-environment -g STARSHIP_CONFIG "$state/starship.toml" || true
       fi
       if command -v gsettings >/dev/null 2>&1; then
         # force GTK/libadwaita à relire gtk.css
@@ -56,6 +58,8 @@ writeShellApplication {
           nvim --server "$sock" --remote-send "<Cmd>lua dofile('$state/nvim-theme.lua')<CR>" || true
         done
       fi
+      # Vicinae relit le thème quand on le (re)sélectionne
+      if command -v vicinae >/dev/null 2>&1; then vicinae theme set osyx >/dev/null 2>&1 || true; fi
       ${mmsgReload} || true
     }
 
@@ -65,7 +69,6 @@ writeShellApplication {
       mkdir -p "$state"
       link mako.conf .config/mako/config
       link starship.toml .config/starship.toml
-      link wofi.css .config/wofi/style.css
       link tmux.conf .config/tmux/osyx-theme.conf
       link dircolors .dircolors
       link mango-colors.conf .config/mango/colors.conf
@@ -77,6 +80,8 @@ writeShellApplication {
       link zed.json .config/zed/themes/osyx.json
       link nvim-theme.lua .config/nvim/osyx-theme.lua
       link swaylock.conf .config/swaylock/config
+      link vicinae.toml .config/vicinae-theme.toml
+      link hyprlock-colors.conf .config/hypr/hyprlock-colors.conf
       echo "$2" > "$state/theme.current"
       echo "$3" > "$state/theme.mode"
       reload

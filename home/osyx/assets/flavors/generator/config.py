@@ -24,6 +24,7 @@ OUTPUTS = {
     "tmux-theme.conf.j2": ".config/tmux/osyx-theme.conf",
     "powyx.toml.j2": ".config/powyx/powyx.toml",
     "lookas.toml.j2": ".config/lookas.toml",
-    "wofi.css.j2": ".config/wofi/style.css",
+    "hyprlock-colors.conf.j2": ".config/hypr/hyprlock-colors.conf",
+    "vicinae.toml.j2": ".config/vicinae-theme.toml",
     "gitconfig.j2": ".gitconfig.d/theme",
 }

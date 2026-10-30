@@ -49,6 +49,9 @@ in {
     telegram-desktop
     whatsapp-electron
     rtk
+    file-roller
+    osu-lazer
+    rayburst
   ];
 
   # 4. Service Systemd automatique de montage Dropbox

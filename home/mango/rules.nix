@@ -3,13 +3,17 @@
     "is_floating:1,is_fullscreen:1,no_animation:1,title:^powyx$"
     "is_floating:1,is_fullscreen:1,no_animation:1,title:^ctrlyx-lite$"
     "is_floating:1,width:0.55,height:0.7,app_id:waypaper"
-    "unfocused_opacity:0.97,app_id:^(kitty)$"
-    "focused_opacity:0.9,app_id:^(dev.zed.Zed|zen|zen-beta)$"
+    "focused_opacity:0.9,app_id:^(dev.zed.Zed)$"
+    "focused_opacity:1.0,unfocused_opacity:1.0,app_id:^(zen|zen-beta)$"
+    # messageries dans le workspace spécial (SUPER+D)
+    "tags:0,app_id:^(discord|com.github.dagmoller.whatsapp-electron|teams-for-linux)$"
   ];
 
+  # sélection de capture (slurp) : sans flou ni animation, sinon l'écran est flouté pendant le choix
+  layer_rule = ["no_animation:1,no_blur:1,layer_name:selection"];
+
   window_rule_once = [
-    "tags:2,app_id:^(zen|zen-beta)$"
-    "tags:3,app_id:^kitty$"
+    "tags:1,app_id:^(zen|zen-beta)$"
   ];
 
   tag_rule = ["id:*,layout_name:scroller"];

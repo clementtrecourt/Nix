@@ -17,7 +17,7 @@
 ## ⚡ Stack & Environnement
 
 * **Compositeur Wayland** : [MangoWM](https://github.com/mangowm/mango) avec layout *Scroller* & animations fluides.
-* **Stack UI [osyx](https://github.com/rccyx/osyx)** : login SDDM *thyx*, menu power *powyx*, visualiseur audio *lookas*, dictée locale *asryx* (si le build passe), wofi/mako/awww/swaylock, et un moteur de thèmes (`themes`) qui colore le système entier depuis une palette.
+* **Stack UI [osyx](https://github.com/rccyx/osyx)** : login SDDM *thyx*, menu power *powyx*, visualiseur audio *lookas*, dictée locale *asryx* (si le build passe), mako/awww/swaylock, et un moteur de thèmes (`themes`) qui colore le système entier depuis une palette.
 * **Navigateur Web** : [Zen Browser](https://zen-browser.app) optimisé avec **Betterfox v148** et **Smoothfox** injectés via les Enterprise Policies NixOS.
 * **Éditeur de Code** : **Zed Editor** & **Neovim (LazyVim)** déclaratifs avec serveurs LSP intégrés (`nixd`, `rust-analyzer`, Node.js).
 * **Terminal & Shell** : **Kitty** (typographie *IBM Plex Mono / BlexMono Nerd Font*, hints natifs) + **Fish** (Starship, Zoxide, Direnv, abréviations).
@@ -59,7 +59,7 @@
     ├── fish.nix          # Shell Fish (abréviations nrs, fonctions personnalisées)
     ├── kitty.nix         # Terminal Kitty (polices, opacité, raccourcis hints)
     ├── mango/            # MangoWM : settings, keybinds, règles, autostart
-    ├── osyx/             # Stack UI osyx : wofi/mako, scripts, moteur de thèmes (flavors)
+    ├── osyx/             # Stack UI osyx : mako, scripts, moteur de thèmes (flavors)
     ├── tmux.nix          # Configuration Tmux
     ├── work.nix          # Overrides utilisateur machine pro
     └── zed.nix           # Configuration complète de Zed Editor
@@ -195,12 +195,12 @@ Le cache binaire tourne dans un conteneur Docker sur le serveur Debian à l'adre
 
 ## 🎨 Thème système (`themes`)
 
-**Par défaut, les couleurs viennent du fond d'écran** : `SUPER+SHIFT+W` ouvre [Matuwall](https://github.com/naurissteins/Matuwall) (carrousel à vignettes, aux couleurs du thème courant) sur `~/Pictures/Wallpapers` et `~/Pictures/wallpapers`, sous-dossiers compris, et applique le choix via `awww` ; `SUPER+ALT+W` ouvre l'ancien sélecteur waypaper en secours, `matugen` en tire une palette Material sombre, et tout le système la prend : Mango (bordures), mako, wofi, powyx, lookas, tmux (barre/bordures), starship, dircolors, kitty, GTK3/4 (`gtk.css`), Qt (qt6ct), Zed (thème `Osyx`), Neovim et swaylock. Le choix du wallpaper est mémorisé et réappliqué à chaque login ; les palettes générées sont mises en cache.
+**Par défaut, les couleurs viennent du fond d'écran** : `SUPER+SHIFT+W` ouvre [Matuwall](https://github.com/naurissteins/Matuwall) (carrousel à vignettes, aux couleurs du thème courant) sur `~/Pictures/Wallpapers`, sous-dossiers compris, et applique le choix via `awww` ; `SUPER+ALT+W` ouvre l'ancien sélecteur waypaper en secours, `matugen` en tire une palette Material sombre, et tout le système la prend : Mango (bordures), mako, powyx, lookas, tmux (barre/bordures), starship, dircolors, kitty, GTK3/4 (`gtk.css`), Qt (qt6ct), Zed (thème `Osyx`), Neovim et swaylock. Le choix du wallpaper est mémorisé et réappliqué à chaque login ; les palettes générées sont mises en cache.
 
 | Commande | Effet |
 | :--- | :--- |
 | `themes dynamic` / `SUPER+ALT+R` | Revenir aux couleurs du wallpaper actuel |
-| `themes rotate` / `ALT+R` | Palette fixe suivante (le thème ne suit plus le wallpaper) |
+| `themes rotate` / `SUPER+R` | Palette fixe suivante (le thème ne suit plus le wallpaper) |
 | `themes apply <nom>` | Épingler une palette : `blush gilded kyanite malachite sakura vermilion versailles` |
 | `themes from-wallpaper <image>` | Forcer les couleurs d'une image |
 | `themes mode` / `current` / `list` | État : `dynamic` ou `fixed`, thème courant, palettes |
@@ -213,17 +213,22 @@ Rechargement à chaud : kitty, nvim, mako, tmux sont fiables ; GTK (bascule de `
 
 | Touches | Action |
 | :--- | :--- |
-| `ALT+Entrée` / `ALT+K` / `ALT+Q` | Terminal (kitty) |
-| `SUPER+Espace` | Lanceur wofi |
-| `ALT+E` / `ALT+G` | Zed / Zen |
+| `SUPER+T` | Terminal (kitty) |
+| `SUPER+Espace` | Lanceur Vicinae |
+| `SUPER+E` / `SUPER+G` | Zed / Zen |
+| `SUPER+W` | Dictée vocale (asryx) : une fois pour enregistrer, une seconde fois pour transcrire et copier |
 | `SUPER+ALT+F` / `SUPER+ALT+S` | nemo / Spotify (évite les hints Kitty `Alt+f`/`Alt+s`) |
-| `ALT+P` / `ALT+M` / `ALT+L` | Menu power / centre de contrôle / verrouillage |
+| `SUPER+SHIFT+P` / `SUPER+M` / `SUPER+L` | Menu power (Vicinae) / centre de contrôle / verrouillage (hyprlock, aux couleurs du thème et du wallpaper ; `SUPER+SHIFT+L` : swaylock de secours) |
 | `SUPER+Q` | Fermer la fenêtre |
 | `SUPER+←↑↓→` / `+SHIFT` | Focus / déplacer la fenêtre |
 | `SUPER+1..9` / `+SHIFT` | Aller au tag / y envoyer la fenêtre |
-| `SUPER+0` | Vue d'ensemble |
-| `ALT+Tab` | Fenêtre suivante |
-| `SUPER+F` / `SUPER+V` / `SUPER+S` | Maximiser / flottant / changer de layout |
-| `Impr` / `SUPER+Impr` / `SUPER+SHIFT+S` | Capture région / écran complet / région annotée (les touches F nues ne sont pas capturées : elles restent aux applis) |
+| `SUPER+Tab` | Vue d'ensemble |
+| `SUPER+D` | Afficher/masquer les messageries (Discord, WhatsApp, Teams) |
+| `SUPER+Échap` | Afficher l'heure (notification) |
+| `ALT+Tab` | Fenêtre suivante (seul raccourci hors `SUPER`) |
+| `SUPER+F` / `SUPER+SHIFT+F` / `SUPER+S` | Maximiser / flottant / changer de layout |
+| `SUPER+I` / `SUPER+/` | Emojis / recherche de fichiers (Vicinae) |
+| `SUPER+V` / `SUPER+SHIFT+X` | Historique du presse-papier / le vider (Vicinae) |
+| `Impr` / `SUPER+Impr` / `SUPER+P` | Capture région / écran complet / région annotée (swappy : dessin, texte, flèches) (les touches F nues ne sont pas capturées : elles restent aux applis) |
 | `SUPER+SHIFT+W` / `SUPER+ALT+W` | Choisir un wallpaper (Matuwall) / sélecteur de secours (waypaper) |
 | `SUPER+SHIFT+R` | Recharger la config Mango |

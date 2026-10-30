@@ -98,6 +98,8 @@
   systemd.services.NetworkManager-wait-online.enable = false;
 
   security.pam.services.swaylock = {};
+  # écran de verrouillage (hyprlock) : déclare aussi son service PAM
+  programs.hyprlock.enable = true;
   services.pipewire = {
     enable = true;
     alsa.enable = true;
@@ -233,6 +235,7 @@
     gnumake
     unrar
     unzip
+    t3code
     tldr
     spotify-spotx
     zip

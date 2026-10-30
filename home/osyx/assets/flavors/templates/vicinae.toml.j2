@@ -1,0 +1,59 @@
+[meta]
+version = 1
+name = "Osyx"
+description = "Palette générée par themes"
+variant = "dark"
+inherits = "vicinae-dark"
+
+[colors.core]
+accent = "#{{ kitty_cursor }}"
+accent_foreground = "#{{ kitty_bg }}"
+background = "#{{ kitty_bg }}"
+foreground = "#{{ kitty_fg }}"
+secondary_background = "#{{ ui_surface }}"
+border = "#{{ ui_border }}"
+
+[colors.main_window]
+border = "#{{ ui_border }}"
+
+[colors.settings_window]
+border = "#{{ ui_border }}"
+
+[colors.accents]
+red = "#{{ kitty_color1 }}"
+green = "#{{ kitty_color2 }}"
+yellow = "#{{ kitty_color3 }}"
+blue = "#{{ kitty_color4 }}"
+magenta = "#{{ kitty_color5 }}"
+purple = "#{{ kitty_color5 }}"
+cyan = "#{{ kitty_color6 }}"
+orange = "#{{ kitty_color3 }}"
+
+[colors.text]
+muted = "#{{ ui_muted }}"
+placeholder = "#{{ ui_muted }}"
+danger = "#{{ kitty_color1 }}"
+success = "#{{ kitty_color2 }}"
+selection = { background = "#{{ kitty_cursor }}", foreground = "#{{ kitty_bg }}" }
+
+[colors.input]
+border = "#{{ ui_border }}"
+border_focus = "#{{ kitty_cursor }}"
+border_error = "#{{ kitty_color1 }}"
+
+[colors.list.item.selection]
+background = "#{{ ui_hover }}"
+foreground = "#{{ kitty_fg }}"
+secondary_background = "#{{ ui_hover }}"
+secondary_foreground = "#{{ kitty_fg }}"
+
+[colors.list.item.hover]
+foreground = "#{{ kitty_fg }}"
+secondary_foreground = "#{{ kitty_fg }}"
+
+[colors.scrollbars]
+background = "#{{ ui_border }}"
+
+[colors.loading]
+bar = "#{{ kitty_cursor }}"
+spinner = "#{{ kitty_fg }}"

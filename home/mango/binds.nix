@@ -14,30 +14,27 @@
 in {
   bind =
     [
-      # Apps (schéma ALT d'osyx)
-      "ALT,Return,spawn,${apps.term}"
-      "ALT,k,spawn,${apps.term}"
-      "ALT,q,spawn,${apps.term}"
-      "SUPER,space,spawn,${apps.menu}"
-      "ALT,e,spawn,${apps.editor}"
+      # Apps (tout sur SUPER ; seul ALT+Tab reste sur ALT)
+      "SUPER,t,spawn,${apps.term}"
+      "SUPER,A,spawn,${apps.menu}"
+      "SUPER,e,spawn,${apps.editor}"
       "SUPER+ALT,f,spawn,${apps.files}"
       "SUPER+ALT,s,spawn,spotify"
-      "ALT,g,spawn,${apps.browser}"
-      "ALT,l,spawn,${apps.lock}"
-      "ALT,m,spawn,${apps.control}"
-      "ALT,p,spawn,${apps.power}"
-      "ALT,v,spawn,vocaster"
-      "ALT,r,spawn_shell,themes rotate"
+      "SUPER,g,spawn,${apps.browser}"
+      "SUPER,l,spawn,${apps.lock}"
+      "SUPER+SHIFT,l,spawn,swaylock"
+      "SUPER,m,spawn,${apps.control}"
+      "SUPER+SHIFT,p,spawn,${apps.power}"
+      "SUPER,r,spawn_shell,themes rotate"
       "SUPER+ALT,r,spawn,themes dynamic"
-      "ALT+SHIFT,c,spawn,${apps.browser} --new-window https://calendar.google.com"
-      "ALT+SHIFT,y,spawn,${apps.browser} --new-window https://youtube.com"
-      "ALT+SHIFT,s,spawn,${apps.browser} --new-window https://soundcloud.com"
+      "SUPER+SHIFT,c,spawn,${apps.browser} --new-window https://calendar.google.com"
+      "SUPER+SHIFT,y,spawn,${apps.browser} --new-window https://youtube.com"
+      "SUPER+SHIFT,u,spawn,${apps.browser} --new-window https://soundcloud.com"
 
       # Fenêtres
       "SUPER,q,killclient"
-      "ALT,F4,killclient"
       "SUPER,f,togglemaximizescreen"
-      "SUPER,v,togglefloating"
+      "SUPER+SHIFT,f,togglefloating"
       "SUPER,s,switch_layout"
       "SUPER,Left,focusdir,left"
       "SUPER,Right,focusdir,right"
@@ -52,24 +49,27 @@ in {
 
       # Tags
       "SUPER,TAB,toggleoverview"
-      "CTRL+ALT,Left,viewtoleft"
-      "CTRL+ALT,Right,viewtoright"
+      "SUPER,d,toggle_special_tag"
+      "SUPER+CTRL,Left,viewtoleft"
+      "SUPER+CTRL,Right,viewtoright"
 
       # Captures et divers
       "NONE,XF86Launch2,spawn,shot-full"
       "NONE,Print,spawn,shot-mac"
       "SUPER,Print,spawn,shot-full"
-      "SUPER+SHIFT,s,spawn_shell,grim -g \"$(slurp)\" - | swappy -f -"
+      "SUPER,p,spawn_shell,grim -g \"$(slurp)\" - | swappy -f -"
       "SUPER+SHIFT,b,spawn,nightshift"
+      "SUPER,Escape,spawn_shell,notify-send -t 4000 -h string:x-canonical-private-synchronous:clock \"$(date +%H:%M)\" \"$(date '+%A %d %B')\""
       "SUPER+SHIFT,w,spawn,wallpaper pick"
       "SUPER+ALT,w,spawn,wallpaper pick-classic"
       "SUPER+SHIFT,r,reload_config"
-      "SUPER,Escape,spawn,systemctl poweroff"
-      "SUPER,x,spawn,clip-menu"
-      "SUPER+SHIFT,x,spawn,clip-purge"
+      "SUPER,v,spawn,vicinae deeplink vicinae://launch/clipboard/history"
+      "SUPER,i,spawn,vicinae deeplink vicinae://launch/core/search-emojis"
+      "SUPER,slash,spawn,vicinae deeplink vicinae://launch/files/search"
+      "SUPER+SHIFT,x,spawn,vicinae deeplink vicinae://launch/clipboard/clear-history"
     ]
     ++ tagBinds
-    ++ lib.optional (apps.asryx != null) "ALT,w,spawn,${apps.asryx}";
+    ++ lib.optional (apps.asryx != null) "SUPER,w,spawn,${apps.asryx}";
 
   bindl = [
     (hw "XF86AudioMute" "pamixer -t")

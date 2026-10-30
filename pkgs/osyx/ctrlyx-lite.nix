@@ -1,6 +1,7 @@
 {
   writeShellApplication,
-  wofi,
+  vicinae,
+  networkmanagerapplet,
   networkmanager,
   bluez,
   pamixer,
@@ -8,12 +9,13 @@
   gawk,
   coreutils,
   swaylock,
+  hyprlock,
 }:
 writeShellApplication {
   name = "ctrlyx-lite";
-  runtimeInputs = [wofi networkmanager bluez pamixer brightnessctl gawk coreutils swaylock];
+  runtimeInputs = [vicinae networkmanager networkmanagerapplet bluez pamixer brightnessctl gawk coreutils swaylock hyprlock];
   text = ''
-    menu() { wofi --dmenu --prompt "$1"; }
+    menu() { vicinae dmenu --placeholder "$1" --no-section --no-footer; }
 
     choice=$(printf '%s\n' "Wi-Fi" "Bluetooth" "Volume" "Luminosité" "Night shift" "Verrouiller" "Alimentation" | menu control) || exit 0
 
@@ -23,8 +25,8 @@ writeShellApplication {
         if nmcli -t -f NAME connection show | grep -qxF "$ssid"; then
           nmcli connection up id "$ssid"
         else
-          pw=$(wofi --dmenu --password --prompt "mot de passe") || exit 0
-          nmcli dev wifi connect "$ssid" password "$pw"
+          # nouveau réseau : le mot de passe se saisit dans l'éditeur de connexions
+          nm-connection-editor
         fi ;;
       Bluetooth)
         entry=$( { echo "power on"; echo "power off"; bluetoothctl devices; } | menu bluetooth) || exit 0
@@ -44,8 +46,8 @@ writeShellApplication {
         b=$(printf '%s\n' 10 25 50 75 100 | menu luminosité) || exit 0
         brightnessctl set "$b%" ;;
       "Night shift") nightshift ;;
-      Verrouiller) swaylock ;;
-      Alimentation) powyx ;;
+      Verrouiller) hyprlock ;;
+      Alimentation) vicinae deeplink vicinae://launch/power ;;
     esac
   '';
 }

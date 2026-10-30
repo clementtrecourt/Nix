@@ -117,18 +117,9 @@
         touch "$HOME/wp/a.png"
         printf '#!${pkgs.runtimeShell}\ntrue\n' > "$TMPDIR/bin/matuwall"
         chmod +x "$TMPDIR/bin/matuwall"
-        PATH="$TMPDIR/bin:$PATH" OSYX_WALLPAPER_DIRS="$HOME/wp" ${self.packages.${system}.wallpaper}/bin/wallpaper pick
+        PATH="$TMPDIR/bin:$PATH" OSYX_NO_WARM=1 OSYX_WALLPAPER_DIRS="$HOME/wp" ${self.packages.${system}.wallpaper}/bin/wallpaper pick
         ${inputs.matuwall.packages.${system}.matuwall}/bin/matuwall --config "$HOME/.local/state/osyx/matuwall.toml" --print-config > out.toml
-        grep -q 'wallpaper remember' out.toml
-        echo ok > $out
-      '';
-
-      wofi-narrow = pkgs.runCommand "wofi-narrow-check" {} ''
-        cfg=${self.nixosConfigurations.home.config.home-manager.users.clem.xdg.configFile."wofi/config".source}
-        w=$(sed -nE 's/^width=([0-9]+)$/\1/p' "$cfg")
-        h=$(sed -nE 's/^height=([0-9]+)$/\1/p' "$cfg")
-        test -n "$w" && test "$w" -le 560 || { echo "lanceur trop large: $w" >&2; exit 1; }
-        test -n "$h" && test "$h" -le 420 || { echo "lanceur trop haut: $h" >&2; exit 1; }
+        grep -q 'wallpaper apply' out.toml
         echo ok > $out
       '';
 
@@ -139,7 +130,7 @@
         cd work/flavors
         python3 generate.py --from-matugen ${./home/osyx/assets/flavors/tests/matugen-fixture.json}
         for f in .config/kitty/osyx.conf .config/gtk-3.0/gtk.css .config/zed/themes/osyx.json \
-                 .config/mako/config .config/starship.toml .config/mango/colors.conf .dircolors; do
+                 .config/mako/config .config/starship.toml .config/mango/colors.conf .dircolors .config/vicinae-theme.toml; do
           test -s "../$f" || { echo "manquant: $f" >&2; exit 1; }
         done
         python3 - <<'EOF'
@@ -195,7 +186,7 @@
         $t from-wallpaper "$TMPDIR/img.png"
         test "$($t current)" = dynamic
         test "$($t mode)" = dynamic
-        for l in kitty.conf gtk.css qt6ct.conf zed.json nvim-theme.lua swaylock.conf mako.conf wofi.css tmux.conf starship.toml mango-colors.conf; do
+        for l in kitty.conf gtk.css qt6ct.conf zed.json nvim-theme.lua swaylock.conf mako.conf tmux.conf starship.toml mango-colors.conf vicinae.toml; do
           test -s "$s/$l" || { echo "lien d'état manquant: $l" >&2; exit 1; }
         done
         grep -qE '^background #[0-9a-f]{6}$' "$s/kitty.conf"
@@ -312,7 +303,7 @@
         mkdir -p "$TMPDIR/wp2"
         printf '#!${pkgs.runtimeShell}\necho "$@" >> "$TMPDIR/waypaper.log"\n' > "$TMPDIR/bin/waypaper"
         chmod +x "$TMPDIR/bin/waypaper"
-        OSYX_WALLPAPER_DIRS="$TMPDIR/wp:$TMPDIR/wp2" $h/wallpaper pick-classic
+        OSYX_NO_WARM=1 OSYX_WALLPAPER_DIRS="$TMPDIR/wp:$TMPDIR/wp2" $h/wallpaper pick-classic
         ini="$HOME/.local/state/osyx/waypaper.ini"
         grep -q "^backend = awww" "$ini"
         grep -q "^subfolders = True" "$ini"
@@ -330,13 +321,13 @@
         printf 'background #112233\ncursor #aabbcc\n' > "$HOME/.local/state/osyx/kitty.conf"
         printf '#!${pkgs.runtimeShell}\necho "$@" >> "$TMPDIR/matuwall.log"\n' > "$TMPDIR/bin/matuwall"
         chmod +x "$TMPDIR/bin/matuwall"
-        OSYX_WALLPAPER_DIRS="$TMPDIR/wp:$TMPDIR/wp2" $h/wallpaper pick
+        OSYX_NO_WARM=1 OSYX_WALLPAPER_DIRS="$TMPDIR/wp:$TMPDIR/wp2" $h/wallpaper pick
         mcfg="$HOME/.local/state/osyx/matuwall.toml"
         grep -q -- "--config $mcfg" "$TMPDIR/matuwall.log"
         pool="$HOME/.local/state/osyx/wallpaper-pool"
         grep -q "^directory = \"$pool\"" "$mcfg"
-        grep -q '^backend = "awww"' "$mcfg"
-        grep -q 'on_apply = \["wallpaper remember {path}"\]' "$mcfg"
+        grep -q '^backend = "command"' "$mcfg"
+        grep -q 'apply = "wallpaper apply {path}"' "$mcfg"
         grep -q '^background = "#112233' "$mcfg"
         grep -q '^ring = "#aabbcc' "$mcfg"
         test "$(find "$pool" -type l | wc -l)" = 5
@@ -369,8 +360,8 @@
       '';
 
       wlsunset-hours = pkgs.runCommand "wlsunset-hours-check" {} ''
-        grep -q -- '-S 05:00 -s 21:00' ${./home/mango/autostart.nix}
-        grep -q -- '-S 05:00 -s 21:00' ${./home/osyx/bin.nix}
+        grep -q -- '-S 05:00 -s 19:30 -d 1800' ${./home/mango/autostart.nix}
+        grep -q -- '-S 05:00 -s "$(date +%H:%M)" -d 1800' ${./home/osyx/bin.nix}
         echo ok > $out
       '';
       mango-no-bare-fkeys = pkgs.runCommand "mango-no-bare-fkeys-check" {} ''
@@ -453,7 +444,7 @@
         for p in blush gilded kyanite malachite sakura vermilion versailles; do
           for f in .config/kitty/osyx.conf .config/gtk-3.0/gtk.css .config/gtk-4.0/gtk.css \
                    .config/qt6ct/colors/osyx.conf .config/zed/themes/osyx.json \
-                   .config/nvim/osyx-theme.lua .config/swaylock/config; do
+                   .config/nvim/osyx-theme.lua .config/swaylock/config .config/vicinae-theme.toml; do
             test -s "$t/$p/$f" || { echo "missing $p/$f" >&2; exit 1; }
           done
           ${pkgs.jq}/bin/jq empty "$t/$p/.config/zed/themes/osyx.json"
@@ -482,7 +473,7 @@
         PATH="$TMPDIR/bin:$PATH" $t apply sakura
         test ! -e "$TMPDIR/awww.log"
         $t apply versailles
-        for l in kitty.conf gtk.css qt6ct.conf zed.json nvim-theme.lua swaylock.conf; do
+        for l in kitty.conf gtk.css qt6ct.conf zed.json nvim-theme.lua swaylock.conf vicinae.toml; do
           test -s "$HOME/.local/state/osyx/$l" || { echo "missing state link $l" >&2; exit 1; }
         done
         echo ok > $out
@@ -490,7 +481,7 @@
 
       osyx-bin = pkgs.runCommand "osyx-bin-check" {} ''
         p=${self.nixosConfigurations.home.config.home-manager.users.clem.home.path}/bin
-        for b in shot-full shot-mac vocaster nightshift waypaper wallpaper matuwall clip-menu clip-purge; do
+        for b in shot-full shot-mac vocaster nightshift waypaper wallpaper matuwall; do
           test -x "$p/$b" || { echo "missing binary: $b" >&2; exit 1; }
         done
         echo ok > $out
