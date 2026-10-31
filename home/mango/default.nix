@@ -52,6 +52,7 @@ in {
           border_px = 2;
           border_radius = 12;
           blur = 1;
+          enable_hotarea = 1;
           # flou aussi sur les surfaces layer-shell (Vicinae), identique à celui de kitty
           blur_layer = 1;
           # pas d'« xray » : le flou porte aussi sur les fenêtres derrière, pas seulement sur le fond d'écran
