@@ -51,6 +51,7 @@ in {
     rtk
     file-roller
     osu-lazer
+    appimage-run
     rayburst
   ];
 
