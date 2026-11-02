@@ -49,10 +49,11 @@ in {
           gap_inner_vertical = 8;
           gap_outer_horizontal = 6;
           gap_outer_vertical = 6;
-          border_px = 2;
-          border_radius = 12;
+          border_px = 1;
+          border_radius = 8;
           blur = 1;
           enable_hotarea = 1;
+          hotarea_corner = 0;
           # flou aussi sur les surfaces layer-shell (Vicinae), identique à celui de kitty
           blur_layer = 1;
           # pas d'« xray » : le flou porte aussi sur les fenêtres derrière, pas seulement sur le fond d'écran
@@ -77,6 +78,8 @@ in {
           animation_duration_move = 260;
           animation_duration_tag = 240;
           animation_duration_focus = 140;
+          smart_gaps = 1;
+          no_border_when_single = 1;
           animation_curve_open = "0.25,1.2,0.35,1.0";
           animation_curve_move = "0.25,1.15,0.35,1.0";
           animation_curve_tag = "0.2,1.15,0.3,1.0";
