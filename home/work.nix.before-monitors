@@ -1,0 +1,30 @@
+{
+  config,
+  pkgs,
+  ...
+}: {
+  imports = [./common.nix];
+
+  # Écrans propres au PC work
+  osyx.monitors = [
+    {
+      match = { manufacturer = "SAM"; product = "0d21"; };
+      position = "left";
+    }
+    {
+      match = { manufacturer = "PHL"; product = "c085"; };
+      position = "right";
+    }
+  ];
+
+  # Overrides spécifiques au PC de travail, si besoin :
+  # programs.git.settings.user.email = "clement@axeesante.com";
+
+  home.packages = with pkgs; [
+    tigervnc
+    teams-for-linux
+    nettools
+    sshuttle
+    easyeffects
+  ];
+}

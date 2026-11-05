@@ -3,7 +3,6 @@
     "is_floating:1,is_fullscreen:1,no_animation:1,title:^powyx$"
     "is_floating:1,is_fullscreen:1,no_animation:1,title:^ctrlyx-lite$"
     "is_floating:1,width:0.55,height:0.7,app_id:waypaper"
-    "focused_opacity:0.9,app_id:^(dev.zed.Zed)$"
     "focused_opacity:1.0,unfocused_opacity:1.0,app_id:^(zen|zen-beta)$"
     # messageries dans le workspace spécial (SUPER+D)
     "tags:0,app_id:^(discord|com.github.dagmoller.whatsapp-electron|teams-for-linux)$"

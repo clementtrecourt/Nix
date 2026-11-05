@@ -233,6 +233,7 @@ in {
     sqlite
     librewolf
 
+    firefox
     # Qt & Intégration
     qt6Packages.qt6ct
     kdePackages.plasma-integration

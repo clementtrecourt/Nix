@@ -80,8 +80,18 @@ in {
     (hw "XF86MonBrightnessUp" "brightnessctl set +5%")
   ];
 
+
   mousebind = [
     "SUPER,btn_left,moveresize,curmove"
     "SUPER,btn_right,moveresize,curresize"
+  ];
+  axisbind = [
+    # Super + Scroll : naviguer dans le Scroller
+    "SUPER+SHIFT,UP,focusdir,left"
+    "SUPER+SHIFT,DOWN,focusdir,right"
+
+    # Super + Shift + Scroll : changer de workspace
+    "SUPER,UP,viewtoleft_have_client"
+    "SUPER,DOWN,viewtoright_have_client"
   ];
 }

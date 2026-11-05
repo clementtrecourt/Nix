@@ -9,6 +9,21 @@
   binds = import ./binds.nix {inherit lib apps;};
   rules = import ./rules.nix;
 in {
+  options.osyx.monitors = lib.mkOption {
+    type = lib.types.listOf (lib.types.submodule {
+      options = {
+        match = lib.mkOption {
+          type = lib.types.attrsOf lib.types.str;
+        };
+        position = lib.mkOption {
+          type = lib.types.enum [ "left" "right" ];
+        };
+      };
+    });
+    default = [];
+    description = "Configuration des écrans propres à chaque machine.";
+  };
+
   options.osyx.apps = lib.mkOption {
     type = lib.types.attrsOf (lib.types.nullOr lib.types.str);
     default = {};
@@ -52,7 +67,7 @@ in {
           border_px = 1;
           border_radius = 8;
           blur = 1;
-          enable_hotarea = 1;
+          enable_hotarea = 3;
           hotarea_corner = 0;
           # flou aussi sur les surfaces layer-shell (Vicinae), identique à celui de kitty
           blur_layer = 1;
@@ -78,8 +93,8 @@ in {
           animation_duration_move = 260;
           animation_duration_tag = 240;
           animation_duration_focus = 140;
-          smart_gaps = 1;
-          no_border_when_single = 1;
+          # smart_gaps = 1;
+          # no_border_when_single = 1;
           animation_curve_open = "0.25,1.2,0.35,1.0";
           animation_curve_move = "0.25,1.15,0.35,1.0";
           animation_curve_tag = "0.2,1.15,0.3,1.0";
