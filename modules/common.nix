@@ -190,7 +190,7 @@
     enable = true;
     allowPing = true;
     # Add specific ports here if needed later (e.g. 8080, 22)
-    allowedTCPPorts = [8096];
+    allowedTCPPorts = [8096 22];
   };
   users.users.clem = {
     isNormalUser = true;
@@ -213,6 +213,15 @@
       ExecStart = "${pkgs.megacmd}/bin/mega-cmd-server";
       Restart = "on-failure";
       RestartSec = 10;
+    };
+  };
+
+  services.openssh = {
+    enable = true;
+
+    settings = {
+      PermitRootLogin = "no";
+      PasswordAuthentication = true;
     };
   };
 

@@ -16,7 +16,7 @@ in {
           type = lib.types.attrsOf lib.types.str;
         };
         position = lib.mkOption {
-          type = lib.types.enum [ "left" "right" ];
+          type = lib.types.enum ["left" "right"];
         };
       };
     });

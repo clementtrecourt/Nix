@@ -8,15 +8,20 @@
   # Écrans propres au PC work
   osyx.monitors = [
     {
-      match = { manufacturer = "SAM"; product = "0d21"; };
+      match = {
+        manufacturer = "SAM";
+        product = "0d21";
+      };
       position = "left";
     }
     {
-      match = { manufacturer = "PHL"; product = "c085"; };
+      match = {
+        manufacturer = "PHL";
+        product = "c085";
+      };
       position = "right";
     }
   ];
-
 
   # Disposition des écrans propre à work
   wayland.windowManager.mango.extraConfig = ''

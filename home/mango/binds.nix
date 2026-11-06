@@ -80,7 +80,6 @@ in {
     (hw "XF86MonBrightnessUp" "brightnessctl set +5%")
   ];
 
-
   mousebind = [
     "SUPER,btn_left,moveresize,curmove"
     "SUPER,btn_right,moveresize,curresize"
