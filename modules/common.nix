@@ -100,6 +100,9 @@
   security.pam.services.swaylock = {};
   # écran de verrouillage (hyprlock) : déclare aussi son service PAM
   programs.hyprlock.enable = true;
+  # Electron/Chromium (Discord, Teams) en Wayland natif : sans ça ils tournent sous XWayland
+  # et le partage d'écran (portail PipeWire/wlr) ne voit pas les fenêtres Wayland.
+  environment.sessionVariables.NIXOS_OZONE_WL = "1";
   services.pipewire = {
     enable = true;
     alsa.enable = true;
