@@ -188,6 +188,7 @@ in {
   home.packages = with pkgs; [
     # Outils CLI & système
     awww
+    (callPackage ../pkgs/t3code.nix {})
     bibata-cursors
     brightnessctl
     cbonsai
