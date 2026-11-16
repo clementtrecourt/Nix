@@ -244,6 +244,7 @@
     waybar
     capitaine-cursors
     gcc
+    openssh
     gnumake
     unrar
     unzip
