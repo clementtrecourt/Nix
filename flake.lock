@@ -35,6 +35,24 @@
         "url": "https://flakehub.com/f/chaotic-cx/nyx/%2A.tar.gz"
       }
     },
+    "claude-desktop": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1794792225,
+        "narHash": "sha256-X6X7cWEfYFQsLvEymU4UxAqsKYasTOAPXzQU3f2k600=",
+        "owner": "danielbodart",
+        "repo": "claude-desktop",
+        "rev": "bf561af2d849ca175981d29a7b1f904eb0cd9279",
+        "type": "github"
+      },
+      "original": {
+        "owner": "danielbodart",
+        "repo": "claude-desktop",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -387,6 +405,22 @@
     },
     "nixpkgs_2": {
       "locked": {
+        "lastModified": 1794552581,
+        "narHash": "sha256-qXFIqA6FCcx7XeDzw0ZNlkDT9UiCzrNDwK8RuU8RcHM=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "f1e5c356f35d07e7b71a6b5e6c9338e0b029e0c0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-26.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_3": {
+      "locked": {
         "lastModified": 1794386569,
         "narHash": "sha256-x9sADJvoVG0L6RejZB+/BB4YiGZFBZrfTlhF4uBq1tQ=",
         "owner": "NixOS",
@@ -401,7 +435,7 @@
         "type": "github"
       }
     },
-    "nixpkgs_3": {
+    "nixpkgs_4": {
       "locked": {
         "lastModified": 1761880412,
         "narHash": "sha256-QoJjGd4NstnyOG4mm4KXF+weBzA2AH/7gn1Pmpfcb0A=",
@@ -421,7 +455,7 @@
       "inputs": {
         "flake-compat": "flake-compat",
         "libnbtplusplus": "libnbtplusplus",
-        "nixpkgs": "nixpkgs_3",
+        "nixpkgs": "nixpkgs_4",
         "tomlplusplus": "tomlplusplus"
       },
       "locked": {
@@ -458,6 +492,7 @@
       "inputs": {
         "asryx": "asryx",
         "chaotic": "chaotic",
+        "claude-desktop": "claude-desktop",
         "helium-flake": "helium-flake",
         "home-manager": "home-manager_2",
         "lazyvim": "lazyvim",
@@ -466,7 +501,7 @@
         "matuwall": "matuwall",
         "microvm": "microvm",
         "nix-index-database": "nix-index-database",
-        "nixpkgs": "nixpkgs_2",
+        "nixpkgs": "nixpkgs_3",
         "polymc": "polymc",
         "qwerty-fr": "qwerty-fr",
         "spotx-nix": "spotx-nix",

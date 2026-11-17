@@ -227,13 +227,15 @@
       PasswordAuthentication = true;
     };
   };
-
+  programs.claude-desktop.enable = true;
   environment.systemPackages = with pkgs; [
     megacmd
+
     xwayland-satellite
     fzf
     ripgrep
     fd
+    gh
     btop
     jq
     tree

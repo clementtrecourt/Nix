@@ -14,6 +14,7 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    claude-desktop.url = "github:danielbodart/claude-desktop";
     nix-index-database = {
       url = "github:nix-community/nix-index-database";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -69,6 +70,7 @@
     helium-flake,
     lazyvim,
     chaotic,
+    claude-desktop,
     microvm,
     ...
   } @ inputs: let
@@ -83,7 +85,7 @@
           [
             hostPath
             nix-index-database.nixosModules.nix-index
-
+            claude-desktop.nixosModules.default
             {
               nixpkgs.overlays = [
                 inputs.spotx-nix.overlays.default
