@@ -177,6 +177,12 @@ in {
       "image/avif" = ["imv.desktop"];
       "image/heic" = ["imv.desktop"];
       "image/jxl" = ["imv.desktop"];
+
+      # Navigateur par défaut : Zen (utilisé par xdg-open, ex. login Claude Desktop)
+      "x-scheme-handler/http" = ["zen-beta.desktop"];
+      "x-scheme-handler/https" = ["zen-beta.desktop"];
+      "text/html" = ["zen-beta.desktop"];
+      "application/xhtml+xml" = ["zen-beta.desktop"];
     };
   };
 
