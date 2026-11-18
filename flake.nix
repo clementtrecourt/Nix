@@ -14,7 +14,12 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    claude-desktop.url = "github:danielbodart/claude-desktop";
+    claude-desktop = {
+      url = "github:danielbodart/claude-desktop";
+      # Même glibc que le système, sinon crash quand lancé depuis Zen
+      # (GLIBC_2.43 not found) et erreurs MESA au démarrage.
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nix-index-database = {
       url = "github:nix-community/nix-index-database";
       inputs.nixpkgs.follows = "nixpkgs";
