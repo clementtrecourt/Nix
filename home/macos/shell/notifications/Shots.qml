@@ -12,7 +12,7 @@ import Quickshell.Io
 //  - Après chaque capture : vignette flottante (signal `captured`).
 //
 // IPC (utilisée par les raccourcis Hyprland Cmd+Maj+3/4) :
-//   quickshell -c macos ipc call screenshot show <chemin.png>
+//   quickshell -c macos ipc call -- screenshot show <chemin.png>   (ou : … screenshot thumb <chemin.png>)
 //   quickshell -c macos ipc call screenshot capture screen|window|area
 //   quickshell -c macos ipc call screenshot ui
 Singleton {
@@ -80,7 +80,7 @@ echo "$out"
 `
 
     function capture(mode) {
-        if (busy || recording) return;
+        if (busy || recording || !["screen", "window", "area"].includes(mode)) return;
         lastMode = mode;
         busy = true;
         toolbarOpen = false;
@@ -105,6 +105,9 @@ echo "$out"
                 if (p && root.showThumbnail) root.captured(p);
             }
         }
+        stderr: StdioCollector {
+            onStreamFinished: if (text.trim()) console.warn("capture d'écran :", text.trim())
+        }
         onExited: root.busy = false
     }
 
@@ -126,7 +129,7 @@ else
 fi
 `
     function record(mode) {
-        if (busy || recording) return;
+        if (busy || recording || !["screen", "area"].includes(mode)) return;
         lastMode = "rec-" + mode;
         toolbarOpen = false;
         recordPath = saveDir() + "/" + baseName("Enregistrement de l'écran") + ".mp4";
@@ -147,6 +150,9 @@ fi
             onRead: line => {
                 if (line === "START") { root.recording = true; root.recordStart = Date.now(); }
             }
+        }
+        stderr: SplitParser {
+            onRead: line => { if (/error|fail/i.test(line)) console.warn("enregistrement :", line); }
         }
         onExited: code => {
             const was = root.recording;
@@ -192,7 +198,11 @@ fi
     IpcHandler {
         target: "screenshot"
         // Vignette flottante après une capture faite ailleurs (raccourcis Hyprland)
+        // NB : "show" est aussi une sous-commande de `quickshell ipc` ; appeler
+        //   quickshell -c macos ipc call -- screenshot show <chemin>   (avec "--")
+        // ou l'alias sans ambiguïté : ipc call screenshot thumb <chemin>
         function show(path: string): void { root.captured(path); }
+        function thumb(path: string): void { root.captured(path); }
         function capture(mode: string): void { root.capture(mode); }
         function ui(): void { root.toolbarOpen = !root.toolbarOpen; }
         function stop(): void { root.stopRecording(); }

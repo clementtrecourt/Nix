@@ -13,7 +13,8 @@ Singleton {
     id: root
 
     readonly property string home: Quickshell.env("HOME")
-    readonly property string configDir: home + "/.config/macos-shell"
+    // MACOS_SHELL_CONFIG permet de tester sans toucher à la vraie config
+    readonly property string configDir: Quickshell.env("MACOS_SHELL_CONFIG") || (home + "/.config/macos-shell")
     readonly property string linkPath: configDir + "/wallpaper"
 
     // URL de l'image utilisateur ("" = fond procédural Tahoe)

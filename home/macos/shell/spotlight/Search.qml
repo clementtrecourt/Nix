@@ -166,11 +166,13 @@ Scope {
     function matchActions(limit) {
         const out = [];
         for (const a of systemActions) {
-            const s = q ? Math.max(Fuzzy.score(q, a.title), Fuzzy.score(q, a.keywords) * 0.8) : 1;
+            // Mots-clés : seulement en début de mot (évite « fi » -> notiFIcations)
+            const kw = q ? Fuzzy.score(q, a.keywords) : 0;
+            const s = q ? Math.max(Fuzzy.score(q, a.title), kw >= 60 ? kw * 0.8 : 0) : 1;
             if (s > 0) out.push({ s: s + (usage.apps["action:" + a.id] ? usageBoost("action:" + a.id) : 0), item: actionItem(a, "Actions") });
         }
         for (const a of appActions) {
-            const s = q ? Math.max(Fuzzy.score(q, a.title), Fuzzy.score(q, a.app + " " + a.title) * 0.9) : 0.5;
+            const s = q ? Fuzzy.score(q, a.title) : 0.5;
             if (s > 0) out.push({ s: s * 0.9, item: {
                 kind: "appaction", section: "Actions", entry: a.entry, action: a.action,
                 title: a.title, subtitle: a.app, icon: a.icon } });
@@ -228,12 +230,16 @@ Scope {
     property string fileHitsQuery: ""
     property string fdQuery: ""
 
-    readonly property bool wantFiles: active && (mode === "" || mode === "files") && q.length >= 2
-    onQChanged: {
-        if (wantFiles) fdTimer.restart();
+    // (Re)lance fd quand la requête, le mode ou l'activité change. Calculé ici
+    // plutôt que lu dans une liaison : l'ordre d'évaluation n'est pas garanti.
+    function refreshFiles() {
+        const want = active && (mode === "" || mode === "files") && q.length >= 2;
+        if (want) fdTimer.restart();
         else { fdTimer.stop(); fdProc.running = false; fileHits = []; fileHitsQuery = ""; }
     }
-    onModeChanged: if (wantFiles) fdTimer.restart()
+    onQChanged: refreshFiles()
+    onModeChanged: refreshFiles()
+    onActiveChanged: refreshFiles()
 
     Timer {
         id: fdTimer
@@ -290,12 +296,31 @@ Scope {
                 out.push({ p: p, t: Date.parse(m[2]) });
             }
             out.sort((a, b) => b.t - a.t);
-            root.recentFiles = out.slice(0, 60).map(x => {
-                const rel = x.p.slice(root.home.length + 1);
-                const f = root.fileFromRel(rel);
-                f.when = x.t;
-                return f;
-            });
+            // Ne garde que les fichiers encore présents (et repère les dossiers)
+            recentCheck.times = {};
+            for (const x of out) recentCheck.times[x.p] = x.t;
+            recentCheck.command = ["sh", "-c",
+                "for f; do if [ -d \"$f\" ]; then echo \"d $f\"; elif [ -e \"$f\" ]; then echo \"f $f\"; fi; done",
+                "sh"].concat(out.slice(0, 120).map(x => x.p));
+            recentCheck.running = true;
+        }
+    }
+    Process {
+        id: recentCheck
+        property var times: ({})
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const res = [];
+                for (const line of text.split("\n")) {
+                    if (line.length < 3) continue;
+                    const p = line.slice(2);
+                    const f = root.fileFromRel(p.slice(root.home.length + 1) + (line[0] === "d" ? "/" : ""));
+                    f.when = recentCheck.times[p] ?? 0;
+                    res.push(f);
+                    if (res.length >= 60) break;
+                }
+                root.recentFiles = res;
+            }
         }
     }
 
@@ -318,6 +343,8 @@ Scope {
         }
         const ext = (f.name.match(/\.([^.]+)$/)?.[1] ?? "").toLowerCase();
         const map = {
+            png: "image-x-generic", jpg: "image-x-generic", jpeg: "image-x-generic", webp: "image-x-generic",
+            gif: "image-x-generic", heic: "image-x-generic", avif: "image-x-generic", svg: "image-svg+xml",
             pdf: "application-pdf", txt: "text-plain", md: "text-markdown", nix: "text-x-script",
             sh: "text-x-script", fish: "text-x-script", py: "text-x-python", js: "text-x-javascript",
             ts: "text-x-javascript", qml: "text-x-generic", json: "application-json", html: "text-html",
@@ -343,7 +370,7 @@ Scope {
             subtitle: f.dir === "" ? "Dossier de départ" : f.dir.split("/").pop(),
             location: "~/" + (f.dir ? f.dir + "/" : ""),
             icon: fileIcon(f),
-            thumb: k === "images" ? "file://" + encodeURI(f.path) : ""
+            thumb: /\.(png|jpe?g|gif|bmp|svg)$/i.test(f.name) ? "file://" + encodeURI(f.path) : ""
         };
     }
 
@@ -454,15 +481,21 @@ Scope {
         if (!q) return out;
 
         // --- Recherche générale ---
-        const apps = matchApps(8);
+        // Les correspondances trop lâches (sous-séquences éparses) sont écartées.
+        const apps = matchApps(8).filter(a => a.s >= 35);
         const calc = calcItem();
-        const actions = matchActions(4).filter(a => a.kind === "action" ? true : true);
-        const files = rankedFiles();
+        const actions = matchActions(8).filter(a => Fuzzy.score(q, a.title) >= 35 || a.kind === "action" && q.length >= 3
+                                                   && Fuzzy.score(q, systemActions.find(x => x.id === a.actionId).keywords) >= 60).slice(0, 4);
+        // Comme Spotlight : correspondance en début de mot uniquement
+        const files = rankedFiles().filter(f => Fuzzy.score(q, f.name) >= 60);
+        const fileTopScore = files.length ? Fuzzy.score(q, files[0].name) : 0;
 
-        // Meilleur résultat : calcul, sinon app très pertinente, sinon action exacte
+        // Meilleur résultat : calcul, sinon app très pertinente, sinon document
+        // dont le nom commence par la requête, sinon action exacte
         let top = null;
         if (calc) top = calc;
         else if (apps.length && apps[0].s >= 50) top = appItem(apps[0].e, "Meilleur résultat");
+        else if (fileTopScore >= 80) top = fileItem(files[0]);
         else if (actions.length && Fuzzy.score(q, actions[0].title) >= 80) top = actions[0];
         if (top) pushSection(out, "Meilleur résultat", [Object.assign({}, top, { top: true })]);
 
@@ -473,6 +506,7 @@ Scope {
         // Fichiers par type, 4 max par section
         const groups = { folders: [], documents: [], pdf: [], images: [] };
         for (const f of files) {
+            if (top && top.kind === "file" && top.path === f.path) continue;
             const k = fileKindOf(f);
             if (groups[k].length < 4) groups[k].push(fileItem(f));
         }
@@ -488,20 +522,28 @@ Scope {
         return out;
     }
 
+    // Vue Applications (Tahoe) : suggestions (apps les plus utilisées) puis
+    // toutes les apps par ordre alphabétique ; pastille = filtre de catégorie,
+    // la saisie filtre à l'intérieur de la catégorie choisie.
     function buildAppGrid() {
         if (!active || mode !== "apps") return [];
-        if (q) return matchApps(0).map(a => appItem(a.e, ""));
+        if (q) {
+            return matchApps(0).filter(a => a.s >= 30)
+                .map(a => appItem(a.e, ""))
+                .filter(a => !appCategory || a.category === appCategory);
+        }
         const all = Apps.all.map(e => appItem(e, ""));
         if (appCategory) return all.filter(a => a.category === appCategory);
-        // Par catégorie (affichage par défaut de Tahoe)
         const out = [];
-        for (const c of Categories.LIST) {
-            const items = all.filter(a => a.category === c.id);
-            if (!items.length) continue;
-            out.push({ header: true, title: c.name });
-            for (const it of items) out.push(it);
+        const used = Apps.all.filter(e => usage.apps[e.id])
+            .sort((a, b) => usageBoost(b.id) - usageBoost(a.id))
+            .slice(0, 7);
+        if (used.length) {
+            out.push({ header: true, title: "Suggestions" });
+            for (const e of used) out.push(appItem(e, ""));
+            out.push({ header: true, title: "Toutes les apps" });
         }
-        return out;
+        return out.concat(all);
     }
 
     readonly property var fileGrid: {
@@ -520,10 +562,7 @@ Scope {
         recordQuery(query);
         switch (item.kind) {
         case "app":
-            if (reveal) {
-                Quickshell.execDetached(["xdg-open", "/run/current-system/sw/share/applications"]);
-                return;
-            }
+            // (⌘Entrée sur une app : pas d'emplacement Finder sous NixOS, on lance)
             recordLaunch(item.id);
             launchApp(item.entry);
             break;

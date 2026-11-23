@@ -10,7 +10,7 @@ Item {
     property bool shown: false
     property bool clearAll: false
     readonly property bool containsMouse: mouse.containsMouse
-    readonly property bool expanded: clearAll && mouse.containsMouse
+    readonly property bool expanded: clearAll && shown && (mouse.containsMouse || NotifStore.debugClearAll)
     signal triggered()
 
     property int size: 20
@@ -40,8 +40,8 @@ Item {
     Symbol {
         anchors.centerIn: parent
         name: "xmark"
-        size: 8
-        color: Theme.labelSecondary
+        size: Math.round(btn.size * 0.42)
+        color: Theme.dark ? Qt.rgba(1, 1, 1, 0.8) : Qt.rgba(0, 0, 0, 0.65)
         opacity: btn.expanded ? 0 : 1
         Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
     }

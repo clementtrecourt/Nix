@@ -9,7 +9,7 @@ import qs.services
 // À propos de ce Mac, agent Polkit.
 //
 // Panneaux ShellState gérés ici : lock, shutdown, restart, logout, forcequit,
-// about, wallpaper.
+// about, wallpaper. Raccourcis globaux : macos:lock, macos:forcequit.
 Scope {
     id: root
 
@@ -20,10 +20,13 @@ Scope {
         id: desktopMenu
         onChangeWallpaper: ShellState.open("wallpaper")
     }
-
-    SessionAlert {}
+    WallpaperPicker {}
 
     LockScreen {}
+    SessionAlert {}
+    ForceQuit {}
+    AboutWindow {}
+    PolkitDialog {}
 
     // Débogage (banc de test uniquement : QS_SESSION_DEBUG=1)
     //   quickshell ipc call session-debug dark true
@@ -32,5 +35,6 @@ Scope {
         enabled: Quickshell.env("QS_SESSION_DEBUG") === "1"
         function dark(on: bool): void { Theme.dark = on; }
         function menu(x: real, y: real): void { desktopMenu.popup(Quickshell.screens[0], x, y); }
+        function wallpaper(path: string): void { WallpaperService.set(path); }
     }
 }

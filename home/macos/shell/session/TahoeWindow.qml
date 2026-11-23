@@ -23,7 +23,8 @@ PanelWindow {
     property int cardHeight: 200
     property color tint: titleBar
         ? (Theme.dark ? Qt.rgba(0.14, 0.14, 0.15, 0.93) : Qt.rgba(0.975, 0.975, 0.98, 0.94))
-        : Theme.glassThick
+        // Alerte : verre épais, presque opaque (blanc laiteux / gris anthracite)
+        : (Theme.dark ? Qt.rgba(0.16, 0.16, 0.17, 0.84) : Qt.rgba(0.975, 0.975, 0.98, 0.86))
     readonly property int titleBarHeight: titleBar ? 38 : 0
     readonly property int pad: 56          // marge pour l'ombre portée
     default property alias content: body.data

@@ -16,8 +16,11 @@
 
 ## ⚡ Stack & Environnement
 
-* **Compositeur Wayland** : [MangoWM](https://github.com/mangowm/mango) avec layout *Scroller* & animations fluides.
-* **Barre & Thème Dynamique** : [Noctalia](https://github.com/noctalia-dev/noctalia) (panneau de contrôle, widgets, thèmes dynamiques).
+* **Bureau façon macOS Tahoe (macOS 26 « Liquid Glass »)** :
+  * **Compositeur** : [Hyprland](https://hypr.land) 0.56 — fenêtres flottantes centrées, coins continus, grande ombre douce, liseré d'un pixel, flou des matériaux, glissement des espaces, gestes du pavé tactile (3/4 doigts, Mission Control), clic pour focaliser.
+  * **Barres de titre** : plugin [hyprbars](https://github.com/hyprwm/hyprland-plugins) réglé façon Tahoe (feux tricolores Ø 14 pt à gauche, symboles × − ⤢ au survol, titre centré en Inter Semi-Bold, double-clic = Zoom) ; masquées pour les apps à décorations client (GTK/libadwaita, navigateurs, Electron).
+  * **Shell** : écrit sur mesure en [Quickshell](https://quickshell.org) (QML) — barre des menus, Dock, Centre de contrôle, OSD, Spotlight, notifications, Mission Control, Cmd+Tab, verrouillage, agent Polkit. Service systemd `macos-shell`.
+  * **Thèmes** : [MacTahoe](https://github.com/vinceliuice) GTK 3/4 + libadwaita (sombre, accent bleu), icônes **MacTahoe-Apple-dark** (vraies icônes d'apps de macOS 26 tirées de l'input de flake `macos-icons`, jamais copiées dans le dépôt, sur base MacTahoe), Kvantum MacTahoe pour Qt, curseur `macOS` (apple-cursor), police d'interface **Inter** (substitut de SF Pro), Kitty aux couleurs de Terminal.app.
 * **Navigateur Web** : [Zen Browser](https://zen-browser.app) optimisé avec **Betterfox v148** et **Smoothfox** injectés via les Enterprise Policies NixOS.
 * **Éditeur de Code** : **Zed Editor** & **Neovim (LazyVim)** déclaratifs avec serveurs LSP intégrés (`nixd`, `rust-analyzer`, Node.js).
 * **Terminal & Shell** : **Kitty** (typographie *IBM Plex Mono / BlexMono Nerd Font*, hints natifs) + **Fish** (Starship, Zoxide, Direnv, abréviations).
@@ -44,7 +47,7 @@
 │       ├── configuration.nix
 │       └── hardware-configuration.nix
 ├── modules/
-│   ├── common.nix        # Socle commun NixOS (Polices, Pipewire, Greetd, SOPS, Caches)
+│   ├── common.nix        # Socle commun NixOS (Hyprland, Polices Inter, Pipewire, Greetd, Caches)
 │   ├── gaming.nix        # Optimisations jeux (Steam, Gamemode, sysctl max_map_count)
 │   ├── work.nix          # Outils de virtualisation MicroVM & KVM
 │   ├── zen-browser.nix   # Configuration déclarative Zen Browser (Betterfox)
@@ -54,11 +57,17 @@
 │       ├── copy-tree.nix     # CLI copy-tree : copie l'arborescence filtrée
 │       └── copy-context.nix  # CLI copy-context : exporte tout le projet en Markdown pour LLM
 └── home/
-    ├── common.nix        # Socle Home Manager (GTK, Qt, Curseur, Git, Yazi, Paquets)
+    ├── common.nix        # Socle Home Manager (importe macos/, Git, Yazi, Paquets)
     ├── fish.nix          # Shell Fish (abréviations nrs, fonctions personnalisées)
-    ├── kitty.nix         # Terminal Kitty (polices, opacité, raccourcis hints)
-    ├── mango.nix         # Configuration MangoWM (keybinds, layout scroller, animations)
-    ├── noctalia.nix      # Widgets, barre et gestionnaire de session Noctalia
+    ├── kitty.nix         # Terminal Kitty (couleurs de Terminal.app, 80×24)
+    ├── macos/            # Bureau macOS Tahoe
+    │   ├── default.nix   # Point d'entrée (importé par common.nix)
+    │   ├── hyprland.nix  # Hyprland : rendu, règles, hyprbars, gestes, raccourcis Cmd
+    │   ├── shell.nix     # Installation du shell Quickshell + service systemd macos-shell
+    │   ├── theme.nix     # GTK/icônes/Kvantum MacTahoe, curseur macOS, Inter, dconf
+    │   ├── pkgs/         # Paquets locaux : thèmes MacTahoe, scripts macos-wm / macos-screenshot
+    │   ├── shell/        # Code QML du shell (barre des menus, Dock, Spotlight…)
+    │   └── dev/          # Banc de test : Hyprland imbriqué (nested.sh, hyprland-dev.conf)
     ├── tmux.nix          # Configuration Tmux
     ├── work.nix          # Overrides utilisateur machine pro
     └── zed.nix           # Configuration complète de Zed Editor
@@ -78,6 +87,34 @@
 | **`copy-tree`** | Copie uniquement l'arbre visuel du dossier dans le presse-papier |
 | **`Alt + s`** *(dans Kitty)* | **Flash Motion** : affiche des étiquettes sur tous les mots à l'écran pour les copier instantanément |
 | **`Alt + f`** *(dans Kitty)* | **Path Motion** : affiche des étiquettes sur les chemins de fichiers à l'écran pour les copier |
+
+### ⌘ Raccourcis du bureau macOS (⌘ = touche Super)
+
+| Raccourci | Action |
+| :--- | :--- |
+| **`⌘ Espace`** | Spotlight |
+| **`F4`** | Apps (Launchpad) |
+| **`⌘ Tab`** / **`⌘ ⇧ Tab`** | Sélecteur d'apps (validé au relâchement de ⌘) |
+| **`⌘ ⌥ Échap`** | Forcer à quitter |
+| **`⌃ ⌘ Q`** | Verrouiller l'écran |
+| **`⌃ ↑`** / **`F3`** / 4 doigts vers le haut | Mission Control |
+| **`⌃ ↓`** / 4 doigts vers le bas | Exposé de l'app |
+| **`⌃ ←`** / **`⌃ →`** / 3-4 doigts horizontaux | Espace précédent / suivant |
+| **`⌃ 1…9`** / **`⌃ ⇧ 1…9`** | Aller à l'espace N / y envoyer la fenêtre |
+| **`⌘ Q`** | Quitter l'app (toutes ses fenêtres) |
+| **`⌘ W`** / **`⌘ M`** / **`⌘ H`** | Fermer la fenêtre / la réduire / masquer l'app |
+| **`` ⌘ ` ``** | Fenêtre suivante de la même app |
+| **`⌃ ⌘ F`** | Plein écran |
+| **`⌘ Entrée`** | Terminal (Kitty) |
+| **`⌘ C/V/X/Z/A/S/F/T/N/P/L/R…`**, **`⌘ 1…9`** | Envoyés à l'app en Ctrl (Ctrl+Maj pour copier/coller dans les terminaux) |
+| **`⌘ ⇧ Z`** / **`⌘ ⇧ T`** | Rétablir / rouvrir l'onglet |
+| **`⌘ ←/→`**, **`⌘ ↑/↓`** | Début/fin de ligne, début/fin du document |
+| **`⌘ ⇧ 3`** / **`⌘ ⇧ 4`** (+ **`Espace`** = fenêtre) | Capture de l'écran / d'une zone → `~/Pictures/Screenshots/Capture d’écran … .png` |
+| **`⌃ ⌘ ⇧ 3/4`** | Capture vers le presse-papiers |
+| **`⌘ ⇧ 5`** | Outil Capture d'écran |
+| Touches volume / luminosité | wpctl / brightnessctl + OSD du shell |
+
+> Banc de test du shell : `NESTED_ID=moi home/macos/dev/nested.sh start 1512x982 && home/macos/dev/nested.sh shell` (Hyprland imbriqué rendu sur une sortie headless, captures avec `nested.sh shot`).
 
 ---
 

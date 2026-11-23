@@ -96,23 +96,33 @@ Item {
         font.pixelSize: Theme.fontSize
     }
     readonly property var metrics: {
-        let tw = 0, mw = 0, kw = 0, lead = false, sub = false, search = false;
+        // 1er passage : colonnes communes (picto à gauche, raccourcis)
+        let mw = 0, kw = 0, lead = false, search = false;
         for (const e of model) {
             if (e.separator) continue;
             if (e.search) { search = true; continue; }
-            tw = Math.max(tw, fm.advanceWidth(e.text ?? "") * (e.header ? 0.9 : 1)
-                + (e.pathText ? fm.advanceWidth(e.pathText) * 0.85 + 24 : 0));
-            if (e.mods) mw = Math.max(mw, fm.advanceWidth(e.mods));
-            if (e.key) kw = Math.max(kw, fm.advanceWidth(e.key) + (e.globe ? 13 : 0));
+            if (e.mods || e.globe) mw = Math.max(mw, fm.advanceWidth(e.mods ?? "") + (e.globe ? 14 : 0));
+            if (e.key) kw = Math.max(kw, fm.advanceWidth(e.key));
             if (e.icon || e.iconSource || e.checked || e.checkable || e.minimized) lead = true;
-            if (e.hasSubmenu) sub = true;
         }
         const textX = lead ? 36 : 14;
-        let w = textX + Math.ceil(tw) + 14;
-        if (kw > 0) w += 32 + Math.ceil(mw) + 1 + Math.ceil(kw);
-        if (sub) w += 26;
+        const keys = kw > 0 ? 22 + Math.ceil(mw) + 1 + Math.ceil(kw) : 0;
+        // 2e passage : largeur nécessaire par ligne. Marge droite : 14 pt +
+        // respiration (macOS laisse au moins ~20 pt après le texte).
+        let w = 0;
+        for (const e of model) {
+            if (e.separator || e.search) continue;
+            let need = (e.header ? 14 : e.network ? 46 : textX)
+                + fm.advanceWidth(e.text ?? "") * (e.header ? 0.9 : 1) + 24 + keys;
+            if (e.pathText) need += fm.advanceWidth(e.pathText) * (e.info ? 1 : 0.85) + 12;
+            if (e.hasSubmenu) need += 16;
+            if (e.toggle !== undefined && e.toggle !== null) need += 40;
+            if (e.locked) need += 20;
+            if (e.bold) need += 6;
+            w = Math.max(w, need);
+        }
         if (search) w = Math.max(w, 260);
-        return { textX: textX, modsW: Math.ceil(mw) + 1, keyW: Math.ceil(kw), width: Math.max(w, 140) };
+        return { textX: textX, modsW: Math.ceil(mw) + 1, keyW: Math.ceil(kw), width: Math.ceil(Math.max(w, 140)) };
     }
 
     width: metrics.width
@@ -123,8 +133,8 @@ Item {
         anchors.fill: parent
         radius: Theme.radiusMenu
         tint: Theme.menuBackground
-        shadowBlur: 0.8
-        shadowOffset: 6
+        shadowBlur: 0.5
+        shadowOffset: 4
     }
 
     Column {
@@ -133,6 +143,7 @@ Item {
         width: parent.width
 
         Repeater {
+            id: rep
             model: panel.model
             delegate: Loader {
                 id: slot
@@ -165,10 +176,10 @@ Item {
     }
 
     // ---- Comportement ----
-    function rowAt(i) { return column.children[i]?.item ?? null; }
+    function rowAt(i) { return rep.itemAt(i)?.item ?? null; }
     function selectable(i) {
         const e = model[i];
-        return !!e && !e.separator && !e.header && !e.search && e.enabled !== false;
+        return !!e && !e.separator && !e.header && !e.info && !e.search && e.enabled !== false;
     }
 
     // Survol : surbrillance, ouverture différée du sous-menu
@@ -202,9 +213,15 @@ Item {
         }
         subLoader.active = false;
         subIndex = i;
-        subLoader.subItems = typeof e.submenu === "function" ? e.submenu() : (e.submenu ?? []);
-        subLoader.subHandle = e.handle ?? null;
         subLoader.viaKeyboard = viaKeyboard;
+        subLoader.setSource(Qt.resolvedUrl("MenuPanel.qml"), {
+            controller: panel.controller,
+            parentPanel: panel,
+            items: typeof e.submenu === "function" ? e.submenu() : (e.submenu ?? []),
+            handle: e.handle ?? null,
+            areaWidth: panel.areaWidth,
+            areaHeight: panel.areaHeight
+        });
         subLoader.active = true;
     }
     function closeSub() {
@@ -218,6 +235,13 @@ Item {
         const e = model[i];
         if (e.hasSubmenu) { openSub(i, viaKeyboard); return; }
         currentIndex = i;
+        // Interrupteur : bascule sur place, le menu reste ouvert
+        if (e.keepOpen) {
+            const r = rowAt(i);
+            if (r) r.toggleOn = !r.toggleOn;
+            if (typeof e.action === "function") e.action();
+            return;
+        }
         flashing = true;
         flashStep.step = 0;
         flashStep.entry = e;
@@ -265,32 +289,27 @@ Item {
     function keyEnter() { if (currentIndex >= 0) activate(currentIndex, true); }
 
     // ---- Sous-menu ----
+    // Chargé par URL : un composant ne peut pas s'instancier lui-même
+    // directement (récursion interdite), un Loader par chemin le peut.
     Loader {
         id: subLoader
         active: false
-        property var subItems: []
-        property var subHandle: null
         property bool viaKeyboard: false
 
         readonly property real rowY: {
-            const r = column.children[panel.subIndex];
+            const r = rep.count > 0 ? rep.itemAt(panel.subIndex) : null;
             return r ? column.y + r.y : 0;
         }
 
-        sourceComponent: MenuPanel {
-            controller: panel.controller
-            parentPanel: panel
-            items: subLoader.subItems
-            handle: subLoader.subHandle
-            areaWidth: panel.areaWidth
-            areaHeight: panel.areaHeight
+        onLoaded: {
+            const c = item;
             // À droite du parent, ou à gauche s'il n'y a plus de place
-            x: (panel.originX + panel.width + width + 6 > panel.areaWidth) ? -width - 1 : panel.width + 1
+            c.x = Qt.binding(() => (panel.originX + panel.width + c.width + 6 > panel.areaWidth) ? -c.width - 1 : panel.width + 1);
             // Première ligne alignée sur la ligne parente, sans sortir de l'écran
-            y: Math.max(-panel.originY + 4, Math.min(subLoader.rowY - 5, panel.areaHeight - panel.originY - height - 6))
-            originX: panel.originX + x
-            originY: panel.originY + y
-            Component.onCompleted: if (subLoader.viaKeyboard) selectFirst()
+            c.y = Qt.binding(() => Math.max(-panel.originY + 4, Math.min(subLoader.rowY - 5, panel.areaHeight - panel.originY - c.height - 6)));
+            c.originX = Qt.binding(() => panel.originX + c.x);
+            c.originY = Qt.binding(() => panel.originY + c.y);
+            if (viaKeyboard) c.selectFirst();
         }
     }
 

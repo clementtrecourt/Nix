@@ -37,14 +37,23 @@ Item {
     readonly property bool isApp: kind === "app"
     readonly property bool isSeparator: kind === "separator"
     readonly property bool isWindow: kind === "window"
+    // Pas entre deux icônes et toile de l'icône (voir les mesures dans Dock.qml)
     readonly property real tsz: dock.tile
-    // Largeur de base : une tuile, ou la fente du séparateur (0,46 tuile, mesuré sur Tahoe)
-    readonly property real baseW: isSeparator ? Math.round(tsz * 0.46) : tsz
+    readonly property real canvas: dock.canvas
+    // Largeur de base : un pas, ou la fente du séparateur (0,42 pas, mesuré sur Tahoe)
+    readonly property real baseW: isSeparator ? Math.round(tsz * 0.42) : tsz
 
     // ---- Apparition / disparition (les voisines s'écartent / se resserrent) ----
     property real presence: fresh ? 0 : 1
-    Component.onCompleted: if (fresh) presence = 1
-    onRemovingChanged: if (removing) presence = 0
+    Component.onCompleted: {
+        if (fresh) presence = 1;
+        dock.icons.want(iconKey, themeIcon);
+    }
+    // Tuile en cours de glisser : invisible (l'icône suit le pointeur) ; sortie du
+    // Dock, sa place se referme.
+    readonly property bool dragged: dock.dragKey === key
+    readonly property bool collapsed: removing || (dragged && dock.dragOut)
+    onCollapsedChanged: presence = collapsed ? 0 : 1
     Behavior on presence {
         NumberAnimation {
             id: presenceAnim
@@ -74,12 +83,38 @@ Item {
         if (appId === dock.model.appsTileId) return "Apps";
         return Apps.name(appId || cls);
     }
+    // ---- Icône : surcharge utilisateur > PNG du thème > thème (voir DockIcons) ----
+    // Clé de surcharge : id .desktop sans extension, sinon classe en minuscules.
+    readonly property string iconKey: {
+        if (kind === "folder") return "downloads";
+        if (kind === "trash") return dock.trashFull ? "user-trash-full" : "user-trash";
+        if (!isApp) return "";
+        if (appId === dock.model.appsTileId) return "apps";
+        const e = Apps.entryFor(appId || cls);
+        return e ? e.id : (cls || appId).toLowerCase();
+    }
+    // Nom d'icône dans le thème
+    readonly property string themeIcon: {
+        if (kind === "folder") return "folder-download";
+        if (kind === "trash") return iconKey;
+        if (appId === dock.model.appsTileId) return "macos-apps";
+        const e = Apps.entryFor(appId || cls);
+        return (e && e.icon) ? e.icon : iconKey;
+    }
+    onIconKeyChanged: dock.icons.want(iconKey, themeIcon)
+    onThemeIconChanged: dock.icons.want(iconKey, themeIcon)
+    readonly property var iconInfo: iconKey ? (dock.icons.resolved[iconKey] ?? null) : null
     readonly property string iconSource: {
+        if (iconInfo) return iconInfo.path;
         if (kind === "folder") return Quickshell.iconPath("folder-download", "folder");
-        if (kind === "trash") return Quickshell.iconPath(dock.trashFull ? "user-trash-full" : "user-trash", "user-trash");
-        if (appId === dock.model.appsTileId) return Quickshell.iconPath("view-app-grid", "application-x-executable");
+        if (kind === "trash") return Quickshell.iconPath(iconKey, "user-trash");
+        if (appId === dock.model.appsTileId)
+            return Quickshell.iconPath("macos-apps", true) || Quickshell.iconPath("view-app-grid", "application-x-executable");
         return Apps.icon(appId || cls);
     }
+    // Échelle d'affichage dans la toile : 1 pour une toile Apple (squircle 824/1024),
+    // sinon ramène le squircle MacTahoe (87,5 %) aux 80,5 % de Tahoe.
+    readonly property real iconScale: (iconInfo && iconInfo.apple) ? 1 : dock.themeIconScale
 
     // ---- Rebond (lancement / demande d'attention), piloté par l'horloge du Dock ----
     // Lancement : paraboles de 0,7 s, hauteur ≈ 0,5 tuile ; on termine le saut en cours
@@ -94,19 +129,19 @@ Item {
                 if (el >= stop) return 0;
             }
             const f = (el % P) / P;
-            return tsz * 0.5 * 4 * f * (1 - f);
+            return canvas * 0.5 * 4 * f * (1 - f);
         }
         if (urgent) {
             const P = 1100, flight = 640, el = now % P;
             if (el > flight) return 0;
             const f = el / flight;
-            return tsz * 0.9 * 4 * f * (1 - f);
+            return canvas * 0.9 * 4 * f * (1 - f);
         }
         return 0;
     }
 
-    // Tuile "virtuelle" agrandie, posée sur la ligne de base du Dock
-    readonly property real vSize: tsz * ps
+    // Toile agrandie, posée sur la ligne de base du Dock
+    readonly property real vSize: canvas * ps
     readonly property real vBottom: dock.baseY
     readonly property real vTop: vBottom - vSize - bounce
     readonly property real centerX: width / 2
@@ -117,7 +152,7 @@ Item {
         width: 1
         height: Math.round(tile.tsz * 0.95)
         x: Math.round(tile.width / 2 - 0.5)
-        y: tile.dock.baseY - tile.tsz / 2 - height / 2
+        y: tile.dock.baseY - tile.canvas / 2 - height / 2
         color: Theme.dark ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0, 0, 0, 0.28)
         opacity: tile.presence
     }
@@ -125,7 +160,7 @@ Item {
     // ---- Icône ----
     Item {
         id: iconBox
-        visible: !tile.isSeparator && !tile.isWindow
+        visible: !tile.isSeparator && !tile.isWindow && !tile.dragged
         width: tile.vSize
         height: tile.vSize
         x: tile.centerX - width / 2
@@ -134,14 +169,20 @@ Item {
         scale: 0.6 + 0.4 * tile.presence
         transformOrigin: Item.Bottom
 
-        IconImage {
+        // Image telle quelle (l'ombre fait partie de l'icône Apple) : aucun masque,
+        // fond ni ombre ajoutés. Rastérisée une fois à la taille maximale agrandie
+        // (sourceSize fixe), puis réduite par mipmap : nette et sans re-rastérisation
+        // pendant l'agrandissement.
+        Image {
             id: icon
             anchors.centerIn: parent
-            // Les icônes MacTahoe dessinent le squircle sur 87,5 % du canevas, celles de
-            // macOS sur 80 % : on réduit pour retrouver la proportion du vrai Dock.
-            implicitSize: Math.round(tile.vSize * tile.dock.iconRatio)
+            width: tile.vSize * tile.iconScale
+            height: width
             source: tile.iconSource
+            sourceSize: Qt.size(tile.dock.iconPixels, tile.dock.iconPixels)
+            fillMode: Image.PreserveAspectFit
             asynchronous: false
+            smooth: true
             mipmap: true
             layer.enabled: tile.pressed
             layer.effect: MultiEffect {
@@ -159,7 +200,7 @@ Item {
         height: tile.vSize
         x: tile.centerX - width / 2
         y: tile.vTop
-        opacity: Math.min(1, tile.presence * 1.4)
+        opacity: tile.dock.model.landing[tile.address] ? 0 : Math.min(1, tile.presence * 1.4)
 
         readonly property real winW: tile.toplevel?.lastIpcObject?.size?.[0] ?? 16
         readonly property real winH: tile.toplevel?.lastIpcObject?.size?.[1] ?? 10

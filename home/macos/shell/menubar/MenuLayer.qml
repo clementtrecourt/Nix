@@ -9,11 +9,13 @@ import qs.common
 // Hyprland floute ce qui est derrière le verre du menu (namespace macos-menu,
 // ignore_alpha : les zones transparentes ne sont pas floutées).
 PanelWindow {
-    id: layer
+    id: menuLayer
 
     property var controller
+    // Nom de l'écran (fixe : évite une boucle de liaison avec `screen`)
+    property string screenName: ""
 
-    visible: controller.screenName === screen?.name && (controller.isOpen || controller.closing)
+    visible: controller.screenName === screenName && (controller.isOpen || controller.closing)
     color: "transparent"
 
     WlrLayershell.layer: WlrLayer.Overlay
@@ -34,7 +36,7 @@ PanelWindow {
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.AllButtons
-        onPressed: layer.controller.close(true)
+        onPressed: menuLayer.controller.close(true)
     }
 
     // Saisie rapide : sélectionne l'élément suivant qui commence par la lettre
@@ -63,7 +65,7 @@ PanelWindow {
             switch (event.key) {
             case Qt.Key_Escape:
                 if (p.parentPanel) p.parentPanel.closeSub();
-                else layer.controller.close(true);
+                else menuLayer.controller.close(true);
                 break;
             case Qt.Key_Down: p.move(1); break;
             case Qt.Key_Up: p.move(-1); break;
@@ -74,7 +76,7 @@ PanelWindow {
             case Qt.Key_Space: p.keyEnter(); break;
             default:
                 if (event.text && event.text.trim() !== "" && !(event.modifiers & (Qt.ControlModifier | Qt.MetaModifier)))
-                    layer.typeahead(event.text);
+                    menuLayer.typeahead(event.text);
                 else return;
             }
             event.accepted = true;
@@ -85,6 +87,7 @@ PanelWindow {
     Loader {
         id: loader
         active: false
+        onLoaded: menuLayer.controller.rootPanel = item
 
         // Apparition : fondu + très léger zoom depuis le haut (≈ 100 ms) ;
         // pas d'animation quand on glisse d'un titre à l'autre.
@@ -93,17 +96,17 @@ PanelWindow {
         transformOrigin: Item.Top
 
         sourceComponent: MenuPanel {
-            controller: layer.controller
-            items: layer.controller.items
-            handle: layer.controller.handle
-            areaWidth: layer.width
-            areaHeight: layer.height
+            controller: menuLayer.controller
+            items: menuLayer.controller.items
+            handle: menuLayer.controller.handle
+            areaWidth: menuLayer.width
+            areaHeight: menuLayer.height
             originX: loader.x
             originY: loader.y
-            Component.onCompleted: if (layer.controller.keyboardOpened) selectFirst()
+            Component.onCompleted: if (menuLayer.controller.keyboardOpened) selectFirst()
         }
 
-        x: Math.max(6, Math.min(layer.controller.anchorX, layer.width - (item?.width ?? 0) - 6))
+        x: Math.max(6, Math.min(menuLayer.controller.anchorX, menuLayer.width - (item?.width ?? 0) - 6))
         y: 3
 
         NumberAnimation {
@@ -133,19 +136,19 @@ PanelWindow {
             easing.type: Easing.InOutQuad
             onFinished: {
                 loader.active = false;
-                layer.controller.finish();
+                menuLayer.controller.finish();
             }
         }
     }
 
     Connections {
-        target: layer.controller
+        target: menuLayer.controller
 
         function onGenerationChanged() {
-            const wasShown = loader.active && !fadeOut.running && layer.controller.screenName === layer.screen?.name;
+            const wasShown = loader.active && !fadeOut.running && menuLayer.controller.screenName === menuLayer.screenName;
             fadeOut.stop();
             loader.active = false;
-            if (layer.controller.screenName !== layer.screen?.name) return;
+            if (menuLayer.controller.screenName !== menuLayer.screenName) return;
             loader.opacity = 1;
             loader.scale = 1;
             // Focus clavier avant création : le champ du menu Aide le reprend
@@ -158,12 +161,12 @@ PanelWindow {
         }
 
         function onClosingChanged() {
-            if (layer.controller.closing && loader.active) fadeOut.restart();
+            if (menuLayer.controller.closing && loader.active) fadeOut.restart();
         }
 
         function onOpenIdChanged() {
             // Fermeture immédiate (sans fondu)
-            if (!layer.controller.isOpen && !layer.controller.closing) {
+            if (!menuLayer.controller.isOpen && !menuLayer.controller.closing) {
                 fadeOut.stop();
                 loader.active = false;
             }

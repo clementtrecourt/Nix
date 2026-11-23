@@ -30,10 +30,13 @@ Singleton {
                           stateDir, JSON.stringify({ dark: d }), stateFile];
         writer.running = true;
         if (devMode) return;
-        Quickshell.execDetached(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme",
-                                 d ? "prefer-dark" : "prefer-light"]);
-        Quickshell.execDetached(["gsettings", "set", "org.gnome.desktop.interface", "gtk-theme",
-                                 d ? "MacTahoe-Dark" : "MacTahoe-Light"]);
+        // gsettings si disponible (schémas installés), sinon dconf directement.
+        Quickshell.execDetached(["sh", "-c",
+            'if command -v gsettings >/dev/null; then ' +
+            '  gsettings set org.gnome.desktop.interface color-scheme "$1"; gsettings set org.gnome.desktop.interface gtk-theme "$2"; ' +
+            'elif command -v dconf >/dev/null; then ' +
+            "  dconf write /org/gnome/desktop/interface/color-scheme \"'$1'\"; dconf write /org/gnome/desktop/interface/gtk-theme \"'$2'\"; " +
+            'fi', "sh", d ? "prefer-dark" : "prefer-light", d ? "MacTahoe-Dark" : "MacTahoe-Light"]);
     }
 
     Process { id: writer }
@@ -41,7 +44,7 @@ Singleton {
     // Pas de fichier d'état : on suit le réglage système courant.
     Process {
         id: probe
-        command: ["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"]
+        command: ["sh", "-c", "gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null || dconf read /org/gnome/desktop/interface/color-scheme 2>/dev/null"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const t = text.trim();

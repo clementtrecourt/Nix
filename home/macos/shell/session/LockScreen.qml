@@ -23,6 +23,8 @@ Scope {
     property int shakeSerial: 0
     // Incrémenté au succès : les surfaces jouent la sortie avant déverrouillage
     property bool unlocking: false
+    // Facteur de ralenti des animations (banc de test uniquement)
+    property real slowmo: 1
 
     readonly property string userName: Quickshell.env("USER") ?? ""
     property string fullName: userName.length ? userName.charAt(0).toUpperCase() + userName.slice(1) : ""
@@ -143,5 +145,7 @@ Scope {
         enabled: Quickshell.env("QS_SESSION_DEBUG") === "1"
         function type(text: string): void { root.password = text; }
         function submit(): void { root.submit(); }
+        function shake(): void { root.shakeSerial += 1; }
+        function slowmo(f: real): void { root.slowmo = f; }
     }
 }

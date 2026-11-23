@@ -17,10 +17,6 @@
       url = "github:nix-community/nix-index-database";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    mango = {
-      url = "github:mangowm/mango";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     lazyvim = {
       url = "github:pfassina/lazyvim-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -38,9 +34,11 @@
       flake = false;
     };
 
-    noctalia = {
-      url = "github:noctalia-dev/noctalia";
-      inputs.nixpkgs.follows = "nixpkgs";
+    # Icônes d'apps macOS 26 Tahoe (PNG 1024 exportés d'un Mac) : jamais copiées
+    # dans le dépôt, uniquement référencées ici (thème MacTahoe-Apple, home/macos/pkgs)
+    macos-icons = {
+      url = "github:zagnut531/macOS-26-Icons/2867e67ae2f12b972fc85e56707bea4b303bdf92";
+      flake = false;
     };
 
     helium-flake = {
@@ -55,7 +53,6 @@
     home-manager,
     nix-index-database,
     helium-flake,
-    mango,
     lazyvim,
     chaotic,
     microvm,
@@ -87,9 +84,6 @@
               home-manager.backupFileExtension = "bak";
               home-manager.users.clem = import homeModule;
               home-manager.extraSpecialArgs = {inherit inputs;};
-              home-manager.sharedModules = [
-                inputs.mango.hmModules.mango
-              ];
             }
           ]
           ++ extraModules; # <-- Permet d'ajouter des modules spécifiques par machine

@@ -33,16 +33,16 @@ Item {
     // Liseré spéculaire : couleur, épaisseur, intensité minimale hors lumière.
     property color rimColor: Theme.glassHighlight
     property real rimWidth: 1.5
-    property real rimBase: Theme.dark ? 0.16 : 0.30
+    property real rimBase: Theme.dark ? 0.28 : 0.40
     // Lueur interne (épaisseur du verre).
     property color glowColor: Theme.glassGlow
     property real glowWidth: Math.min(14, Math.min(width, height) * 0.22)
     // Angle (degrés) de la lumière : 225 = vient du haut-gauche.
     property real lightAngle: 225
     // Alpha max de l'ombre. Hyprland floute tout pixel des surfaces "macos-*"
-    // dont l'alpha dépasse ignore_alpha (0.3 attendu) : une ombre plus opaque
+    // dont l'alpha dépasse ignore_alpha (0.25 attendu) : une ombre plus opaque
     // ferait apparaître un halo flouté autour du verre.
-    property real shadowMax: 0.26
+    property real shadowMax: 0.22
 
     readonly property real _sigma: shadowEnabled ? Math.max(0.5, shadowBlur * 14) : 0
     readonly property int _pad: shadowEnabled ? Math.ceil(_sigma * 3 + Math.abs(shadowOffset)) : 1

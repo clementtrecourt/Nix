@@ -4,21 +4,32 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
 import qs.common
+import "decor.js" as Decor
 
 // Une fenêtre dans Mission Control : vignette vivante (ScreencopyView du
 // toplevel Wayland) qui glisse de sa position réelle à l'écran (progress = 0)
 // vers sa place dans la grille (progress = 1). Survol : liseré bleu + titre.
+//
+// La capture Wayland ne contient que le contenu du client : la barre de titre
+// hyprbars, le liseré et l'ombre d'Hyprland sont redessinés (decor.js) pour que
+// la vignette soit identique à la fenêtre au départ et à l'arrivée.
 Item {
     id: tile
 
     required property var toplevel            // HyprlandToplevel
-    // Géométrie réelle (coordonnées de l'écran) et cible dans la grille
-    property rect real: Qt.rect(0, 0, 100, 100)
-    property rect target: Qt.rect(0, 0, 100, 100)
+    // Géométrie réelle (barre de titre comprise, coordonnées de l'écran) et cible
+    property rect realRect: Qt.rect(0, 0, 100, 100)
+    property rect targetRect: Qt.rect(0, 0, 100, 100)
     property real progress: 0
     property bool hovered: false
-    property bool dimmed: false               // fenêtre d'une autre app (App Exposé)
-    property real windowRadius: 16            // decoration:rounding d'Hyprland
+    property bool active: false               // fenêtre focalisée (feux colorés, ombre forte)
+
+    readonly property var ipc: toplevel?.lastIpcObject ?? {}
+    readonly property string cls: ipc.class ?? ""
+    readonly property bool fullscreen: (ipc.fullscreen ?? 0) > 0
+    readonly property bool hasBar: Decor.hasBar(cls, fullscreen)
+    readonly property real barH: hasBar ? Decor.barHeight : 0
+    readonly property real windowRadius: Decor.radius(cls, fullscreen)
 
     // Glisser-déposer (déplacement vers un autre bureau)
     property bool dragging: false
@@ -30,10 +41,10 @@ Item {
     signal dropped(real x, real y)
 
     // Cible animée (réorganisation quand une fenêtre apparaît/disparaît)
-    property real tx: target.x
-    property real ty: target.y
-    property real tw: target.width
-    property real th: target.height
+    property real tx: targetRect.x
+    property real ty: targetRect.y
+    property real tw: targetRect.width
+    property real th: targetRect.height
     property bool settle: false
     Behavior on tx { enabled: tile.settle; NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
     Behavior on ty { enabled: tile.settle; NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
@@ -41,21 +52,32 @@ Item {
     Behavior on th { enabled: tile.settle; NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
 
     readonly property real p: progress
-    x: dragging ? dragPos.x : real.x + (tx - real.x) * p
-    y: dragging ? dragPos.y : real.y + (ty - real.y) * p
-    width: dragging ? tw * dragScale : real.width + (tw - real.width) * p
-    height: dragging ? th * dragScale : real.height + (th - real.height) * p
-    // Échelle courante par rapport à la vraie fenêtre (coins, ombre)
-    readonly property real sc: width / Math.max(1, real.width)
+    readonly property real baseX: realRect.x + (tx - realRect.x) * p
+    readonly property real baseY: realRect.y + (ty - realRect.y) * p
+    readonly property real baseW: realRect.width + (tw - realRect.width) * p
+    readonly property real baseH: realRect.height + (th - realRect.height) * p
+    // 1 pendant le glisser, revient à 0 (retour animé à sa place) au lâcher
+    property real dragBlend: dragging ? 1 : 0
+    Behavior on dragBlend { enabled: !tile.dragging; NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+    x: baseX + (dragPos.x - baseX) * dragBlend
+    y: baseY + (dragPos.y - baseY) * dragBlend
+    width: baseW + (tw * dragScale - baseW) * dragBlend
+    height: baseH + (th * dragScale - baseH) * dragBlend
+    // Échelle courante par rapport à la vraie fenêtre
+    readonly property real sc: width / Math.max(1, realRect.width)
 
-    // Ombre portée (reprend decoration:shadow d'Hyprland à l'échelle)
+    // Ombre portée (decoration:shadow d'Hyprland : 0 20 60, 0x99 active / 0x55).
+    // Elle n'apparaît qu'avec le fond d'écran de Mission Control : au départ,
+    // l'ombre réelle d'Hyprland est encore visible dessous (pas de double ombre).
+    property real shadowOpacity: 1
     RectangularShadow {
         anchors.fill: shot
+        opacity: tile.shadowOpacity
         radius: shot.radius
-        offset.y: 12 * tile.sc
-        blur: 40 * tile.sc
+        offset.y: 20 * tile.sc
+        blur: 60 * tile.sc
         spread: 0
-        color: Qt.rgba(0, 0, 0, 0.33)
+        color: Qt.rgba(0, 0, 0, tile.active ? 0.60 : 0.33)
         cached: false
     }
 
@@ -75,22 +97,68 @@ Item {
         id: shot
         anchors.fill: parent
         radius: tile.windowRadius * tile.sc
-        color: Theme.dark ? "#1e1e1e" : "#ececec"
-        contentUnderBorder: true
+        // Sous la capture : fond de la barre (terminaux translucides floutés par Hyprland)
+        color: tile.hasBar ? Decor.barColor(tile.cls) : "transparent"
 
         ScreencopyView {
             id: view
-            anchors.fill: parent
+            y: tile.barH * tile.sc
+            width: parent.width
+            height: parent.height - y
             captureSource: tile.toplevel?.wayland ?? null
             live: true
             paintCursor: false
         }
-        // Voile des fenêtres d'autres apps (App Exposé)
-        Rectangle {
-            anchors.fill: parent
-            color: "black"
-            opacity: tile.dimmed ? 0.45 * tile.p : 0
+
+        // Barre de titre hyprbars, dessinée à taille réelle puis mise à l'échelle
+        Item {
+            visible: tile.hasBar
+            width: tile.realRect.width
+            height: Decor.barHeight
+            scale: tile.sc
+            transformOrigin: Item.TopLeft
+
+            Rectangle {
+                anchors.fill: parent
+                color: Decor.barColor(tile.cls)
+            }
+            // Feux tricolores : Ø 14, marge 10, écart 9 (gris si fenêtre inactive)
+            Row {
+                x: 10
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 9
+                Repeater {
+                    model: ["#ff5f57", "#febc2e", "#28c840"]
+                    Rectangle {
+                        required property var modelData
+                        width: 14
+                        height: 14
+                        radius: 7
+                        color: tile.active ? modelData : "#4f4f52"
+                    }
+                }
+            }
+            Text {
+                anchors.centerIn: parent
+                width: Math.min(implicitWidth, parent.width - 160)
+                text: tile.toplevel?.title ?? ""
+                color: Qt.rgba(1, 1, 1, 0.85)
+                font.family: Theme.font
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+            }
         }
+    }
+
+    // Liseré d'un pixel (general:border_size = 1)
+    Rectangle {
+        anchors.fill: shot
+        radius: shot.radius
+        color: "transparent"
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, tile.active ? 0.14 : 0.08)
+        visible: !tile.fullscreen
     }
 
     // Titre sous la fenêtre survolée
@@ -113,7 +181,7 @@ Item {
             id: titleText
             anchors.centerIn: parent
             width: Math.min(implicitWidth, parent.width - 22)
-            text: tile.toplevel?.title || tile.toplevel?.lastIpcObject?.class || ""
+            text: tile.toplevel?.title || tile.cls
             color: "white"
             font.family: Theme.font
             font.pixelSize: 13
@@ -140,8 +208,8 @@ Item {
             if (!pressed) return;
             const pt = mapToItem(tile.parent, e.x, e.y);
             if (!tile.dragging && Math.hypot(pt.x - pressAt.x, pt.y - pressAt.y) > 6) {
+                tile.dragPos = Qt.point(tile.x, tile.y);
                 tile.dragging = true;
-                tile.z = 1000;
             }
             if (tile.dragging) {
                 // La fenêtre rapetisse en approchant de la barre des bureaux
@@ -154,9 +222,8 @@ Item {
         onReleased: e => {
             const pt = mapToItem(tile.parent, e.x, e.y);
             if (tile.dragging) {
-                tile.dropped(pt.x, pt.y);
                 tile.dragging = false;
-                tile.dragScale = 1;
+                tile.dropped(pt.x, pt.y);
             } else {
                 tile.activated();
             }

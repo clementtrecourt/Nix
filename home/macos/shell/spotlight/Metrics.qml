@@ -33,6 +33,6 @@ Singleton {
     // Grilles (Applications, Fichiers)
     readonly property int gridIcon: 64
     readonly property int gridColumns: 7
-    readonly property int gridCellHeight: 104
+    readonly property int gridCellHeight: 108
     readonly property int chipHeight: 28
 }

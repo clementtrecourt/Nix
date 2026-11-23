@@ -24,15 +24,25 @@ Item {
     // ---- Apps épinglées (persistées dans l'état du shell) ----
     // "macos:apps" = icône « Apps » (Launchpad de Tahoe), ouvre la vue Apps.
     readonly property string appsTileId: "macos:apps"
-    property var pinned: defaultPinned()
+    // Ordre : modifications de l'utilisateur (état persistant) > settings.json
+    // ("dock.pinned", fourni par Nix) > Apps.pinned.
+    property var pinned: []
     property var recents: []
     property bool stateLoaded: false
+    property bool userPinned: false
+    property var basePinned: null
 
     function defaultPinned() {
-        const l = Array.from(Apps.pinned);
+        const l = Array.from(basePinned ?? Apps.pinned);
         // Dock Tahoe d'origine : Finder, puis Apps.
         if (!l.includes(appsTileId)) l.splice(Math.min(1, l.length), 0, appsTileId);
         return l;
+    }
+    function applyDefaults() { if (!userPinned) pinned = defaultPinned(); }
+    function setBasePinned(l) { basePinned = l; applyDefaults(); }
+    Connections {
+        target: Apps
+        function onPinnedChanged() { root.applyDefaults(); }
     }
 
     FileView {
@@ -43,16 +53,21 @@ Item {
         onLoaded: {
             try {
                 const o = JSON.parse(text());
-                if (Array.isArray(o.pinned)) root.pinned = o.pinned;
+                if (Array.isArray(o.pinned)) { root.pinned = o.pinned; root.userPinned = true; }
                 if (Array.isArray(o.recents)) root.recents = o.recents;
             } catch (e) {}
+            root.applyDefaults();
             root.stateLoaded = true;
             root.scheduleSync();
         }
-        onLoadFailed: { root.stateLoaded = true; root.scheduleSync(); }
+        onLoadFailed: { root.applyDefaults(); root.stateLoaded = true; root.scheduleSync(); }
     }
-    function saveState() {
-        stateFile.setText(JSON.stringify({ pinned: root.pinned, recents: root.recents }, null, 2));
+    // pinnedChanged : vrai quand l'utilisateur a modifié le Dock
+    function saveState(pinnedChanged) {
+        if (pinnedChanged) userPinned = true;
+        const o = { recents: root.recents };
+        if (userPinned) o.pinned = root.pinned;
+        stateFile.setText(JSON.stringify(o, null, 2));
     }
 
     // ---- Correspondances classe de fenêtre <-> id d'app ----
@@ -74,6 +89,14 @@ Item {
     function windowsFor(cls) { return cls ? Windows.windowsOf(cls) : []; }
     function toplevelByAddress(addr) {
         return Windows.toplevels.find(t => t.address === addr) ?? null;
+    }
+
+    // Fenêtres en cours d'animation génie : leur miniature est masquée dans le Dock
+    property var landing: ({})
+    function setLanding(addr, on) {
+        const l = Object.assign({}, landing);
+        if (on) l[addr] = true; else delete l[addr];
+        landing = l;
     }
 
     // ---- Apps en cours de lancement (rebond) ----
@@ -182,6 +205,8 @@ Item {
     }
 
     function sync() {
+        // Pas de liste tant que l'état n'est pas lu (évite un « saut » au démarrage)
+        if (frozen || !stateLoaded) return;
         const want = computeItems();
         const keys = new Set(want.map(w => w.key));
         for (let i = 0; i < items.count; i++) {
@@ -237,9 +262,18 @@ Item {
         function onRawEvent(ev) {
             const n = ev.name;
             if (n === "openwindow" || n === "closewindow" || n === "movewindow" || n === "movewindowv2"
-                || n === "windowtitle" || n === "windowtitlev2" || n === "urgent" || n === "activewindow")
+                || n === "windowtitle" || n === "windowtitlev2" || n === "urgent" || n === "activewindow") {
+                // lastIpcObject (classe, taille, espace de travail) n'est rempli
+                // qu'après un rafraîchissement explicite.
+                refreshTimer.restart();
                 root.scheduleSync();
+            }
         }
+    }
+    Timer {
+        id: refreshTimer
+        interval: 30
+        onTriggered: { Hyprland.refreshToplevels(); root.scheduleSync(); }
     }
     Connections {
         target: Windows
@@ -248,7 +282,7 @@ Item {
     }
     onPinnedChanged: scheduleSync()
     onShowRecentsChanged: scheduleSync()
-    Component.onCompleted: scheduleSync()
+    Component.onCompleted: { Hyprland.refreshToplevels(); scheduleSync(); }
 
     // ---- Actions ----
     function launch(id) {
@@ -285,14 +319,26 @@ Item {
             l.push(id);
         }
         root.pinned = l;
-        saveState();
+        saveState(true);
     }
-    function movePinned(id, toIndex) {
-        const l = root.pinned.filter(p => norm(p) !== norm(id));
-        l.splice(Math.max(0, Math.min(toIndex, l.length)), 0, id);
-        root.pinned = l;
-        saveState();
+    // Fin d'un glisser-déposer dans le Dock : l'ordre affiché devient l'ordre des
+    // apps épinglées ; une app ouverte non épinglée déplacée est gardée dans le Dock.
+    function commitOrder(dragKey) {
+        const apps = [];
+        for (let i = 0; i < items.count; i++) {
+            const e = items.get(i);
+            if (e.kind === "separator") break;
+            if (!e.removing && e.kind === "app") apps.push({ key: e.key, appId: e.appId });
+        }
+        const l = apps.filter(a => a.key === dragKey || isPinned(a.appId)).map(a => a.appId);
+        if (JSON.stringify(l) !== JSON.stringify(root.pinned)) {
+            root.pinned = l;
+            saveState(true);
+        }
     }
+
+    // Pendant un glisser-déposer, la liste n'est pas resynchronisée
+    property bool frozen: false
 
     // « Ouvrir à l'ouverture de session » : lien dans ~/.config/autostart
     property var autostart: ({})
@@ -328,7 +374,18 @@ Item {
     }
 
     function openPath(p) { Quickshell.execDetached(["xdg-open", p]); }
-    readonly property string downloadsDir: Quickshell.env("XDG_DOWNLOAD_DIR") || (Quickshell.env("HOME") + "/Downloads")
+    // Dossier Téléchargements de l'utilisateur (xdg-user-dirs, localisé)
+    property string downloadsDir: Quickshell.env("XDG_DOWNLOAD_DIR") || (Quickshell.env("HOME") + "/Downloads")
+    Process {
+        running: true
+        command: ["sh", "-c", "xdg-user-dir DOWNLOAD 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const d = text.trim();
+                if (d && d !== Quickshell.env("HOME")) root.downloadsDir = d;
+            }
+        }
+    }
     readonly property string trashDir: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/Trash/files"
     function openTrash() { Quickshell.execDetached(["sh", "-c", "nemo trash:/// || gio open trash:///"]); }
     function emptyTrash() { Quickshell.execDetached(["gio", "trash", "--empty"]); }

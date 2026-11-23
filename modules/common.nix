@@ -80,15 +80,19 @@
     memoryPercent = 50; # Utilise jusqu'à 50% de la RAM comme swap compressé
   };
 
-  services.greetd = {
+  # Session : Hyprland (bureau macOS Tahoe) via start-hyprland (lanceur/watchdog
+  # officiel depuis Hyprland 0.53), depuis un shell de connexion fish.
+  services.greetd = let
+    session = "${pkgs.fish}/bin/fish --login -c ${config.programs.hyprland.package}/bin/start-hyprland";
+  in {
     enable = true;
     settings = {
       initial_session = {
-        command = "${pkgs.fish}/bin/fish --login -c mango";
+        command = session;
         user = "clem";
       };
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --cmd '${pkgs.fish}/bin/fish --login -c mango'";
+        command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --cmd '${session}'";
         user = "greeter";
       };
     };
@@ -118,6 +122,7 @@
     enableDefaultPackages = true;
     packages = with pkgs; [
       ibm-plex
+      inter # police d'interface macOS (SF Pro n'est pas redistribuable)
       (google-fonts.override {fonts = ["Readex Pro"];})
       nerd-fonts.im-writing
       nerd-fonts.jetbrains-mono
@@ -127,61 +132,125 @@
     fontconfig = {
       defaultFonts = {
         monospace = ["IBM Plex Mono"];
-        sansSerif = ["Readex Pro"];
+        sansSerif = ["Inter"];
         serif = ["IBM Plex Serif"];
       };
+      # Interface façon macOS : sans-serif, polices Apple/web système et polices
+      # courantes -> Inter (les monospaces sont conservées)
       localConf = ''
         <?xml version="1.0"?>
         <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
         <fontconfig>
-          <!-- Alias generic sans-serif -->
           <match target="pattern">
             <test qual="any" name="family"><string>sans-serif</string></test>
             <edit name="family" mode="assign" binding="strong">
-              <string>Readex Pro</string>
+              <string>Inter</string>
             </edit>
           </match>
 
-          <!-- Force specific common font substitutions -->
           <match target="pattern">
             <test qual="any" name="family"><string>Arial</string></test>
             <edit name="family" mode="assign" binding="strong">
-              <string>Readex Pro</string>
+              <string>Inter</string>
             </edit>
           </match>
 
           <match target="pattern">
             <test qual="any" name="family"><string>Helvetica</string></test>
             <edit name="family" mode="assign" binding="strong">
-              <string>Readex Pro</string>
+              <string>Inter</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>Helvetica Neue</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Inter</string>
             </edit>
           </match>
 
           <match target="pattern">
             <test qual="any" name="family"><string>Roboto</string></test>
             <edit name="family" mode="assign" binding="strong">
-              <string>Readex Pro</string>
+              <string>Inter</string>
             </edit>
           </match>
 
           <match target="pattern">
             <test qual="any" name="family"><string>Segoe UI</string></test>
             <edit name="family" mode="assign" binding="strong">
-              <string>Readex Pro</string>
+              <string>Inter</string>
             </edit>
           </match>
 
           <match target="pattern">
             <test qual="any" name="family"><string>Verdana</string></test>
             <edit name="family" mode="assign" binding="strong">
-              <string>Readex Pro</string>
+              <string>Inter</string>
             </edit>
           </match>
 
           <match target="pattern">
             <test qual="any" name="family"><string>Calibri</string></test>
             <edit name="family" mode="assign" binding="strong">
-              <string>Readex Pro</string>
+              <string>Inter</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>SF Pro</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Inter</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>SF Pro Text</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Inter</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>SF Pro Display</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Inter</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>.AppleSystemUIFont</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Inter</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>-apple-system</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Inter</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>BlinkMacSystemFont</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Inter</string>
+            </edit>
+          </match>
+
+          <match target="pattern">
+            <test qual="any" name="family"><string>system-ui</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>Inter</string>
+            </edit>
+          </match>
+
+          <!-- SF Mono -> JetBrains Mono -->
+          <match target="pattern">
+            <test qual="any" name="family"><string>SF Mono</string></test>
+            <edit name="family" mode="assign" binding="strong">
+              <string>JetBrains Mono</string>
             </edit>
           </match>
         </fontconfig>
@@ -205,7 +274,17 @@
     shell = pkgs.fish;
   };
 
-  programs.mango.enable = true;
+  # Hyprland (config utilisateur : home/macos/hyprland.nix) + portails
+  programs.hyprland = {
+    enable = true;
+    withUWSM = false;
+    xwayland.enable = true;
+  };
+  xdg.portal = {
+    enable = true;
+    extraPortals = [pkgs.xdg-desktop-portal-gtk];
+    config.hyprland.default = ["hyprland" "gtk"];
+  };
   programs.nix-ld.enable = true;
   programs.nh = {
     enable = true;
@@ -225,8 +304,6 @@
     vim
     wl-clipboard
     nemo
-    waybar
-    capitaine-cursors
     gcc
     gnumake
     unrar
@@ -238,7 +315,7 @@
     brave
     attic-client
     (callPackage ./waveflow.nix {})
-    inputs.helium-flake.packages.${system}.default
+    inputs.helium-flake.packages.${pkgs.stdenv.hostPlatform.system}.default
     mpvpaper
   ];
 }

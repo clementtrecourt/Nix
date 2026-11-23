@@ -24,6 +24,7 @@ Item {
         radius: width / 2
         shadowOffset: 4
         shadowBlur: 0.7
+        shadowColor: Qt.rgba(0, 0, 0, Theme.dark ? 0.18 : 0.1)
         // Le bouton s'enfonce légèrement à l'appui (ressort)
         scale: mouse.pressed ? 0.92 : (root.hovered ? 1.06 : 1.0)
         Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }

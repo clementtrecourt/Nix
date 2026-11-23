@@ -14,9 +14,11 @@ Item {
     id: bar
 
     required property Item backdrop          // fond d'écran (pour le flou de la bande)
+    required property Item wallpaper         // fond d'écran seul (vignettes)
     required property var monitor            // HyprlandMonitor
     property real progress: 1                // entrée/sortie de Mission Control
     property bool forceExpanded: false
+    property int forceHoverSpace: -1         // débogage : survol forcé d'un bureau
     property bool dragActive: false          // une fenêtre est en cours de glisser
     property point dragPoint: Qt.point(-1, -1)
 
@@ -123,7 +125,7 @@ Item {
             readonly property int wsId: modelData
             readonly property bool isCurrent: (bar.monitor?.activeWorkspace?.id ?? Spaces.current) === wsId
             readonly property bool dropTarget: bar.dragActive && bar.spaceAt(bar.dragPoint.x, bar.dragPoint.y) === wsId
-            readonly property bool hovered: thumbMouse.containsMouse || closeMouse.containsMouse
+            readonly property bool hovered: thumbMouse.containsMouse || closeMouse.containsMouse || bar.forceHoverSpace === wsId
 
             // Position dépliée (vignette) et repliée (libellé seul)
             readonly property real exX: (bar.width - bar.rowW) / 2 + index * (bar.thumbW + bar.gap)
@@ -145,6 +147,7 @@ Item {
                     anchors.fill: parent
                     wsId: space.wsId
                     monitor: bar.monitor
+                    wallpaper: bar.wallpaper
                     live: bar.ex > 0 && bar.progress > 0
                     screenW: bar.width
                     screenH: bar.screenH

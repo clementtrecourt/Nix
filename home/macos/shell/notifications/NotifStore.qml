@@ -47,6 +47,8 @@ Singleton {
 
     // Débogage (pas de souris dans le banc de test)
     property bool debugHover: false
+    property bool debugActions: false
+    property bool debugClearAll: false
 
     readonly property int count: entries.length
 
@@ -81,9 +83,12 @@ Singleton {
     function receive(n) {
         n.tracked = true;
         let e = entries.find(x => x.notif === n);
+        // Rechargement à chaud : le serveur réémet les notifications conservées
+        // (lastGeneration). On les rattache à l'entrée restaurée, sans bannière.
+        if (!e && n.lastGeneration) { attach(n); return; }
         const isNew = !e;
         if (isNew) {
-            e = entryComponent.createObject(root, { uid: nextUid++, notif: n });
+            e = entryComponent.createObject(root, { uid: nextUid++, notif: n, notifId: n.id });
             n.closed.connect(reason => root.onClosed(e, reason));
         }
         fill(e, n);
@@ -93,11 +98,37 @@ Singleton {
         scheduleSave();
     }
 
+    // Rattache une notification conservée lors d'un rechargement à son entrée
+    // restaurée du disque (même id D-Bus, sinon même contenu).
+    function attach(n) {
+        let e = entries.find(x => !x.notif && x.notifId === n.id)
+            ?? entries.find(x => !x.notif && x.summary === (n.summary ?? "")
+                                 && x.body === cleanBody(n.body ?? ""));
+        if (!e) {
+            e = entryComponent.createObject(root, { uid: nextUid++, time: Date.now() });
+            entries = [e].concat(entries);
+        }
+        e.notif = n;
+        e.notifId = n.id;
+        fill(e, n);
+        n.closed.connect(reason => root.onClosed(e, reason));
+        scheduleSave();
+    }
+
     function fill(e, n) {
         e.appKey = groupKey(n.desktopEntry, n.appName);
         e.appName = displayName(n.desktopEntry, n.appName);
-        e.appIcon = resolveIcon(n.desktopEntry, n.appIcon, n.appName);
-        e.image = n.image ?? "";
+        const icon = resolveIcon(n.desktopEntry, n.appIcon, n.appName);
+        const img = n.image ?? "";
+        // notify-send -i <nom> arrive comme image "image://icon/<nom>" : c'est l'icône
+        // de l'app, pas une image de contenu.
+        if (img.startsWith("image://icon/")) {
+            e.appIcon = icon === genericIcon ? img : icon;
+            e.image = "";
+        } else {
+            e.appIcon = icon;
+            e.image = resolveImage(img, icon);
+        }
         e.summary = n.summary ?? "";
         e.body = cleanBody(n.body ?? "");
         e.urgency = n.urgency;
@@ -152,7 +183,19 @@ Singleton {
             if (p) return p;
         }
         // Icône générique d'application (comme macOS pour un émetteur inconnu)
-        return Quickshell.iconPath("application-x-executable", "application-default-icon");
+        return genericIcon;
+    }
+    readonly property string genericIcon: Quickshell.iconPath("application-x-executable", "application-default-icon")
+
+    // Image de contenu (avatar…) : chemin, URL ou nom d'icône. Ignorée si c'est en
+    // fait l'icône de l'app (notify-send -i la transmet aussi comme image).
+    function resolveImage(img, appIcon) {
+        if (!img) return "";
+        let url = img;
+        if (img.startsWith("/")) url = "file://" + img;
+        else if (!img.startsWith("file://") && !img.startsWith("image://"))
+            url = Quickshell.iconPath(img, true);
+        return url === appIcon ? "" : (url || "");
     }
 
     // Corps en texte brut (certaines apps envoient du HTML malgré tout)
@@ -312,6 +355,8 @@ Singleton {
         }
     }
     function scheduleSave() { saveTimer.restart(); }
+    // Rechargement à chaud imminent : on écrit tout de suite
+    Component.onDestruction: if (saveTimer.running) { saveTimer.stop(); saveTimer.triggered(); }
 
     Component.onCompleted: {
         let saved = [];
@@ -324,32 +369,23 @@ Singleton {
             }
         } catch (err) { saved = []; }
 
-        // Après un rechargement à chaud, le serveur garde ses notifications : on les
-        // rattache aux entrées sauvegardées (même id D-Bus) au lieu de les dupliquer.
-        const live = server.trackedNotifications.values;
         const list = [];
         for (const s of saved) {
-            const e = entryComponent.createObject(root, {
-                uid: s.uid ?? nextUid++, appName: s.appName ?? "", appKey: s.appKey ?? "",
-                appIcon: s.appIcon ?? "", image: s.image ?? "", summary: s.summary ?? "",
-                body: s.body ?? "", time: s.time ?? Date.now(), urgency: s.urgency ?? 1
-            });
-            const n = live.find(x => x.id === s.notifId);
-            if (n) {
-                e.notif = n;
-                fill(e, n);
-                n.closed.connect(reason => root.onClosed(e, reason));
-            }
-            list.push(e);
+            // Déjà rattachée (réémise par le serveur avant ce point) : on ignore la copie
+            if (entries.some(e => e.notif && e.notif.id === s.notifId)) continue;
+            list.push(entryComponent.createObject(root, {
+                uid: s.uid ?? nextUid++, notifId: s.notifId ?? -1, appName: s.appName ?? "",
+                appKey: s.appKey ?? "", appIcon: s.appIcon ?? "", image: s.image ?? "",
+                summary: s.summary ?? "", body: s.body ?? "", time: s.time ?? Date.now(),
+                urgency: s.urgency ?? 1
+            }));
         }
-        for (const n of live) {
-            if (list.some(e => e.notif === n)) continue;
-            const e = entryComponent.createObject(root, { uid: nextUid++, notif: n, time: Date.now() });
-            fill(e, n);
-            n.closed.connect(reason => root.onClosed(e, reason));
-            list.push(e);
-        }
-        entries = list.sort((a, b) => b.time - a.time);
+        entries = entries.concat(list).sort((a, b) => b.time - a.time);
+
+        // Après un rechargement à chaud, le serveur garde ses notifications : on les
+        // rattache aux entrées restaurées au lieu de les dupliquer.
+        for (const n of server.trackedNotifications.values)
+            if (!entries.some(e => e.notif === n)) attach(n);
     }
 
     // ---- IPC -----------------------------------------------------------------------
@@ -358,8 +394,9 @@ Singleton {
         function toggleCenter(): void { ShellState.toggle("notificationcenter"); }
         function clearAll(): void { root.clearAll(); }
         function count(): int { return root.entries.length; }
+        function doNotDisturb(): bool { return root.doNotDisturb; }
         function list(): string {
-            return root.entries.map(e => e.uid + "\t" + e.appName + "\t" + e.summary + (e.popup ? "\t[bannière]" : "")).join("\n");
+            return root.entries.map(e => [e.uid, e.appKey, e.appName, e.summary, e.appIcon, e.image, e.popup ? "[bannière]" : ""].join("\t")).join("\n");
         }
     }
 
@@ -367,9 +404,16 @@ Singleton {
     IpcHandler {
         target: "notifications-debug"
         function hover(on: bool): void { root.debugHover = on; }
+        function actions(on: bool): void { root.debugActions = on; }
+        function clearAllHover(on: bool): void { root.debugClearAll = on; }
         function slow(factor: real): void { root.slow = factor; }
         function expand(key: string, on: bool): void { root.setExpanded(key, on); }
         function dismissFirst(): void { if (root.entries.length) root.dismiss(root.entries[0]); }
+        function invokeFirst(index: int): void {
+            const e = root.entries[0];
+            if (e && e.actions[index]) root.invoke(e, e.actions[index]);
+        }
+        function activateFirst(): void { if (root.entries.length) root.activate(root.entries[0]); }
         function hideBanners(): void { root.hideAllBanners(); }
     }
 }

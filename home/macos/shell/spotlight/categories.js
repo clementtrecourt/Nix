@@ -22,7 +22,7 @@ const RULES = [
     ["games",        ["Game", "ArcadeGame", "BoardGame", "CardGame", "LogicGame", "Emulator"]],
     ["developer",    ["Development", "IDE", "Debugger", "RevisionControl", "WebDevelopment", "GUIDesigner", "Profiling", "Translation"]],
     ["social",       ["Chat", "InstantMessaging", "IRCClient", "VideoConference", "Telephony", "Email"]],
-    ["creativity",   ["Graphics", "2DGraphics", "3DGraphics", "RasterGraphics", "VectorGraphics", "Photography", "AudioVideoEditing", "Midi", "Mixer", "Sequencer", "Recorder", "Publishing"]],
+    ["creativity",   ["Graphics", "2DGraphics", "3DGraphics", "RasterGraphics", "VectorGraphics", "Photography", "AudioVideoEditing", "Midi", "Mixer", "Sequencer", "Publishing"]],
     ["entertainment", ["Player", "Music", "Video", "TV", "Audio", "AudioVideo"]],
     ["education",    ["Education", "Science", "Math", "Astronomy", "Languages", "Geography", "Dictionary"]],
     ["productivity", ["Office", "Finance", "WordProcessor", "Spreadsheet", "Presentation", "Calendar", "ContactManagement", "ProjectManagement", "Database", "Chart", "Viewer"]],

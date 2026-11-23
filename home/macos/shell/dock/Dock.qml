@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Quickshell.Widgets
 import qs.common
 import qs.services
 
@@ -10,11 +11,14 @@ import qs.services
 // agrandissement au survol, rebond au lancement, bulles de nom, menu contextuel,
 // fenêtres minimisées (effet génie), Téléchargements et Corbeille.
 //
-// Proportions relevées sur les captures officielles Tahoe (support.apple.com,
-// Newsroom) en unités de tuile T (pas entre deux icônes) :
-//   plaque = T + 2 × 0,145 T de haut, marges latérales 0,145 T,
-//   rayon = 0,32 × hauteur de plaque, 4 pt au-dessus du bord de l'écran,
-//   séparateur : fente de 0,46 T, trait 1 pt, 0,95 T de haut,
+// Proportions mesurées au pixel sur les captures officielles Tahoe (Newsroom
+// « Apple Music » à ≈ 1 px/pt et support.apple.com « Use the Dock ») :
+//   squircle visible 46 px, pas 60 px  -> squircle / pas = 0,77 (0,75 sur l'autre)
+//   toile C (1024 px, squircle 824 px = 0,805 C) -> pas = 1,06 C (≈ 3 pt entre toiles)
+//   plaque : bord à 0,195 C de la toile en haut, en bas et aux extrémités
+//            (hauteur = 1,39 C ; 79 px pour C = 57), rayon = 0,33 × hauteur,
+//            4 pt au-dessus du bord de l'écran
+//   séparateur : fente de 0,42 pas, trait 1 pt, 0,95 pas de haut
 //   point d'app ouverte : 4 pt, centre à 4,5 pt du bas de la plaque.
 //
 // IPC : quickshell -c macos ipc call dock minimize      (Cmd+M : minimise la fenêtre active)
@@ -22,8 +26,8 @@ import qs.services
 Scope {
     id: root
 
-    // ---- Réglages (settings.json, clés "dockArea.*") ----
-    property int tileSize: 48          // « Taille » des Réglages Dock (pt)
+    // ---- Réglages (settings.json, clés "dock.*") ----
+    property int tileSize: 48          // « Taille » des Réglages Dock (pt) = toile de l'icône
     property bool magnification: true
     property real largeSize: Math.round(tileSize * 1.6)
     property bool autohide: false
@@ -37,7 +41,7 @@ Scope {
         onLoaded: {
             try {
                 const o = JSON.parse(text());
-                const g = (k, d) => (o["dockArea." + k] !== undefined ? o["dockArea." + k] : (o.dock?.[k] !== undefined ? o.dock[k] : d));
+                const g = (k, d) => (o["dock." + k] !== undefined ? o["dock." + k] : (o.dock?.[k] !== undefined ? o.dock[k] : d));
                 root.tileSize = g("tileSize", root.tileSize);
                 root.magnification = g("magnification", root.magnification);
                 root.largeSize = g("largeSize", Math.round(root.tileSize * 1.6));
@@ -45,12 +49,13 @@ Scope {
                 dockModel.showRecents = g("showRecents", dockModel.showRecents);
                 root.minimizeGenie = g("minimizeEffect", "genie") === "genie";
                 const p = g("pinned", null);
-                if (Array.isArray(p) && !dockModel.stateLoaded) dockModel.pinned = p;
+                if (Array.isArray(p)) dockModel.setBasePinned(p);
             } catch (e) {}
         }
     }
 
     DockModel { id: dockModel }
+    DockIcons { id: iconResolver; maxPixels: dockArea.iconPixels }
 
     // Écran focalisé (macOS : écran principal / celui où se trouve le pointeur)
     readonly property var targetScreen: {
@@ -100,23 +105,38 @@ Scope {
             readonly property real fitScale: {
                 let w = 0;
                 for (let i = 0; i < dockModel.items.count; i++)
-                    w += dockModel.items.get(i).kind === "separator" ? 0.46 : 1;
+                    w += dockModel.items.get(i).kind === "separator" ? 0.42 : 1;
                 const avail = win.width - 24;
-                const need = w * root.tileSize + 2 * Math.round(root.tileSize * 0.145);
+                const need = w * root.tileSize * 1.06 + 2 * root.tileSize * 0.165;
                 return need > avail ? avail / need : 1;
             }
-            readonly property real tile: Math.floor(root.tileSize * fitScale)
-            readonly property int padV: Math.round(tile * 0.145)
-            readonly property int padH: Math.round(tile * 0.145)
-            readonly property int platterH: tile + 2 * padV
-            readonly property int platterRadius: Math.round(platterH * 0.32)
+            // Toile de l'icône (pt) et pas entre deux icônes
+            readonly property real canvas: Math.floor(root.tileSize * fitScale)
+            readonly property real tile: canvas * 1.06
+            readonly property int padV: Math.round(canvas * 0.195)
+            // Du bord de la plaque au bord de la première fente (la toile y est centrée)
+            readonly property real padH: padV - (tile - canvas) / 2
+            readonly property int platterH: canvas + 2 * padV
+            readonly property int platterRadius: Math.round(platterH * 0.33)
             readonly property int bottomGap: 4
             readonly property real maxScale: root.magnification ? Math.max(1, root.largeSize / root.tileSize) : 1
+            // Rastérisation des icônes : une seule fois, à la taille maximale affichée
+            // (agrandissement inclus) × densité de l'écran ; jamais pendant l'animation.
+            readonly property real dpr: win.devicePixelRatio > 0 ? win.devicePixelRatio : 1
+            readonly property int iconPixels: Math.ceil(root.tileSize * maxScale * dpr)
+            // Les SVG MacTahoe dessinent le squircle sur 14,82/16,93 = 87,5 % de la toile,
+            // les icônes Apple sur 824/1024 = 80,5 % : on ramène le squircle visible à la
+            // taille Tahoe. Les icônes Apple déposées en surcharge sont affichées à 100 %.
+            readonly property real themeIconScale: 0.805 / 0.875
+            readonly property alias icons: iconResolver
             // Hauteur de la surface : icônes agrandies + bulle + rebond d'attention
-            readonly property int windowH: Math.ceil(bottomGap + padV + tile * Math.max(maxScale, 1.9) + 52)
+            readonly property int restH: Math.ceil(bottomGap + padV + canvas * Math.max(maxScale, 1.9) + 52)
+            // Pendant un glisser-déposer, la surface couvre tout l'écran pour que
+            // l'icône puisse suivre le pointeur hors du Dock.
+            readonly property int windowH: (dragKey !== "" || poof.running) ? (win.screen?.height ?? restH) : restH
 
             // Masquage automatique : décalage vertical de tout le Dock
-            property bool revealed: !root.autohide || hovering || menu.open || dockModel.bouncing
+            property bool revealed: !root.autohide || hovering || menu.open || stack.open || dockModel.bouncing
             property real hideOffset: revealed ? 0 : platterH + bottomGap + 12
             Behavior on hideOffset {
                 NumberAnimation { duration: 380; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveEmphasized }
@@ -126,13 +146,11 @@ Scope {
             readonly property real platterTop: platterBottom - platterH
             // Ligne de base des tuiles (bas de la tuile non agrandie)
             readonly property real baseY: platterBottom - padV
-            // Rapport icône / tuile (voir DockTile)
-            readonly property real iconRatio: 0.89
 
             // ---- Survol / agrandissement ----
             property bool hovering: mouse.containsMouse
             property real mouseX: 0
-            property real hoverAmount: (hovering && !menu.open && dragKey === "") ? 1 : 0
+            property real hoverAmount: (hovering && !menu.open && !stack.open && !dragOut) ? 1 : 0
             Behavior on hoverAmount {
                 NumberAnimation { duration: dockArea.hoverAmount > 0.5 ? 220 : 120; easing.type: Easing.OutCubic }
             }
@@ -207,7 +225,7 @@ Scope {
                 platterX = L - padH;
                 platterW = total + 2 * padH;
                 hoveredIndex = hov;
-                magnifiedTop = baseY - tile * maxS;
+                magnifiedTop = baseY - canvas * maxS;
             }
 
             // ---- Plaque Liquid Glass ----
@@ -238,16 +256,91 @@ Scope {
             // ---- Zone sensible (masque d'entrée de la surface) ----
             Item {
                 id: hitArea
-                x: dockArea.revealed ? dockArea.platterX : 0
-                width: dockArea.revealed ? dockArea.platterW : dockArea.width
-                y: dockArea.revealed ? Math.min(dockArea.platterTop, dockArea.hovering ? dockArea.magnifiedTop : dockArea.platterTop) : dockArea.height - 2
-                height: dockArea.revealed ? dockArea.height - y : 2
+                visible: false
+                x: dockArea.dragKey !== "" ? 0 : dockArea.revealed ? dockArea.platterX : 0
+                width: dockArea.dragKey !== "" ? dockArea.width : dockArea.revealed ? dockArea.platterW : dockArea.width
+                y: dockArea.dragKey !== "" ? 0 : dockArea.revealed ? Math.min(dockArea.platterTop, dockArea.hovering ? dockArea.magnifiedTop : dockArea.platterTop) : dockArea.height - 2
+                height: dockArea.dragKey !== "" ? dockArea.height : dockArea.revealed ? dockArea.height - y : 2
             }
 
             property int pressedIndex: -1
+
+            // ---- Glisser-déposer (réordonner / retirer du Dock) ----
             property string dragKey: ""
+            property real dragX: 0
+            property real dragY: 0
+            property real dragSize: canvas
+            property real dragScale: 1
+            property string dragIcon: ""
+            // Assez loin au-dessus de la plaque : « Supprimer » (comme macOS)
+            readonly property bool dragOut: dragKey !== "" && dragY < platterTop - tile * 1.2
+            property var pressTile: null
+            property real pressX: 0
+            property real pressY: 0
+            property bool suppressClick: false
+
+            function startDrag(t) {
+                if (!t || t.kind !== "app") return;
+                dragSize = t.vSize;
+                dragScale = t.iconScale;
+                dragIcon = t.iconSource;
+                dockModel.frozen = true;
+                dragKey = t.key;
+                pressedIndex = -1;
+            }
+            function dragMove(x, y) {
+                dragX = x;
+                dragY = y;
+                mouseX = x;
+                if (dragOut) return;
+                // Réordonne quand le pointeur dépasse le centre d'une voisine (apps seulement)
+                const from = indexOfKey(dragKey);
+                if (from < 0) return;
+                let to = from;
+                for (let i = 0; i < rep.count; i++) {
+                    const t = rep.itemAt(i);
+                    if (!t || i === from || t.kind !== "app" || t.removing) continue;
+                    const c = t.x + t.width / 2;
+                    if (i < from && x < c && i < to) to = i;
+                    if (i > from && x > c && i > to) to = i;
+                }
+                if (to !== from) {
+                    dockModel.items.move(from, to, 1);
+                    requestLayout();
+                }
+            }
+            function endDrag() {
+                const key = dragKey;
+                if (key === "") return;
+                const t = tileForKey(key);
+                const out = dragOut;
+                if (t) {
+                    if (out) {
+                        if (t.appId && dockModel.isPinned(t.appId)) {
+                            poof.at(dragX, dragY);
+                            dockModel.setPinned(t.appId, false);
+                        }
+                    } else {
+                        dockModel.commitOrder(key);
+                    }
+                }
+                dragKey = "";
+                dockModel.frozen = false;
+                dockModel.scheduleSync();
+            }
+            function indexOfKey(key) {
+                for (let i = 0; i < rep.count; i++) {
+                    const t = rep.itemAt(i);
+                    if (t && t.key === key && !t.removing) return i;
+                }
+                return -1;
+            }
 
             function tileAt(i) { return i >= 0 ? rep.itemAt(i) : null; }
+            function tileForKey(key) {
+                const i = indexOfKey(key);
+                return i >= 0 ? rep.itemAt(i) : null;
+            }
 
             MouseArea {
                 id: mouse
@@ -255,14 +348,41 @@ Scope {
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 pressAndHoldInterval: 600
-                onPositionChanged: (m) => dockArea.mouseX = m.x
+                onPositionChanged: (m) => {
+                    if (dockArea.dragKey !== "") { dockArea.dragMove(m.x, m.y); return; }
+                    dockArea.mouseX = m.x;
+                    if (pressed && dockArea.pressTile && (Math.abs(m.x - dockArea.pressX) > 6 || Math.abs(m.y - dockArea.pressY) > 6)) {
+                        const t = dockArea.pressTile;
+                        dockArea.pressTile = null;
+                        dockArea.suppressClick = true;
+                        // La surface grandit vers le haut : on corrige l'ordonnée.
+                        const grow = (win.screen?.height ?? dockArea.height) - dockArea.height;
+                        dockArea.startDrag(t);
+                        dockArea.dragMove(m.x, m.y + grow);
+                    }
+                }
                 onEntered: dockArea.mouseX = mouseX
                 onPressed: (m) => {
-                    if (m.button === Qt.LeftButton) dockArea.pressedIndex = dockArea.hoveredIndex;
+                    dockArea.suppressClick = false;
+                    if (m.button !== Qt.LeftButton) return;
+                    dockArea.pressedIndex = dockArea.hoveredIndex;
+                    const t = dockArea.tileAt(dockArea.hoveredIndex);
+                    dockArea.pressTile = (t && t.kind === "app") ? t : null;
+                    dockArea.pressX = m.x;
+                    dockArea.pressY = m.y;
                 }
-                onReleased: dockArea.pressedIndex = -1
-                onCanceled: dockArea.pressedIndex = -1
+                onReleased: {
+                    dockArea.pressedIndex = -1;
+                    dockArea.pressTile = null;
+                    if (dockArea.dragKey !== "") dockArea.endDrag();
+                }
+                onCanceled: {
+                    dockArea.pressedIndex = -1;
+                    dockArea.pressTile = null;
+                    if (dockArea.dragKey !== "") dockArea.endDrag();
+                }
                 onClicked: (m) => {
+                    if (dockArea.suppressClick) return;
                     const t = dockArea.tileAt(dockArea.hoveredIndex);
                     if (!t || t.isSeparator) return;
                     if (m.button === Qt.RightButton) menu.openFor(t);
@@ -270,11 +390,43 @@ Scope {
                 }
                 onPressAndHold: (m) => {
                     // Appui long = menu contextuel, comme macOS
+                    if (dockArea.dragKey !== "") return;
                     const t = dockArea.tileAt(dockArea.hoveredIndex);
                     dockArea.pressedIndex = -1;
+                    dockArea.pressTile = null;
+                    dockArea.suppressClick = true;
                     if (t && !t.isSeparator) menu.openFor(t);
                 }
             }
+
+            // Icône qui suit le pointeur pendant le glisser
+            Item {
+                visible: dockArea.dragKey !== ""
+                width: dockArea.dragSize
+                height: dockArea.dragSize
+                x: dockArea.dragX - width / 2
+                y: dockArea.dragY - height / 2
+                z: 10
+                Image {
+                    anchors.centerIn: parent
+                    width: parent.width * dockArea.dragScale
+                    height: width
+                    source: dockArea.dragIcon
+                    sourceSize: Qt.size(dockArea.iconPixels, dockArea.iconPixels)
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    mipmap: true
+                }
+            }
+            DockLabel {
+                // « Supprimer » au-dessus de l'icône sortie du Dock
+                z: 10
+                shown: dockArea.dragOut && dockModel.isPinned(dockArea.tileForKey(dockArea.dragKey)?.appId ?? "")
+                text: "Supprimer"
+                tipX: dockArea.dragX
+                tipY: dockArea.dragY - dockArea.dragSize / 2 - 6
+            }
+            Poof { id: poof; z: 11 }
 
             function activateTile(t) {
                 switch (t.kind) {
@@ -285,7 +437,7 @@ Scope {
                     if (t.toplevel) genie.restore(t.toplevel, t);
                     break;
                 case "folder":
-                    dockModel.openPath(dockModel.downloadsDir);
+                    stack.toggleFor(t);
                     break;
                 case "trash":
                     dockModel.openTrash();
@@ -297,11 +449,19 @@ Scope {
             DockLabel {
                 id: bubble
                 readonly property var t: dockArea.tileAt(dockArea.hoveredIndex)
-                shown: dockArea.hovering && !menu.open && t !== null && !t.isSeparator && dockArea.pressedIndex < 0
+                shown: dockArea.hovering && !menu.open && t !== null && !t.isSeparator && dockArea.pressedIndex < 0 && dockArea.dragKey === ""
                 text: t ? t.label : ""
                 tipX: t ? t.x + t.width / 2 : 0
                 tipY: t ? Math.min(dockArea.platterTop, t.vTop) - 10 : 0
             }
+        }
+
+        // ---- Pile Téléchargements ----
+        DownloadsStack {
+            id: stack
+            dockWindow: win
+            dock: dockArea
+            folder: dockModel.downloadsDir
         }
 
         // ---- Menu contextuel ----
@@ -336,8 +496,12 @@ Scope {
         function hover(x: real): void { dockArea.hovering = true; dockArea.mouseX = x; }
         function unhover(): void { dockArea.hovering = Qt.binding(() => mouse.containsMouse); }
         function click(i: int): void { const t = dockArea.tileAt(i); if (t) dockArea.activateTile(t); }
-        function menuFor(i: int): void { const t = dockArea.tileAt(i); if (t) menu.openFor(t); }
-        function closeMenu(): void { menu.close(); }
+        function menuFor(i: int): void { const t = dockArea.tileAt(i); if (t) menu.debugOpen(t); }
+        function closeMenu(): void { menu.close(); stack.close(); }
+        function pinned(list: string): void { dockModel.pinned = list === "none" ? [] : list.split("|"); }
+        function resetPinned(): void { dockModel.userPinned = false; dockModel.applyDefaults(); dockModel.saveState(false); }
+        function dark(on: bool): void { Theme.dark = on; }
+        function stackFor(i: int, dir: string): void { const t = dockArea.tileAt(i); if (t) { if (dir) stack.folder = dir; stack.grab = false; stack.toggleFor(t); } }
         function menuHover(row: int): void { menu.debugHover(row); }
         function menuTrigger(row: int): void { menu.debugTrigger(row); }
         function launch(id: string): void { dockModel.launch(id); }
@@ -345,7 +509,17 @@ Scope {
         function stopBounce(id: string): void { dockModel.endLaunching(id); }
         function press(i: int): void { dockArea.pressedIndex = i; }
         function release(): void { dockArea.pressedIndex = -1; }
+        function dragStart(i: int): void { dockArea.startDrag(dockArea.tileAt(i)); }
+        function dragTo(x: real, y: real): void { dockArea.dragMove(x, y - ((win.screen?.height ?? dockArea.height) - dockArea.height)); }
+        function dragEnd(): void { dockArea.endDrag(); }
+        function genieAt(p: real): void { genie.debugAt(p); }
+        function genieDuration(ms: int): void { genie.duration = ms; }
+        function minimizeHold(p: real): void { genie.debugHold = p; genie.minimizeActive(); }
+        function restoreHold(i: int, p: real): void { const t = dockArea.tileAt(i); if (t?.toplevel) { genie.debugHold = p; genie.restore(t.toplevel, t); } }
+        function genieEnd(): void { genie.debugEnd(); }
         function restore(i: int): void { const t = dockArea.tileAt(i); if (t?.toplevel) genie.restore(t.toplevel, t); }
+        function bounceOf(i: int): real { const t = dockArea.tileAt(i); return t ? t.bounce : -1; }
+        function clock(): string { return (Date.now() - dockArea.now) + " bouncing=" + dockModel.bouncing + " " + JSON.stringify(dockModel.launching); }
         function dump(): string {
             let s = "";
             for (let i = 0; i < dockModel.items.count; i++) {
@@ -353,6 +527,7 @@ Scope {
                 const t = dockArea.tileAt(i);
                 s += i + " " + e.key + " cls=" + e.cls + " x=" + (t ? Math.round(t.x) : -1) + " w=" + (t ? Math.round(t.width) : -1) + "\n";
             }
+            s += "tile " + dockArea.tile + " size " + root.tileSize + " hover " + dockArea.hoverAmount + " screen " + win.screen?.name + " " + win.width + "\n";
             return s + "platter " + Math.round(dockArea.platterX) + " " + Math.round(dockArea.platterW) + " top " + dockArea.platterTop;
         }
     }

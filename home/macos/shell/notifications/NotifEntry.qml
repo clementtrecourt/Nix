@@ -10,6 +10,7 @@ QtObject {
 
     property int uid: 0
     property var notif: null          // Notification vivante, null si restaurée du disque
+    property int notifId: -1          // id D-Bus (rattachement après rechargement)
     property string appName: ""
     property string appKey: ""        // clé de regroupement (desktop entry ou nom d'app)
     property string appIcon: ""       // chemin d'icône résolu
@@ -29,7 +30,7 @@ QtObject {
 
     function serialize() {
         return {
-            uid: uid, appName: appName, appKey: appKey, appIcon: appIcon,
+            uid: uid, notifId: notif ? notif.id : -1, appName: appName, appKey: appKey, appIcon: appIcon,
             // Les images "image://" (données D-Bus) ne survivent pas au redémarrage
             image: image.startsWith("image://") ? "" : image,
             summary: summary, body: body, time: time, urgency: urgency

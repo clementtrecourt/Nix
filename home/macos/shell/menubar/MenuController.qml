@@ -27,6 +27,8 @@ QtObject {
     property int generation: 0
 
     readonly property bool isOpen: openId !== ""
+    // Menu racine affiché (MenuPanel), pour le pilotage de debug
+    property var rootPanel: null
 
     // Barres enregistrées par écran (pour la navigation ← / → entre titres)
     property var bars: ({})

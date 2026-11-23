@@ -91,7 +91,7 @@ Item {
             hand(hr * Math.PI / 6, r * 0.12, 1.6, fg, 0);
             hand(hr * Math.PI / 6, r * 0.50, 4.4, fg, -r * 0.12);
             hand(min * Math.PI / 30, r * 0.12, 1.6, fg, 0);
-            hand(min * Math.PI / 30, r * 0.80, 4.4, fg, -r * 0.12);
+            hand(min * Math.PI / 30, r * 0.76, 4.4, fg, -r * 0.12);
             // Moyeu
             ctx.beginPath();
             ctx.arc(c, c, 3.2, 0, Math.PI * 2);

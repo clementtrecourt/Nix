@@ -33,4 +33,9 @@ Singleton {
     // Dock > « Afficher toutes les fenêtres » : classe de l'app à montrer dans
     // l'Exposé d'application (panneau "appexpose"). Vide = app au premier plan.
     property string exposeClass: ""
+
+    // Barre des menus > icône Control Center : x du CENTRE de l'icône (coordonnées
+    // de l'écran, -1 = inconnu). Renseigné par la barre ; le HUD volume/luminosité
+    // (controlcenter/Osd.qml) s'affiche centré sous cette icône, comme sur Tahoe.
+    property real controlCenterIconX: -1
 }

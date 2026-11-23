@@ -70,8 +70,8 @@ Singleton {
 
     // ---- Liquid Glass : réglages fins (Glass.qml, agent controlcenter) ----
     // Lueur interne près des bords (épaisseur du verre)
-    readonly property color glassGlow: dark ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.40)
+    readonly property color glassGlow: dark ? Qt.rgba(1, 1, 1, 0.13) : Qt.rgba(1, 1, 1, 0.40)
     // Modules du Control Center / HUD : verre "clair" plus transparent que les panneaux
-    readonly property color glassModule: dark ? Qt.rgba(0.30, 0.30, 0.32, 0.34) : Qt.rgba(1, 1, 1, 0.38)
-    readonly property color glassModuleHover: dark ? Qt.rgba(0.38, 0.38, 0.40, 0.40) : Qt.rgba(1, 1, 1, 0.50)
+    readonly property color glassModule: dark ? Qt.rgba(0.22, 0.22, 0.23, 0.36) : Qt.rgba(0.42, 0.42, 0.45, 0.27)
+    readonly property color glassModuleHover: dark ? Qt.rgba(0.30, 0.30, 0.31, 0.40) : Qt.rgba(0.52, 0.52, 0.55, 0.31)
 }

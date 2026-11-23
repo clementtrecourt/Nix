@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -58,6 +59,7 @@ Scope {
         }
     }
     property bool switching: false
+    property bool gridNavigated: false  // sélection visible dans la grille après ↑↓←→
 
     function show() {
         if (shown) return;
@@ -68,6 +70,7 @@ Scope {
         historyPos = -1;
         buttonsShown = false;
         cmdHeld = false;
+        gridNavigated = false;
         search.appCategory = "";
         search.fileKind = "";
         shown = true;
@@ -84,6 +87,7 @@ Scope {
         mode = m;
         query = "";
         historyPos = -1;
+        gridNavigated = false;
         search.appCategory = "";
         search.fileKind = "";
         if (m !== "") buttonsShown = false;
@@ -131,6 +135,7 @@ Scope {
 
             // Clic en dehors : ferme. Mouvement du pointeur : sort les boutons.
             MouseArea {
+                id: backdrop
                 anchors.fill: parent
                 hoverEnabled: true
                 property point origin: Qt.point(-1, -1)
@@ -141,7 +146,7 @@ Scope {
                 onClicked: root.close()
                 Connections {
                     target: root
-                    function onShownChanged() { if (root.shown) parent.origin = Qt.point(-1, -1); }
+                    function onShownChanged() { if (root.shown) backdrop.origin = Qt.point(-1, -1); }
                 }
             }
 
@@ -207,8 +212,12 @@ Scope {
                     width: root.buttonsVisible ? Metrics.groupWidth - Metrics.buttonsWidth : Metrics.groupWidth
                     height: Metrics.barHeight + (root.bodyShown ? root.bodyHeight + 1 : 0)
                     radius: Metrics.barRadius
+                    // Ombre douce et légère : au-delà de ~5 % d'opacité Hyprland
+                    // floute aussi la zone d'ombre (ignore_alpha), ce qui dessinerait
+                    // une bande floue sous la capsule.
                     shadowBlur: 1.0
-                    shadowOffset: 10
+                    shadowOffset: 8
+                    shadowColor: Qt.rgba(0, 0, 0, Theme.dark ? 0.2 : 0.12)
 
                     Behavior on width {
                         NumberAnimation {
@@ -402,6 +411,13 @@ Scope {
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
                                 model: root.chipModel
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    maskEnabled: true
+                                    maskSource: chipsFade
+                                    maskThresholdMin: 0.0
+                                    maskSpreadAtMin: 1.0
+                                }
                                 delegate: Chip {
                                     required property var modelData
                                     text: modelData.name
@@ -414,14 +430,30 @@ Scope {
                                 }
                             }
 
+                            // Masque : opaque, puis fondu sur les 36 derniers points
+                            Rectangle {
+                                id: chipsFade
+                                visible: false
+                                layer.enabled: true
+                                width: chips.width
+                                height: chips.height
+                                gradient: Gradient {
+                                    orientation: Gradient.Horizontal
+                                    GradientStop { position: 0.0; color: "white" }
+                                    GradientStop { position: 1 - 36 / Math.max(36, chipsFade.width); color: "white" }
+                                    GradientStop { position: 1.0; color: "transparent" }
+                                }
+                            }
+
                             IconGrid {
                                 id: grid
                                 x: 12
                                 y: chips.y + chips.height + 4
                                 width: parent.width - 24
-                                height: parent.height - y - 8
+                                height: parent.height - y - 10
                                 items: root.gridItems
                                 columns: Metrics.gridColumns
+                                showSelection: root.query.length > 0 || root.gridNavigated
                                 onActivated: item => root.activateItem(item, false)
                             }
 
@@ -494,13 +526,16 @@ Scope {
     }
 
     readonly property real maxBody: Math.max(200, (targetScreen?.height ?? 982) * 0.56)
+    readonly property int gridChrome: 12 + Metrics.chipHeight + 4 + 10
+    readonly property int gridRows: Math.max(2, Math.min(5, Math.floor((maxBody + 60 - gridChrome) / Metrics.gridCellHeight)))
     readonly property real listHeight: {
         let h = Metrics.listPadTop + Metrics.listPadBottom;
         for (const it of listModel) h += it.header ? Metrics.headerHeight : (it.top ? Metrics.topRowHeight : Metrics.rowHeight);
         return Math.min(maxBody, h);
     }
     readonly property real bodyHeight: {
-        if (bodyKind === "grid") return Math.min(560, maxBody + 40);
+        // Grille : un nombre entier de rangées (pas de rangée coupée au repos)
+        if (bodyKind === "grid") return gridChrome + gridRows * Metrics.gridCellHeight;
         if (bodyKind === "empty") return 72;
         if (mode === "apps" || mode === "actions" || mode === "clipboard") return Math.min(maxBody, Math.max(listHeight, 300));
         return listHeight;
@@ -548,7 +583,7 @@ Scope {
             event.accepted = true;
             return;
         case Qt.Key_Down:
-            if (bodyKind === "grid") grid.moveSelection(0, 1);
+            if (bodyKind === "grid") moveGrid(0, 1);
             else moveList(1);
             historyPos = -1;
             event.accepted = true;
@@ -561,24 +596,24 @@ Scope {
                     query = search.historyAt(historyPos);
                     field.selectAll();
                 }
-            } else if (bodyKind === "grid") grid.moveSelection(0, -1);
+            } else if (bodyKind === "grid") moveGrid(0, -1);
             else moveList(-1);
             event.accepted = true;
             return;
         case Qt.Key_Left:
         case Qt.Key_Right:
             if (bodyKind === "grid") {
-                grid.moveSelection(k === Qt.Key_Left ? -1 : 1, 0);
+                moveGrid(k === Qt.Key_Left ? -1 : 1, 0);
                 event.accepted = true;
             }
             return;
         case Qt.Key_Tab:
-            if (bodyKind === "grid") grid.moveSelection(1, 0);
+            if (bodyKind === "grid") moveGrid(1, 0);
             else moveList(1);
             event.accepted = true;
             return;
         case Qt.Key_Backtab:
-            if (bodyKind === "grid") grid.moveSelection(-1, 0);
+            if (bodyKind === "grid") moveGrid(-1, 0);
             else moveList(-1);
             event.accepted = true;
             return;
@@ -587,6 +622,13 @@ Scope {
             setMode("");
             event.accepted = true;
         }
+    }
+
+    function moveGrid(dx, dy) {
+        // Premier appui : rend la sélection visible sans la déplacer
+        if (!gridNavigated && query.length === 0) { gridNavigated = true; return; }
+        gridNavigated = true;
+        grid.moveSelection(dx, dy);
     }
 
     function currentItem() {
@@ -628,10 +670,12 @@ Scope {
         function filekind(id: string): void { search.fileKind = id; }
         function cmd(on: bool): void { root.cmdHeld = on; }
         function applist(on: bool): void { root.appsAsList = on; }
+        function dark(on: bool): void { Theme.dark = on; }
         function state(): string {
             return JSON.stringify({ shown: root.shown, mode: root.mode, query: root.query, body: root.bodyKind,
                                     results: root.listModel.length, grid: root.gridItems.length,
-                                    sel: list.sel, buttons: root.buttonsVisible });
+                                    sel: list.sel, buttons: root.buttonsVisible,
+                                    files: search.fileHits.length, fileQ: search.fileHitsQuery, fdQ: search.fdQuery });
         }
     }
 }

@@ -80,8 +80,8 @@ PanelWindow {
         // Ombre + verre (liseré clair) sous l'image
         Glass {
             anchors.fill: parent
-            anchors.margins: -3
-            radius: 10
+            anchors.margins: -2
+            radius: 9
             thick: true
             shadowOffset: 6
             shadowBlur: 0.9

@@ -14,6 +14,8 @@ Item {
 
     property var screen
     property int stripHeight: 32
+    // Échantillonnage actif (écran allumé, pas de plein écran)
+    property bool active: true
     // Vrai = fond clair -> texte noir
     property bool light: false
     property real luminance: 0
@@ -28,53 +30,70 @@ Item {
     width: 0
     height: 0
 
-    function sample() {
-        if (!root.screen || busy) return;
-        busy = true;
-        view.captureFrame();
-    }
     property bool busy: false
+    property var _keep: null
 
-    // Hors de la zone visible de la fenêtre, mais rendu (grabToImage)
+    function sample() {
+        if (!root.screen || !root.active || busy) return;
+        busy = true;
+        busyReset.restart();
+        if (view.hasContent) view.captureFrame();
+        grabTimer.restart();
+    }
+
+    // Si la capture n'aboutit pas, on réessaiera au prochain tour
+    Timer {
+        id: busyReset
+        interval: 1500
+        onTriggered: root.busy = false
+    }
+
+    // Hors de la zone visible de la fenêtre, mais rendu (grabToImage).
+    // La première image arrive seule dès que la source est prête.
     ScreencopyView {
         id: view
         x: -4000
         width: root.sw
         height: root.sh
-        captureSource: root.screen
+        captureSource: root.active ? root.screen : null
         live: false
         paintCursor: false
-        onHasContentChanged: if (hasContent) grabTimer.restart()
     }
 
-    // Laisse une image au rendu avant de lire la texture
+    // Laisse la capture arriver et s'afficher avant de lire la texture
     Timer {
         id: grabTimer
-        interval: 60
+        interval: 150
         onTriggered: {
+            if (!view.hasContent) { root.busy = false; return; }
             const ok = view.grabToImage(r => {
-                canvas.pending = r.url;
-                canvas.loadImage(r.url);
+                shot.source = r.url;
                 root._keep = r; // garde le résultat en vie jusqu'au chargement
             }, Qt.size(root.sw, root.sh));
             if (!ok) root.busy = false;
         }
     }
-    property var _keep: null
+
+    // Le Canvas ne sait pas charger les URL "itemgrabber:" : on passe par une Image
+    Image {
+        id: shot
+        x: -4000
+        width: root.sw
+        height: root.sh
+        cache: false
+        onStatusChanged: if (status === Image.Ready) canvas.requestPaint()
+    }
 
     Canvas {
         id: canvas
         x: -4000
         width: root.sw
         height: root.stripRows
-        property string pending: ""
-        renderStrategy: Canvas.Immediate
-        onImageLoaded: requestPaint()
         onPaint: {
-            if (!pending || !isImageLoaded(pending)) return;
+            if (shot.status !== Image.Ready) return;
             const ctx = getContext("2d");
             ctx.clearRect(0, 0, width, height);
-            ctx.drawImage(pending, 0, 0, root.sw, root.sh);
+            ctx.drawImage(shot, 0, 0, root.sw, root.sh);
             const d = ctx.getImageData(0, 0, width, height).data;
             let sum = 0, n = 0;
             const tw = root.textIsWhite;
@@ -86,8 +105,7 @@ Item {
                 sum += l;
                 n++;
             }
-            unloadImage(pending);
-            pending = "";
+            shot.source = "";
             root._keep = null;
             root.busy = false;
             if (n === 0) return;

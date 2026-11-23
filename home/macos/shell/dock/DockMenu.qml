@@ -23,8 +23,12 @@ Scope {
     property var entries: []
     property var subEntries: []
     property real anchorX: 0
+    // Saisie xdg_popup : le compositeur ferme le menu au clic extérieur. Exige un
+    // événement d'entrée récent (clic) : désactivée pour l'ouverture par IPC.
+    property bool grab: true
 
     function openFor(t) {
+        if (open) close();
         tile = t;
         if (t.isApp && t.appId && t.appId !== model.appsTileId) model.refreshAutostart(t.appId);
         entries = build(t);
@@ -37,6 +41,7 @@ Scope {
     }
     function close() {
         open = false;
+        grab = true;
         sub.visible = false;
         subEntries = [];
     }
@@ -105,7 +110,7 @@ Scope {
         id: popup
         visible: root.open
         color: "transparent"
-        grabFocus: true
+        grabFocus: root.grab
         anchor.window: root.dockWindow
         anchor.rect.x: root.anchorX
         anchor.rect.y: root.dock.platterTop - 6 + panel.margin
@@ -128,7 +133,7 @@ Scope {
                 if (e && e.submenu) {
                     root.subEntries = e.submenu;
                     subPanel.highlighted = -1;
-                    sub.anchor.item = item;
+                    sub.rowY = item.mapToItem(panel, 0, 0).y;
                     sub.anchor.updateAnchor();
                     sub.visible = true;
                 } else {
@@ -144,10 +149,15 @@ Scope {
         visible: false
         color: "transparent"
         anchor.window: popup
-        anchor.edges: Edges.Right | Edges.Top
-        anchor.gravity: Edges.Right | Edges.Bottom
-        anchor.margins.left: -subPanel.margin + 1
-        anchor.margins.top: -subPanel.margin - subPanel.padding
+        // Le bord gauche de la plaque du sous-menu touche le bord droit du menu,
+        // sa première ligne alignée sur la ligne « Options ».
+        property real rowY: 0
+        anchor.rect.x: panel.margin + panel.contentW - subPanel.margin
+        anchor.rect.y: rowY - subPanel.margin - subPanel.padding
+        anchor.rect.width: 1
+        anchor.rect.height: 1
+        anchor.edges: Edges.Top | Edges.Left
+        anchor.gravity: Edges.Bottom | Edges.Right
         implicitWidth: subPanel.implicitWidth
         implicitHeight: subPanel.implicitHeight
         mask: Region { item: subPanel.plateItem }
@@ -161,6 +171,7 @@ Scope {
     }
 
     // ---- Débogage ----
+    function debugOpen(t) { grab = false; openFor(t); }
     function debugHover(row) {
         panel.highlighted = row;
         const it = panel.rowItem(row);

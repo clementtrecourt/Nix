@@ -11,6 +11,8 @@ ListView {
     property int columns: Metrics.gridColumns
     property int selected: 0          // index dans `flat` (éléments sans en-têtes)
     property int iconSize: Metrics.gridIcon
+    // Sans saisie ni navigation clavier, aucune case n'est surlignée (Tahoe)
+    property bool showSelection: true
 
     signal activated(var item)
     signal hoveredIndex(int i)
@@ -99,7 +101,7 @@ ListView {
                 delegate: Item {
                     id: cell
                     required property var modelData
-                    readonly property bool isSel: modelData.flat === root.selected
+                    readonly property bool isSel: root.showSelection && modelData.flat === root.selected
                     width: root.cellWidth
                     height: Metrics.gridCellHeight
 

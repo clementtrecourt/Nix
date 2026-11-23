@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Quickshell.Io
 import qs.common
 
 // Barre d'outils « Capture d'écran » de macOS (Cmd+Maj+5) :
@@ -19,6 +20,14 @@ Scope {
             if (Shots.recording) Shots.stopRecording();
             else Shots.toolbarOpen = !Shots.toolbarOpen;
         }
+    }
+
+    // Débogage (pas de clic possible dans le banc de test)
+    IpcHandler {
+        target: "screenshot-debug"
+        function options(on: bool): void { win.optionsOpen = on; }
+        function mode(m: string): void { win.mode = m; }
+        function commit(): void { win.commit(); }
     }
 
     PanelWindow {
@@ -41,7 +50,7 @@ Scope {
         anchors { bottom: true }
         margins.bottom: 104
         implicitWidth: 620
-        implicitHeight: 340
+        implicitHeight: 460
         color: "transparent"
 
         function commit() {
@@ -85,7 +94,7 @@ Scope {
                 // (×) fermer
                 ToolButton {
                     symbol: "xmark"
-                    symbolSize: 11
+                    symbolSize: 10
                     round: true
                     tip: "Fermer"
                     onClicked: Shots.toolbarOpen = false
@@ -267,8 +276,10 @@ Scope {
             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
             Rectangle {
                 anchors.fill: parent
+                anchors.margins: tb.round ? 7 : 0
                 radius: height / 2
                 color: tb.selected ? Qt.rgba(1, 1, 1, Theme.dark ? 0.18 : 0.55)
+                     : tb.round ? (tbMouse.containsMouse ? Theme.fillHover : Theme.fill)
                      : tbMouse.containsMouse ? Theme.fill : "transparent"
             }
             Symbol {

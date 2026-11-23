@@ -4,7 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Widgets
 import qs.common
-import qs.session
+import "decor.js" as Decor
 
 // Vignette d'un bureau dans la barre des Spaces : fond d'écran + fenêtres du
 // workspace en miniature (captures Wayland), à l'échelle de l'écran.
@@ -13,6 +13,7 @@ Item {
 
     required property int wsId
     required property var monitor             // HyprlandMonitor de l'écran
+    required property Item wallpaper          // fond d'écran plein écran (texture réduite ici)
     property bool live: false                 // capture continue (barre dépliée)
     property real screenW: 1512
     property real screenH: 982
@@ -24,28 +25,40 @@ Item {
         radius: 3
         color: "black"
 
-        WallpaperView {
+        // Le fond d'écran plein écran réduit (mipmaps : net et sans crénelage)
+        ShaderEffectSource {
             anchors.fill: parent
+            sourceItem: root.wallpaper
+            mipmap: true
+            smooth: true
         }
 
         Repeater {
-            model: {
-                const out = Hyprland.toplevels.values.filter(t => t.workspace && t.workspace.id === root.wsId);
-                // Ordre d'empilement : la fenêtre la plus récemment focalisée au-dessus
-                return out.sort((a, b) => (b.lastIpcObject?.focusHistoryID ?? 0) - (a.lastIpcObject?.focusHistoryID ?? 0));
+            model: ScriptModel {
+                values: {
+                    const out = Hyprland.toplevels.values.filter(t => t.workspace && t.workspace.id === root.wsId);
+                    // Ordre d'empilement : la fenêtre la plus récemment focalisée au-dessus
+                    return out.sort((a, b) => (b.lastIpcObject?.focusHistoryID ?? 0) - (a.lastIpcObject?.focusHistoryID ?? 0));
+                }
             }
             delegate: ClippingRectangle {
+                id: mini
                 required property var modelData
                 readonly property var ipc: modelData.lastIpcObject ?? {}
+                readonly property bool fs: (ipc.fullscreen ?? 0) > 0
+                // Barre de titre hyprbars (au-dessus de la zone client)
+                readonly property real bar: Decor.hasBar(ipc.class ?? "", fs) ? Decor.barHeight : 0
                 x: ((ipc.at?.[0] ?? 0) - (root.monitor?.x ?? 0)) * root.k
-                y: ((ipc.at?.[1] ?? 0) - (root.monitor?.y ?? 0)) * root.k
+                y: ((ipc.at?.[1] ?? 0) - (root.monitor?.y ?? 0) - bar) * root.k
                 width: (ipc.size?.[0] ?? 0) * root.k
-                height: (ipc.size?.[1] ?? 0) * root.k
-                radius: 16 * root.k
-                color: Theme.dark ? "#1e1e1e" : "#ececec"
+                height: ((ipc.size?.[1] ?? 0) + bar) * root.k
+                radius: Decor.radius(ipc.class ?? "", fs) * root.k
+                color: bar > 0 ? Decor.barColor(ipc.class ?? "") : "transparent"
                 ScreencopyView {
-                    anchors.fill: parent
-                    captureSource: modelData.wayland ?? null
+                    y: mini.bar * root.k
+                    width: parent.width
+                    height: parent.height - y
+                    captureSource: mini.modelData.wayland ?? null
                     live: root.live
                 }
             }

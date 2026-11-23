@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import qs.services
 
 // Bureaux ("Spaces") façon macOS au-dessus des workspaces Hyprland numérotés.
 //
@@ -30,7 +31,16 @@ Singleton {
         return out;
     }
 
-    function label(id) { return "Bureau " + id; }
+    // Libellé : "Bureau N", ou le nom de l'app pour un bureau occupé par une
+    // fenêtre plein écran (comme les Spaces plein écran de macOS)
+    function label(id) {
+        const ws = Hyprland.workspaces.values.find(w => w.id === id);
+        if (ws?.hasFullscreen) {
+            const t = Hyprland.toplevels.values.find(t => t.workspace?.id === id && (t.lastIpcObject?.fullscreen ?? 0) > 0);
+            if (t) return Apps.name(t.lastIpcObject?.class ?? "");
+        }
+        return "Bureau " + id;
+    }
 
     // Fenêtres (HyprlandToplevel) d'un bureau, hors fenêtres minimisées
     function windowsOn(id) {

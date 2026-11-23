@@ -29,6 +29,7 @@ Item {
 
     readonly property bool hovered: (hover.hovered || NotifStore.debugHover) && interactive
     property bool actionsOpen: false
+    readonly property bool showActions: hasActions && (actionsOpen || NotifStore.debugActions)
     readonly property bool hasActions: entry && entry.actions.length > 0
 
     // ---- Géométrie Tahoe ----
@@ -47,23 +48,37 @@ Item {
     onHoveredChanged: if (!hovered) actionsOpen = false
 
     // ---- Lamelles de la pile (derrière) ----
+    // Le verre est translucide : chaque lamelle est découpée pour ne montrer que
+    // la partie qui dépasse sous la carte (ou la lamelle) précédente.
     Repeater {
         model: 2
-        Glass {
+        Item {
+            id: sliver
             required property int index
             readonly property int level: index + 1
+            readonly property bool active: card.slivers >= level
+            // Haut de la zone visible : bas de l'élément au-dessus (moins l'arrondi)
+            readonly property real clipTop: plate.height + (level - 1) * card.peek - 3
             z: -level
-            visible: opacity > 0
-            opacity: card.slivers >= level ? (level === 1 ? 0.85 : 0.6) : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.durMed * NotifStore.slow } }
-            width: card.width - level * 2 * 12
             x: level * 12
-            height: 40
-            y: plate.height - height + (card.slivers >= level ? level * card.peek : 0)
-            Behavior on y { NumberAnimation { duration: Theme.durMed * NotifStore.slow; easing.type: Easing.OutCubic } }
-            radius: card.radius - level * 3
-            shadowOffset: 4
-            shadowBlur: 0.6
+            y: clipTop
+            width: card.width - level * 2 * 12
+            height: card.peek + 3 + 16      // + place pour l'ombre
+            clip: true
+            visible: opacity > 0
+            opacity: active ? (level === 1 ? 0.9 : 0.7) : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.durMed * NotifStore.slow } }
+
+            Glass {
+                width: parent.width
+                height: 44
+                // Bas de la lamelle : peek px sous l'élément du dessus
+                y: (sliver.active ? card.peek + 3 : 0) - height
+                Behavior on y { NumberAnimation { duration: Theme.durMed * NotifStore.slow; easing.type: Easing.OutCubic } }
+                radius: card.radius - sliver.level * 4
+                shadowOffset: 3
+                shadowBlur: 0.5
+            }
         }
     }
 
@@ -176,7 +191,7 @@ Item {
                         Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
                         Symbol {
                             anchors.centerIn: parent
-                            name: card.actionsOpen ? "chevron.up" : "chevron.down"
+                            name: card.showActions ? "chevron.up" : "chevron.down"
                             size: 10
                             color: Theme.label
                         }
@@ -199,7 +214,7 @@ Item {
                 font.family: Theme.font
                 font.pixelSize: 13
                 wrapMode: Text.Wrap
-                maximumLineCount: card.actionsOpen ? 12 : 4
+                maximumLineCount: card.showActions ? 12 : 4
                 elide: Text.ElideRight
                 textFormat: Text.PlainText
                 lineHeight: 1.04
@@ -213,9 +228,9 @@ Item {
             anchors.bottomMargin: card.padV
             x: textCol.x
             width: textCol.width
-            height: card.actionsOpen && card.hasActions ? 38 : 0
+            height: card.showActions ? 38 : 0
             clip: true
-            opacity: card.actionsOpen ? 1 : 0
+            opacity: card.showActions ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: Theme.durMed * NotifStore.slow } }
 
             Row {

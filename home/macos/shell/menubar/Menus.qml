@@ -2,6 +2,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import Quickshell.Networking
+import Quickshell.Services.UPower
 import qs.services
 
 // Contenu des menus de la barre, construit à l'ouverture (libellés d'un Mac en
@@ -18,8 +20,11 @@ Item {
     id: root
 
     // Fenêtre et app au premier plan ("" = bureau : Finder)
+    // (au démarrage, Hyprland.activeToplevel reste vide jusqu'au premier changement
+    // de focus : on se rabat sur la fenêtre marquée « activated »)
     readonly property var win: Windows.activeToplevel
-    readonly property string cls: Windows.activeClass
+        ?? Windows.toplevels.find(t => t.activated || t.lastIpcObject?.focusHistoryID === 0) ?? null
+    readonly property string cls: Windows.activeClass || Windows.classOf(win)
     readonly property string appName: cls ? Apps.name(cls) : "Finder"
     readonly property bool isFinder: cls === ""
 
@@ -73,14 +78,46 @@ Item {
         return { x: m.x + r[0], y: m.y + r[1], w: w - r[0] - r[2], h: h - r[1] - r[3] };
     }
     // Place la fenêtre active dans une fraction de la zone utile
+    // La barre de titre hyprbars (feux tricolores) est dessinée au-dessus de la
+    // fenêtre : on interroge ses décorations pour la loger dans la zone utile.
     function place(fx, fy, fw, fh) {
         const a = workArea();
         if (!a || !win) return;
-        const target = ",address:" + addr();
-        if (!(win.lastIpcObject?.floating ?? true)) dispatch("setfloating address:" + addr());
-        if ((win.lastIpcObject?.fullscreen ?? 0) !== 0) dispatch("fullscreenstate 0 0");
-        dispatch("resizewindowpixel exact " + Math.round(a.w * fw) + " " + Math.round(a.h * fh) + target);
-        dispatch("movewindowpixel exact " + Math.round(a.x + a.w * fx) + " " + Math.round(a.y + a.h * fy) + target);
+        decoProbe.request = { a: a, fx: fx, fy: fy, fw: fw, fh: fh, address: addr(), w: win };
+        // (sans hyprctl : liste vide, pas de décalage)
+        decoProbe.command = ["sh", "-c", 'hyprctl -j decorations "address:$1" 2>/dev/null || echo "[]"', "sh", addr()];
+        decoProbe.running = true;
+    }
+    property int titlebarHeight: 32
+    Process {
+        running: true
+        command: ["sh", "-c", "hyprctl -j getoption plugin:hyprbars:bar_height 2>/dev/null || echo '{}'"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { const o = JSON.parse(text); if (o.int > 0) root.titlebarHeight = o.int; } catch (e) {}
+            }
+        }
+    }
+    Process {
+        id: decoProbe
+        property var request: null
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const r = decoProbe.request;
+                if (!r) return;
+                let bar = 0;
+                try {
+                    if (JSON.parse(text).some(d => /hyprbar/i.test(d.decorationName ?? ""))) bar = root.titlebarHeight;
+                } catch (e) {}
+                const a = r.a, target = ",address:" + r.address;
+                if (!(r.w.lastIpcObject?.floating ?? true)) root.dispatch("setfloating address:" + r.address);
+                if ((r.w.lastIpcObject?.fullscreen ?? 0) !== 0) root.dispatch("fullscreenstate 0 0");
+                const x = Math.round(a.x + a.w * r.fx), y = Math.round(a.y + a.h * r.fy);
+                const w = Math.round(a.w * r.fw), h = Math.round(a.h * r.fh);
+                root.dispatch("resizewindowpixel exact " + w + " " + (h - bar) + target);
+                root.dispatch("movewindowpixel exact " + x + " " + (y + bar) + target);
+            }
+        }
     }
 
     // ---- Menus ----
@@ -331,9 +368,92 @@ Item {
 
     function helpMenu() {
         return [
-            { search: true },
+            { search: true, provider: () => root.searchable() },
             it("Aide " + appName, { enabled: false })
         ];
+    }
+
+    // ---- Menus des icônes d'état ----
+
+    // Batterie : « Batterie   85 % », source d'alimentation, réglages
+    function batteryMenu(dev) {
+        const pct = Math.round((dev?.percentage ?? 0) * 100) + " %";
+        const st = dev?.state;
+        const onAC = !UPower.onBattery;
+        let src = onAC ? "Adaptateur secteur" : "Batterie";
+        let note = "";
+        if (st === UPowerDeviceState.Charging) {
+            const m = Math.round((dev?.timeToFull ?? 0) / 60);
+            note = m > 0 ? "Recharge complète dans " + fmtDuration(m) : "En charge";
+        } else if (st === UPowerDeviceState.FullyCharged) note = "Batterie chargée";
+        else if (!onAC) {
+            const m = Math.round((dev?.timeToEmpty ?? 0) / 60);
+            if (m > 0) note = fmtDuration(m) + " restantes";
+        }
+        const out = [
+            it("Batterie", { info: true, bold: true, pathText: pct }),
+            it("Source d’alimentation : " + src, { info: true, secondary: true })
+        ];
+        if (note) out.push(it(note, { info: true, secondary: true }));
+        out.push(sep());
+        out.push(it("Mode économie d’énergie", {
+            toggle: PowerProfiles.profile === PowerProfile.PowerSaver,
+            keepOpen: true,
+            action: () => {
+                PowerProfiles.profile = PowerProfiles.profile === PowerProfile.PowerSaver
+                    ? PowerProfile.Balanced : PowerProfile.PowerSaver;
+            }
+        }));
+        out.push(sep());
+        out.push(it("Réglages de la batterie…", { action: () => ShellState.open("controlcenter") }));
+        return out;
+    }
+    function fmtDuration(min) {
+        const h = Math.floor(min / 60), m = min % 60;
+        return h > 0 ? h + " h " + String(m).padStart(2, "0") : m + " min";
+    }
+
+    // Wi-Fi : interrupteur, réseau actuel, réseaux connus, autres réseaux
+    function wifiMenu(device, current) {
+        const on = Networking.wifiEnabled;
+        const out = [
+            it("Wi-Fi", {
+                bold: true, toggle: on, keepOpen: true,
+                action: () => { Networking.wifiEnabled = !Networking.wifiEnabled; }
+            })
+        ];
+        if (on && device) {
+            const nets = (device.networks?.values ?? []).filter(n => n.name);
+            const level = n => {
+                const s = n.signalStrength ?? 0;
+                return s > 0.6 ? 3 : s > 0.3 ? 2 : 1;
+            };
+            const secure = n => n.security !== undefined && n.security !== WifiSecurityType.Open;
+            const row = n => it(n.name, {
+                network: true, wifiLevel: level(n), connected: n.connected, locked: secure(n),
+                action: () => { if (!n.connected) n.connect(); }
+            });
+            if (current) {
+                out.push(sep());
+                out.push(row(current));
+            }
+            const known = nets.filter(n => n.known && !n.connected)
+                .sort((a, b) => (b.signalStrength ?? 0) - (a.signalStrength ?? 0));
+            if (known.length) {
+                out.push(sep());
+                out.push(hdr("Réseaux connus"));
+                for (const n of known.slice(0, 6)) out.push(row(n));
+            }
+            const others = nets.filter(n => !n.known && !n.connected)
+                .sort((a, b) => (b.signalStrength ?? 0) - (a.signalStrength ?? 0));
+            out.push(sep());
+            out.push(it("Autres réseaux", {
+                submenu: others.length ? others.slice(0, 12).map(row) : [it("Aucun réseau", { enabled: false })]
+            }));
+        }
+        out.push(sep());
+        out.push(it("Réglages Wi-Fi…", { action: () => ShellState.open("controlcenter") }));
+        return out;
     }
 
     // Tous les éléments actionnables des menus de l'app (recherche du menu Aide)
@@ -343,7 +463,7 @@ Item {
             for (const e of list) {
                 if (!e || e.separator || e.header || e.search) continue;
                 if (Array.isArray(e.submenu)) walk(e.submenu, path.concat([e.text]));
-                else if (typeof e.action === "function") out.push(Object.assign({}, e, { path: path }));
+                else if (typeof e.action === "function" && e.enabled !== false) out.push(Object.assign({}, e, { path: path }));
             }
         };
         const names = [["app", appName], ["file", "Fichier"], ["edit", "Édition"], ["view", "Présentation"], ["window", "Fenêtre"]];
