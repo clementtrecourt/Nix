@@ -33,6 +33,14 @@ PanelWindow {
     readonly property real panelH: 175 * k
     readonly property real artTop: pad
 
+    // Nom affiché : celui du .desktop, sinon la classe rendue lisible
+    // ("org.gnome.Calculator" -> "Calculator", "kitty" -> "Kitty")
+    function appName(cls) {
+        if (Apps.entryFor(cls)) return Apps.name(cls);
+        const last = String(cls).split(".").pop();
+        return last.charAt(0).toUpperCase() + last.slice(1);
+    }
+
     implicitWidth: Math.ceil(panelW)
     implicitHeight: Math.ceil(panelH)
     color: "transparent"
@@ -79,7 +87,9 @@ PanelWindow {
             anchors.fill: parent
             radius: 60 * panel.k
             shadowEnabled: false
-            tint: Theme.dark ? Qt.rgba(0.08, 0.08, 0.09, 0.38) : Qt.rgba(0.68, 0.68, 0.68, 0.32)
+            // Clair : sur un terminal sombre (~40) la capture de référence donne
+            // ~90-130, soit un voile blanc d'environ 40 %
+            tint: Theme.dark ? Qt.rgba(0.08, 0.08, 0.09, 0.38) : Qt.rgba(0.85, 0.85, 0.87, 0.40)
         }
 
         // Sélection
@@ -133,7 +143,7 @@ PanelWindow {
         Text {
             id: label
             readonly property real cx: selection.x + selection.width / 2
-            text: panel.count > 0 ? Apps.name(panel.items[panel.switcher.index] ?? "") : ""
+            text: panel.count > 0 ? panel.appName(panel.items[panel.switcher.index] ?? "") : ""
             color: Theme.label
             font.family: Theme.font
             font.pixelSize: Math.round(13 * panel.k)

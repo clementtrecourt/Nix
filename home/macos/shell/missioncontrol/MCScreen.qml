@@ -29,6 +29,7 @@ PanelWindow {
     property real speed: 1                    // > 1 : ralenti (débogage)
     property bool closing: false
     property var frozen: []                   // fenêtres figées pendant la sortie
+    property var frozenMin: []                // idem pour la rangée des fenêtres réduites
     property var raised: null                 // fenêtre choisie : au-dessus pendant la sortie
     property int forceHover: -1               // débogage : survol forcé
     property bool forceExpanded: false        // débogage : barre dépliée
@@ -39,7 +40,11 @@ PanelWindow {
     property bool started: false
     visible: started
     color: "transparent"
-    WlrLayershell.layer: WlrLayer.Overlay
+    // Calque Top, comme le Dock et la barre des menus : la règle Hyprland
+    // « layerrule = order » (home/macos/hyprland.nix) range alors la barre des
+    // menus SOUS Mission Control (masquée, comme sur macOS) et le Dock AU-DESSUS
+    // (le Dock reste visible et utilisable dans Mission Control).
+    WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "macos-missioncontrol"
     WlrLayershell.keyboardFocus: isOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
@@ -47,17 +52,44 @@ PanelWindow {
 
     // ---- Fenêtres affichées ----
     readonly property int wsId: monitor?.activeWorkspace?.id ?? 1
-    readonly property string appClass: Windows.activeClass
+    // App Exposé : classe de l'app montrée, figée à l'ouverture. Dès que la
+    // surface prend le clavier, Hyprland n'a plus de fenêtre active : on retient
+    // donc la dernière classe active connue (ou celle demandée par le Dock).
+    property string appClass: ""
+    property string lastActiveClass: ""
+    readonly property string activeClassNow: Windows.activeClass
+    onActiveClassNowChanged: if (activeClassNow !== "") lastActiveClass = activeClassNow
+    Component.onCompleted: lastActiveClass = Windows.activeClass
+    function latchAppClass() {
+        // Repli : juste après le lancement du shell, Hyprland.activeToplevel
+        // n'est connu qu'au premier changement de focus -> historique de focus
+        const recent = Windows.toplevels.find(t => t.lastIpcObject?.focusHistoryID === 0);
+        appClass = ShellState.exposeClass || Windows.activeClass || lastActiveClass || Windows.classOf(recent);
+        ShellState.exposeClass = "";
+    }
     readonly property var liveWins: {
         const ws = win.wsId;
         const app = win.shownMode === "app";
         const list = Hyprland.toplevels.values.filter(t => t.workspace && t.workspace.id === ws
             && t.lastIpcObject?.at !== undefined
             && (!app || Windows.classOf(t).toLowerCase() === win.appClass.toLowerCase()));
-        // Ordre d'empilement réel : la plus récemment focalisée en dernier (au-dessus)
-        return list.sort((a, b) => (b.lastIpcObject?.focusHistoryID ?? 0) - (a.lastIpcObject?.focusHistoryID ?? 0));
+        // Ordre d'empilement réel d'Hyprland : la fenêtre du dessus en dernier
+        return Stacking.sort(list);
     }
     readonly property var wins: closing ? frozen : liveWins
+
+    // App Exposé : fenêtres réduites de l'app (special:minimized), rangée à part
+    // en bas de l'écran sous un filet, comme sur macOS
+    readonly property var liveMinWins: {
+        if (win.shownMode !== "app") return [];
+        const cls = win.appClass.toLowerCase();
+        return Hyprland.toplevels.values.filter(t => Windows.isMinimized(t)
+            && t.lastIpcObject?.at !== undefined && Windows.classOf(t).toLowerCase() === cls);
+    }
+    readonly property var minWins: closing ? frozenMin : liveMinWins
+    readonly property real minStripH: minWins.length > 0 ? 150 : 0
+    // Haut de la rangée des fenêtres réduites
+    readonly property real minStripY: height - dockReserve - 26 - minStripH
 
     // Géométrie visible d'une fenêtre : la barre de titre hyprbars est dessinée
     // au-dessus de la zone client (`at`/`size` ne la comptent pas)
@@ -75,26 +107,34 @@ PanelWindow {
     // Zone de la grille : sous la barre des Spaces dépliée, au-dessus du Dock
     readonly property real dockReserve: 84
     readonly property rect area: shownMode === "app"
-        ? Qt.rect(40, 56, width - 80, height - 56 - dockReserve - 24)
+        ? Qt.rect(40, 56, width - 80, height - 56 - dockReserve - 24 - (minStripH > 0 ? minStripH + 56 : 0))
         : Qt.rect(18, spaces.expandedH + 26, width - 36, height - spaces.expandedH - 26 - dockReserve - 18)
     readonly property var rects: Layout.compute(wins.map(geomOf), {
         x: area.x, y: area.y, w: area.width, h: area.height
     }, { gapX: 26, gapY: 46, maxScale: 0.88 })   // toujours un léger "recul", comme macOS
+    readonly property var minRects: Layout.compute(minWins.map(geomOf), {
+        x: 80, y: minStripY, w: width - 160, h: minStripH
+    }, { gapX: 34, gapY: 20, maxScale: 0.3 })
 
     // ---- Ouverture / fermeture ----
     onIsOpenChanged: isOpen ? begin() : end()
     // Passage direct Mission Control <-> App Exposé
-    onModeChanged: if (mode !== "" && shownMode !== "" && mode !== shownMode) shownMode = mode
+    onModeChanged: if (mode !== "" && shownMode !== "" && mode !== shownMode) {
+        if (mode === "app") latchAppClass();
+        shownMode = mode;
+    }
 
     function begin() {
         closing = false;
         raised = null;
         fadeAll.stop();
         content.opacity = 1;
+        latchAppClass();
         shownMode = mode;
         // Positions fraîches (lastIpcObject n'est mis à jour que sur demande)
         Hyprland.refreshToplevels();
         Hyprland.refreshWorkspaces();
+        Stacking.refresh();
         if (progress > 0) start(1);
         else settleTimer.restart();
     }
@@ -102,6 +142,7 @@ PanelWindow {
         settleTimer.stop();
         if (shownMode === "") return;
         frozen = liveWins;
+        frozenMin = liveMinWins;
         closing = true;
         start(0);
     }
@@ -115,7 +156,11 @@ PanelWindow {
     Timer {
         id: settleTimer
         interval: 45
-        onTriggered: win.start(1)
+        onTriggered: {
+            // Les positions viennent d'être rafraîchies : classe encore inconnue ?
+            if (win.appClass === "") win.latchAppClass();
+            win.start(1);
+        }
     }
     NumberAnimation {
         id: anim
@@ -139,6 +184,7 @@ PanelWindow {
         shownMode = "";
         closing = false;
         frozen = [];
+        frozenMin = [];
         raised = null;
     }
 
@@ -155,16 +201,33 @@ PanelWindow {
         id: focusLater
         property var target: null
         interval: 50
-        onTriggered: if (target) { Windows.focus(target); target = null; }
+        onTriggered: if (target) {
+            // Au premier plan, comme à la fin de l'animation (une fenêtre
+            // flottante focalisée n'est pas forcément remontée par Hyprland)
+            if (!Windows.isMinimized(target)) Hyprland.dispatch("alterzorder top,address:0x" + target.address);
+            Windows.focus(target);
+            target = null;
+        }
     }
-    // Choix d'un autre bureau : bascule puis fondu
+    // Choix d'un autre bureau : fondu puis bascule. On rend d'abord le
+    // clavier : en le récupérant, Hyprland refocalise la fenêtre active d'avant
+    // Mission Control, ce qui ramènerait sur l'ancien bureau si la bascule
+    // avait déjà eu lieu.
     function pickSpace(id) {
         if (id === wsId) { ShellState.close(); return; }
         frozen = liveWins;
+        frozenMin = liveMinWins;
         closing = true;
-        Spaces.goTo(id);
         fadeAll.start();
         ShellState.close();
+        goLater.wsId = id;
+        goLater.restart();
+    }
+    Timer {
+        id: goLater
+        property int wsId: 0
+        interval: 60
+        onTriggered: Spaces.goTo(wsId)
     }
     NumberAnimation {
         id: fadeAll
@@ -209,11 +272,13 @@ PanelWindow {
                 anchors.fill: parent
                 layer.enabled: true
             }
-            // App Exposé : bureau assombri
+            // Voile : le fond d'écran de Mission Control est très légèrement
+            // assombri (~7 %, mesuré sur une capture de macOS 26 : pas de flou) ;
+            // l'Exposé d'application l'assombrit nettement.
             Rectangle {
                 anchors.fill: parent
                 color: "black"
-                opacity: win.shownMode === "app" ? 0.38 : 0
+                opacity: win.shownMode === "app" ? 0.38 : 0.07
             }
         }
 
@@ -257,6 +322,42 @@ PanelWindow {
                     onDraggingChanged: tiles.anyDragging = dragging
                     onDragMoved: (x, y) => tiles.dragPoint = Qt.point(x, y)
                     onDropped: (x, y) => { tiles.dragPoint = Qt.point(-1, -1); win.dropOn(modelData, x, y); }
+                }
+            }
+
+            // App Exposé : filet de séparation au-dessus des fenêtres réduites
+            Rectangle {
+                visible: win.minWins.length > 0
+                x: 60
+                width: parent.width - 120
+                y: win.minStripY - 28
+                height: 1
+                color: Qt.rgba(1, 1, 1, 0.22)
+                opacity: win.progress
+            }
+
+            // App Exposé : fenêtres réduites (elles montent depuis le Dock)
+            Repeater {
+                model: ScriptModel { values: win.minWins }
+
+                WindowTile {
+                    id: minTile
+                    required property var modelData
+                    required property int index
+                    toplevel: modelData
+                    readonly property var g: win.geomOf(modelData)
+                    readonly property var r: win.minRects[index] ?? { x: 0, y: 0, w: 1, h: 1 }
+                    // Départ : même taille, sous le bord bas de l'écran
+                    realRect: Qt.rect(r.x, win.height + 20, r.w, r.h)
+                    naturalWidth: g.w
+                    targetRect: Qt.rect(r.x, r.y, r.w, r.h)
+                    progress: win.progress
+                    settle: win.progress === 1
+                    active: false
+                    shadowOpacity: backdrop.opacity
+                    draggable: false
+                    z: win.raised === modelData && win.closing ? 900 : 0
+                    onActivated: win.pick(modelData)
                 }
             }
         }

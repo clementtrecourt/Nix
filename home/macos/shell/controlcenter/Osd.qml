@@ -27,13 +27,18 @@ Scope {
 
     readonly property string title: kind === "volume" ? (Audio.sinkName || "Son")
         : kind === "keyboard" ? "Luminosité du clavier" : displayName
+    // Comme le module "Écran" du Control Center : "Écran" ; avec plusieurs
+    // écrans, le modèle de l'écran externe concerné.
     readonly property string displayName: {
         const m = Hyprland.focusedMonitor;
-        if (!m || (m.name ?? "").startsWith("eDP")) return "Écran intégré";
+        if (!m || Quickshell.screens.length < 2 || (m.name ?? "").startsWith("eDP")) return "Écran";
         return m.lastIpcObject?.model || m.description || m.name;
     }
     readonly property real value: kind === "volume" ? (Audio.muted ? 0 : Audio.volume)
         : kind === "keyboard" ? Brightness.kbdValue : Brightness.value
+
+    // Publie l'état du HUD pour la barre des menus (surbrillance de l'élément Son)
+    Binding { target: ShellState; property: "osdKind"; value: osd.shown ? osd.kind : "" }
 
     function show(k) {
         // Le Control Center ouvert affiche déjà le curseur : pas de HUD.
@@ -93,20 +98,27 @@ Scope {
         id: win
 
         readonly property int pad: 24
+        // Marge minimale entre le HUD et le bord droit de l'écran
+        readonly property int edge: 8
         screen: osd.targetScreen
         visible: osd.shown || hud.opacity > 0.001
         color: "transparent"
+        // Surface transparente collée au bord droit (sans marge : le HUD se
+        // place dedans, ce qui permet de le rapprocher du bord sans marge négative)
         anchors { top: true; right: true }
         exclusionMode: ExclusionMode.Ignore
         margins.top: Theme.menuBarHeight
-        // Centré sous l'icône du Control Center (position fournie par la barre)
-        margins.right: {
-            const sw = screen?.width ?? 1512;
-            const cx = ShellState.controlCenterIconX > 0 ? ShellState.controlCenterIconX : sw - 172;
-            return Math.max(0, Math.round(sw - cx - implicitWidth / 2));
-        }
-        implicitWidth: CCStyle.width + 2 * pad
+        implicitWidth: Math.min(screen?.width ?? 1512, CCStyle.width + 2 * pad + 320)
         implicitHeight: CCStyle.cell + 2 * pad
+
+        // Centre visé (repère de l'écran) : élément Son/Écran de la barre s'il est
+        // publié, sinon icône du Control Center, sinon position par défaut.
+        readonly property real anchorX: {
+            const sw = screen?.width ?? 1512;
+            if (ShellState.osdAnchorX > 0) return ShellState.osdAnchorX;
+            if (ShellState.controlCenterIconX > 0) return ShellState.controlCenterIconX;
+            return sw - 165;
+        }
         WlrLayershell.namespace: "macos-osd"
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -115,19 +127,25 @@ Scope {
 
         SliderModule {
             id: hud
-            x: win.pad
+            // x dans la surface : centré sous anchorX, sans déborder de l'écran
+            x: {
+                const left = (win.screen?.width ?? 1512) - win.width;
+                return Math.round(Math.max(win.pad, Math.min(win.width - win.edge - width, win.anchorX - left - width / 2)));
+            }
             y: CCStyle.marginTop
             width: CCStyle.width
             height: CCStyle.cell
             hud: true
+            radius: CCStyle.radiusHud
             title: osd.title
             value: osd.value
             leftSymbol: osd.kind === "volume" ? (Audio.muted ? "speaker.slash.fill" : "speaker.fill")
                 : osd.kind === "keyboard" ? "light.min" : "sun.min.fill"
-            leftSize: osd.kind === "volume" ? 21 : 19
+            // Même taille de pictos que les modules Son / Écran
+            leftSize: osd.kind === "volume" ? 19 : osd.kind === "keyboard" ? 18 : 17
             rightSymbol: osd.kind === "volume" ? "speaker.wave.3.fill"
                 : osd.kind === "keyboard" ? "light.max" : "sun.max.fill"
-            rightSize: osd.kind === "volume" ? 26 : 20
+            rightSize: osd.kind === "volume" ? 20 : osd.kind === "keyboard" ? 20 : 17
 
             transformOrigin: Item.Top
             opacity: 0

@@ -80,7 +80,14 @@ Scope {
             e.push({ text: "Options", submenu: optionsFor(t) });
             e.push({ separator: true });
             if (ws.length > 0) {
-                e.push({ text: "Afficher toutes les fenêtres", action: () => { ShellState.exposeClass = t.cls; ShellState.open("appexpose"); } });
+                e.push({ text: "Afficher toutes les fenêtres", action: () => {
+                    // L'Exposé d'application montre l'app au premier plan : on
+                    // l'active d'abord (exposeClass sert si Mission Control le lit).
+                    const vis = ws.filter(w => !Windows.isMinimized(w) && !model.isHidden(w));
+                    if (vis.length > 0 && Windows.activeClass.toLowerCase() !== t.cls.toLowerCase()) Windows.focus(vis[0]);
+                    ShellState.exposeClass = t.cls;
+                    ShellState.open("appexpose");
+                } });
                 e.push({ text: "Masquer", action: () => model.hide(t.cls) });
                 e.push({ text: "Quitter", action: () => Windows.quitApp(t.cls) });
             } else {

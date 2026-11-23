@@ -16,13 +16,17 @@ PanelWindow {
     screen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0]
 
     readonly property int cardWidth: 344
-    readonly property int edgeMargin: 10      // marge au bord droit de l'écran
+    // Mesuré sur les images Apple de macOS 26 : bord droit à ~16 pt de l'écran,
+    // haut de la bannière à ~33 pt du milieu du texte de la barre des menus.
+    readonly property int edgeMargin: 16      // marge au bord droit de l'écran
     readonly property int leftRoom: 24        // place pour le × (à cheval) et l'ombre
-    readonly property int topGap: 8           // espace sous la barre des menus
+    readonly property int topGap: 17          // espace sous la barre des menus
 
     WlrLayershell.namespace: "macos-notifications"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    // Clavier seulement pendant une réponse en ligne
+    WlrLayershell.keyboardFocus: NotifStore.replying && NotifStore.replying.popup
+                                 ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; right: true }
     margins.top: Theme.menuBarHeight
@@ -30,13 +34,19 @@ PanelWindow {
     implicitHeight: Math.max(200, (screen?.height ?? 900) - Theme.menuBarHeight - 120)
     color: "transparent"
 
-    // Seule la zone occupée par les bannières capte la souris
-    mask: Region { item: maskItem }
+    // Seule la zone occupée par les bannières (et le menu Options) capte la souris
+    mask: Region {
+        item: maskItem
+        Region { item: actionMenu }
+    }
     Item {
         id: maskItem
         width: win.width
         height: list.count > 0 ? Math.min(win.height, list.y + list.contentHeight + 12) : 0
     }
+
+    // Menu « Options » des bannières (au-dessus de toutes les cartes)
+    ActionMenu { id: actionMenu }
 
     ListView {
         id: list
@@ -94,6 +104,7 @@ PanelWindow {
         delegate: Item {
             id: del
             required property string key
+            required property int rev
             required property int index
 
             width: win.cardWidth
@@ -101,7 +112,6 @@ PanelWindow {
 
             // Notifications encore en bannière pour cette app (plus récente d'abord)
             readonly property var items: {
-                NotifStore.bannerRev;
                 NotifStore.entries;
                 return NotifStore.bannerItems(key);
             }
@@ -111,8 +121,10 @@ PanelWindow {
                     if (shown && shown !== items[0]) bump.restart();
                     shown = items[0];
                 }
-                timer.restart();
             }
+            // Minuterie relancée seulement quand une notification rejoint ou met à
+            // jour CETTE bannière (pas à l'arrivée d'une notification d'une autre app)
+            onRevChanged: timer.restart()
             readonly property bool isAlert: items.some(e => e.urgency >= 2)
 
             // Minuteur d'affichage (pause au survol / pendant un glissement)
@@ -131,6 +143,7 @@ PanelWindow {
                     NumberAnimation { duration: 260; easing.type: Easing.OutCubic }
                 }
                 entry: del.shown
+                menuHost: actionMenu
                 stackCount: Math.max(1, del.items.length)
                 clearAllMode: del.items.length > 1
                 onClicked: if (entry) NotifStore.activate(entry)

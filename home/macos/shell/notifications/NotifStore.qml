@@ -37,8 +37,10 @@ Singleton {
     readonly property bool doNotDisturb: typeof Focus !== "undefined" && !!Focus.doNotDisturb
 
     // Bannières visibles : un élément par application ({ key }), plus récente en haut.
+    // `rev` change quand une notification rejoint ou met à jour cette bannière :
+    // seule la minuterie de cette bannière repart (chaque bannière a sa durée).
     property ListModel bannerModel: ListModel {}
-    property int bannerRev: 0         // incrémenté à chaque nouvelle bannière (relance les minuteries)
+    property int bannerRev: 0         // compteur des `rev`
 
     // Groupes du Centre de notifications ({ key }), synchronisés par diff pour que
     // les délégués (et leurs animations) restent stables.
@@ -49,6 +51,11 @@ Singleton {
     property bool debugHover: false
     property bool debugActions: false
     property bool debugClearAll: false
+    property bool debugReply: false
+
+    // Notification en cours de réponse en ligne (la fenêtre des bannières prend
+    // alors le clavier)
+    property var replying: null
 
     readonly property int count: entries.length
 
@@ -64,7 +71,7 @@ Singleton {
         actionsSupported: true
         actionIconsSupported: false
         imageSupported: true
-        inlineReplySupported: false
+        inlineReplySupported: true
 
         onNotification: n => root.receive(n)
     }
@@ -90,13 +97,66 @@ Singleton {
         if (isNew) {
             e = entryComponent.createObject(root, { uid: nextUid++, notif: n, notifId: n.id });
             n.closed.connect(reason => root.onClosed(e, reason));
+            watch(e, n);
         }
         fill(e, n);
         e.time = Date.now();
         entries = [e].concat(entries.filter(x => x !== e));
         showBanner(e);
+        playSound(n);
         scheduleSave();
     }
+
+    // Remplacement (replaces_id : progression, lecteur…) : Quickshell ne réémet
+    // pas onNotification, il met l'objet à jour sur place. On suit donc ses
+    // propriétés et on recopie l'entrée (une seule fois par lot de changements).
+    function watch(e, n) {
+        const upd = () => root.scheduleUpdate(e, n);
+        for (const sig of [n.summaryChanged, n.bodyChanged, n.appIconChanged, n.imageChanged,
+                           n.actionsChanged, n.urgencyChanged, n.hintsChanged, n.appNameChanged,
+                           n.desktopEntryChanged])
+            sig.connect(upd);
+    }
+    function scheduleUpdate(e, n) {
+        if (e.pendingUpdate) return;
+        e.pendingUpdate = true;
+        Qt.callLater(() => root.replaced(e, n));
+    }
+    function replaced(e, n) {
+        if (!entries.includes(e)) return;
+        e.pendingUpdate = false;
+        if (e.notif !== n) return;
+        fill(e, n);
+        e.time = Date.now();
+        if (entries[0] !== e) entries = [e].concat(entries.filter(x => x !== e));
+        // La bannière réapparaît (ou reste affichée 5 s de plus), sans son
+        showBanner(e);
+        scheduleSave();
+    }
+
+    // Son de la notification (indices freedesktop "sound-file" / "sound-name"),
+    // comme macOS : seulement si l'app en demande un, jamais en "Ne pas déranger".
+    function playSound(n) {
+        const h = n.hints ?? {};
+        if (h["suppress-sound"] || (doNotDisturb && n.urgency < 2)) return;
+        const file = h["sound-file"] ? String(h["sound-file"]).replace(/^file:\/\//, "") : "";
+        const name = h["sound-name"] ? String(h["sound-name"]) : "";
+        if (!file && !name) return;
+        Quickshell.execDetached(["sh", "-c", soundScript, "sound", file, name]);
+    }
+    readonly property string soundScript: `
+command -v pw-play >/dev/null || exit 0
+f="$1"
+if [ -z "$f" ]; then
+  IFS=:
+  for d in "\${XDG_DATA_HOME:-$HOME/.local/share}" \${XDG_DATA_DIRS:-/run/current-system/sw/share}; do
+    for ext in oga ogg wav; do
+      [ -f "$d/sounds/freedesktop/stereo/$2.$ext" ] && { f="$d/sounds/freedesktop/stereo/$2.$ext"; break 2; }
+    done
+  done
+fi
+[ -f "$f" ] && exec pw-play "$f"
+`
 
     // Rattache une notification conservée lors d'un rechargement à son entrée
     // restaurée du disque (même id D-Bus, sinon même contenu).
@@ -112,6 +172,7 @@ Singleton {
         e.notifId = n.id;
         fill(e, n);
         n.closed.connect(reason => root.onClosed(e, reason));
+        watch(e, n);
         scheduleSave();
     }
 
@@ -122,7 +183,14 @@ Singleton {
         const img = n.image ?? "";
         // notify-send -i <nom> arrive comme image "image://icon/<nom>" : c'est l'icône
         // de l'app, pas une image de contenu.
-        if (img.startsWith("image://icon/")) {
+        // Mais si ce « nom » est un chemin de fichier (notify-send -i /…/avatar.png),
+        // c'est une image de contenu : avatar avec pastille de l'app (style messagerie).
+        // (App inconnue : l'avatar s'affiche quand même en rond, sans pastille.)
+        const iconRef = img.startsWith("image://icon/") ? decodeURIComponent(img.substring(13).split("?")[0]) : "";
+        if (iconRef.startsWith("/")) {
+            e.appIcon = icon;
+            e.image = "file://" + iconRef;
+        } else if (img.startsWith("image://icon/")) {
             e.appIcon = icon === genericIcon ? img : icon;
             e.image = "";
         } else {
@@ -217,6 +285,10 @@ Singleton {
         }
         const y = new Date(now - 86400000);
         if (dt.toDateString() === y.toDateString()) return "Hier";
+        // Semaine écoulée : nom du jour (« lundi »), puis date courte
+        const d0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        if (dt >= new Date(d0.getTime() - 6 * 86400000))
+            return ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"][dt.getDay()];
         return Qt.formatDate(dt, "dd/MM/yyyy");
     }
 
@@ -228,12 +300,14 @@ Singleton {
         let idx = -1;
         for (let i = 0; i < bannerModel.count; i++)
             if (bannerModel.get(i).key === e.appKey) { idx = i; break; }
+        bannerRev++;
+        if (idx >= 0) bannerModel.setProperty(idx, "rev", bannerRev);
         if (idx > 0) bannerModel.move(idx, 0, 1);
-        else if (idx < 0) bannerModel.insert(0, { key: e.appKey });
+        else if (idx < 0) bannerModel.insert(0, { key: e.appKey, rev: bannerRev });
         // Trop de bannières : on retire la plus ancienne
         while (bannerModel.count > maxBannerGroups)
             hideBanner(bannerModel.get(bannerModel.count - 1).key);
-        bannerRev++;
+        scheduleSave();     // l'état « bannière » survit à un rechargement à chaud
     }
 
     function bannerItems(key) {
@@ -248,6 +322,7 @@ Singleton {
         }
         for (let i = 0; i < bannerModel.count; i++)
             if (bannerModel.get(i).key === key) { bannerModel.remove(i); break; }
+        scheduleSave();
     }
 
     function hideAllBanners() {
@@ -265,6 +340,13 @@ Singleton {
         if (!e.resident) dismiss(e);
         else hideBannerOf(e);
         if (centerOpen) ShellState.close();
+    }
+
+    // Réponse en ligne envoyée à l'app, puis la notification est rangée
+    function reply(e, text) {
+        if (e.notif && e.notif.hasInlineReply) e.notif.sendInlineReply(text);
+        if (!e.resident) dismiss(e);
+        else hideBannerOf(e);
     }
 
     function invoke(e, action) {
@@ -351,7 +433,10 @@ Singleton {
         interval: 600
         onTriggered: {
             const data = entries.map(e => Object.assign(e.serialize(), { notifId: e.notif ? e.notif.id : -1 }));
-            store.setText(JSON.stringify({ version: 1, nextUid: root.nextUid, entries: data }, null, 1));
+            // pid : distingue un rechargement à chaud (même processus, ids D-Bus et
+            // bannières encore valides) d'un redémarrage complet.
+            store.setText(JSON.stringify({ version: 1, pid: Quickshell.processId, nextUid: root.nextUid,
+                                           entries: data }, null, 1));
         }
     }
     function scheduleSave() { saveTimer.restart(); }
@@ -360,12 +445,14 @@ Singleton {
 
     Component.onCompleted: {
         let saved = [];
+        let sameProcess = false;
         try {
             const t = store.text();
             if (t) {
                 const j = JSON.parse(t);
                 saved = j.entries ?? [];
                 nextUid = Math.max(nextUid, j.nextUid ?? 1);
+                sameProcess = j.pid === Quickshell.processId;
             }
         } catch (err) { saved = []; }
 
@@ -373,12 +460,16 @@ Singleton {
         for (const s of saved) {
             // Déjà rattachée (réémise par le serveur avant ce point) : on ignore la copie
             if (entries.some(e => e.notif && e.notif.id === s.notifId)) continue;
-            list.push(entryComponent.createObject(root, {
-                uid: s.uid ?? nextUid++, notifId: s.notifId ?? -1, appName: s.appName ?? "",
+            // Après un redémarrage complet, les ids D-Bus de l'ancienne session ne
+            // désignent plus rien (et pourraient être réattribués) : on les oublie.
+            const e = entryComponent.createObject(root, {
+                uid: s.uid ?? nextUid++, notifId: sameProcess ? (s.notifId ?? -1) : -1, appName: s.appName ?? "",
                 appKey: s.appKey ?? "", appIcon: s.appIcon ?? "", image: s.image ?? "",
                 summary: s.summary ?? "", body: s.body ?? "", time: s.time ?? Date.now(),
                 urgency: s.urgency ?? 1
-            }));
+            });
+            e.wasPopup = sameProcess && !!s.popup;
+            list.push(e);
         }
         entries = entries.concat(list).sort((a, b) => b.time - a.time);
 
@@ -386,6 +477,10 @@ Singleton {
         // rattache aux entrées restaurées au lieu de les dupliquer.
         for (const n of server.trackedNotifications.values)
             if (!entries.some(e => e.notif === n)) attach(n);
+
+        // Rechargement à chaud : les bannières qui étaient à l'écran y reviennent
+        for (const e of entries.slice().reverse())
+            if (e.wasPopup) { e.wasPopup = false; showBanner(e); }
     }
 
     // ---- IPC -----------------------------------------------------------------------
@@ -405,6 +500,7 @@ Singleton {
         target: "notifications-debug"
         function hover(on: bool): void { root.debugHover = on; }
         function actions(on: bool): void { root.debugActions = on; }
+        function reply(on: bool): void { root.debugReply = on; }
         function clearAllHover(on: bool): void { root.debugClearAll = on; }
         function slow(factor: real): void { root.slow = factor; }
         function expand(key: string, on: bool): void { root.setExpanded(key, on); }

@@ -13,7 +13,8 @@ import qs.common
 // n'est modifié que sur action explicite (setDark), pour ne pas écraser les
 // réglages au lancement de plusieurs instances.
 //
-// MACOS_SHELL_DEV=1 : n'appelle pas gsettings (banc de test imbriqué).
+// MACOS_SHELL_DEV=1 : n'appelle pas gsettings et n'écrit pas l'état persisté
+// (banc de test imbriqué).
 Singleton {
     id: root
 
@@ -26,10 +27,11 @@ Singleton {
 
     function setDark(d) {
         Theme.dark = d;
+        // Banc de test : ni le système ni l'état persisté du vrai shell
+        if (devMode) return;
         writer.command = ["sh", "-c", 'mkdir -p "$1" && printf "%s" "$2" > "$3"', "sh",
                           stateDir, JSON.stringify({ dark: d }), stateFile];
         writer.running = true;
-        if (devMode) return;
         // gsettings si disponible (schémas installés), sinon dconf directement.
         Quickshell.execDetached(["sh", "-c",
             'if command -v gsettings >/dev/null; then ' +

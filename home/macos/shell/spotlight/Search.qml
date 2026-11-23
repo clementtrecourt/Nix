@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Hyprland
 import qs.common
 import qs.services
+import qs.controlcenter
 import "fuzzy.js" as Fuzzy
 import "calc.js" as Calc
 import "categories.js" as Categories
@@ -34,14 +35,19 @@ Scope {
     readonly property string q: Fuzzy.fold(query.trim())
 
     // ---- Sorties ----
-    // Liste plate pour la vue liste (en-têtes inclus)
+    // Liste plate pour la vue liste (filtrée par la pastille de groupe)
     readonly property var results: buildResults()
     // Grille de la vue Applications : [{ header, title } | app...] ou apps à plat
     readonly property var appGrid: buildAppGrid()
+    // Catégories présentes, des plus fournies aux moins fournies (pastilles)
     readonly property var appCategoriesPresent: {
-        const present = {};
-        for (const e of Apps.all) present[Categories.categoryOf(e.categories)] = true;
-        return Categories.LIST.filter(c => present[c.id]);
+        const count = {};
+        for (const e of Apps.all) {
+            const c = Categories.categoryOf(e.categories);
+            count[c] = (count[c] ?? 0) + 1;
+        }
+        return Categories.LIST.filter(c => count[c.id])
+            .sort((a, b) => count[b.id] - count[a.id] || Categories.LIST.indexOf(a) - Categories.LIST.indexOf(b));
     }
 
     // =====================================================================
@@ -101,7 +107,7 @@ Scope {
     // =====================================================================
     function appItem(e, section) {
         return {
-            kind: "app", section: section, entry: e, id: e.id,
+            kind: "app", section: section, group: "apps", entry: e, id: e.id,
             title: e.name,
             subtitle: "Application",
             icon: Quickshell.iconPath(e.icon || e.id, "application-x-executable"),
@@ -147,8 +153,8 @@ Scope {
     ]
 
     function actionItem(a, section) {
-        return { kind: "action", section: section, actionId: a.id, title: a.title, subtitle: "Action système",
-                 symbol: a.symbol, tint: a.tint };
+        return { kind: "action", section: section, group: "actions", actionId: a.id, title: a.title,
+                 subtitle: "Système", symbol: a.symbol, tint: a.tint };
     }
 
     // Actions déclarées par les .desktop (ex. « Nouvelle fenêtre privée »)
@@ -174,7 +180,7 @@ Scope {
         for (const a of appActions) {
             const s = q ? Fuzzy.score(q, a.title) : 0.5;
             if (s > 0) out.push({ s: s * 0.9, item: {
-                kind: "appaction", section: "Actions", entry: a.entry, action: a.action,
+                kind: "appaction", section: "Actions", group: "actions", entry: a.entry, action: a.action,
                 title: a.title, subtitle: a.app, icon: a.icon } });
         }
         out.sort((x, y) => y.s - x.s);
@@ -186,9 +192,8 @@ Scope {
         switch (id) {
         case "lock": Hyprland.dispatch("global macos:lock"); break;
         case "dark":
-            Theme.dark = !Theme.dark;
-            Quickshell.execDetached(["gsettings", "set", "org.gnome.desktop.interface", "color-scheme",
-                                     Theme.dark ? "prefer-dark" : "prefer-light"]);
+            // Même chemin que le Control Center (persistance + gsettings + thème GTK)
+            Appearance.toggle();
             break;
         case "sleep": Quickshell.execDetached(["systemctl", "suspend"]); break;
         // Les dialogues de confirmation (Éteindre…, Redémarrer…) relèvent de Session
@@ -212,14 +217,15 @@ Scope {
         const r = calcResult;
         if (!r) return null;
         if (r.kind === "convert") {
-            return { kind: "calc", section: "Conversion", symbol: "arrow.left.arrow.right", tint: "#ff9500",
+            return { kind: "calc", section: "Conversion", group: "calc", symbol: "arrow.left.arrow.right", tint: "#ff9500",
                      title: Calc.format(r.value, 4) + " " + r.unit,
                      subtitle: Calc.format(r.input) + " " + r.fromUnit,
                      copy: Calc.format(r.value, 4).replace(/ /g, "") };
         }
-        return { kind: "calc", section: "Calculatrice", icon: Quickshell.iconPath("accessories-calculator", "calc"),
+        return { kind: "calc", section: "Calculatrice", group: "calc",
+                 icon: Quickshell.iconPath("accessories-calculator", "calc"),
                  symbol: "calculator", tint: "#ff9500",
-                 title: Calc.format(r.value), subtitle: r.expr,
+                 title: "= " + Calc.format(r.value), subtitle: r.expr,
                  copy: Calc.format(r.value).replace(/ /g, "") };
     }
 
@@ -237,8 +243,8 @@ Scope {
         if (want) fdTimer.restart();
         else { fdTimer.stop(); fdProc.running = false; fileHits = []; fileHitsQuery = ""; }
     }
-    onQChanged: refreshFiles()
-    onModeChanged: refreshFiles()
+    onQChanged: { refreshFiles(); if (!q) resultFilter = ""; }
+    onModeChanged: { refreshFiles(); resultFilter = ""; }
     onActiveChanged: refreshFiles()
 
     Timer {
@@ -252,17 +258,25 @@ Scope {
     }
     Process {
         id: fdProc
-        command: ["fd", "--base-directory", root.home, "--ignore-case", "--fixed-strings",
-                  "--max-results", "80", "--max-depth", "8",
-                  "--exclude", "node_modules", "--exclude", ".git", "--exclude", "target",
-                  "--exclude", "result", "--exclude", ".cache", "--exclude", "__pycache__",
-                  "--", root.fdQuery]
+        // fd liste les chemins (relatifs à $HOME), stat ajoute la date de
+        // modification : « 1712345678\tDocuments/rapport.pdf »
+        command: ["sh", "-c",
+                  "cd \"$HOME\" && fd --strip-cwd-prefix --ignore-case --fixed-strings --max-results 80 --max-depth 8 " +
+                  "--exclude node_modules --exclude .git --exclude target --exclude result " +
+                  "--exclude .cache --exclude __pycache__ -0 -- \"$1\" | xargs -0 -r stat -c '%Y\t%n'",
+                  "sh", root.fdQuery]
         stdout: StdioCollector {
             onStreamFinished: {
                 const want = root.query.trim();
                 if (root.fdQuery !== want) return;      // résultat périmé
-                root.fileHits = text.split("\n").filter(l => l.length).map(root.fileFromRel);
+                root.fileHits = text.split("\n").filter(l => l.includes("\t")).map(l => {
+                    const tab = l.indexOf("\t");
+                    const f = root.fileFromRel(l.slice(tab + 1));
+                    f.when = Number(l.slice(0, tab)) * 1000;
+                    return f;
+                });
                 root.fileHitsQuery = want;
+                root.checkThumbs(root.fileHits);
             }
         }
     }
@@ -273,6 +287,36 @@ Scope {
         const slash = clean.lastIndexOf("/");
         return { path: home + "/" + clean, rel: clean, isDir: isDir,
                  name: clean.slice(slash + 1), dir: slash >= 0 ? clean.slice(0, slash) : "" };
+    }
+
+    // Vignettes : chemin -> true quand le fichier est une vraie image PNG, JPEG,
+    // GIF, BMP ou WebP (signature des premiers octets vérifiée)
+    property var thumbOk: ({})
+    function checkThumbs(files) {
+        const todo = files.filter(f => !f.isDir && /\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name) && !(f.path in thumbOk))
+                          .slice(0, 40).map(f => f.path);
+        if (!todo.length) return;
+        const p = thumbCheckComp.createObject(root, { paths: todo });
+        p.running = true;
+    }
+    Component {
+        id: thumbCheckComp
+        Process {
+            id: tp
+            property var paths: []
+            command: ["sh", "-c",
+                "for f; do h=$(head -c 12 \"$f\" 2>/dev/null | od -An -tx1 | tr -d ' \\n'); " +
+                "case $h in 89504e47*|ffd8ff*|47494638*|424d*|52494646????????57454250*) echo \"1$f\";; *) echo \"0$f\";; esac; done",
+                "sh"].concat(paths)
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    const t = Object.assign({}, root.thumbOk);
+                    for (const l of text.split("\n")) if (l.length > 1) t[l.slice(1)] = l[0] === "1";
+                    root.thumbOk = t;
+                    tp.destroy();
+                }
+            }
+        }
     }
 
     // Fichiers récents (vue Fichiers sans requête, comme les suggestions de Tahoe)
@@ -320,6 +364,7 @@ Scope {
                     if (res.length >= 60) break;
                 }
                 root.recentFiles = res;
+                root.checkThumbs(res);
             }
         }
     }
@@ -362,15 +407,33 @@ Scope {
         return Quickshell.iconPath(map[ext] ?? "text-x-generic", "text-x-generic");
     }
 
+    // Date du détail des fichiers, façon Finder : « Aujourd’hui à 15:41 »,
+    // « Hier à 09:12 », sinon « 29/03/2025 ».
+    function fileDate(ms) {
+        if (!ms) return "";
+        const d = new Date(ms), now = new Date();
+        const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+        const diff = Math.round((day(now) - day(d)) / 86400000);
+        const hm = d.toLocaleTimeString(Qt.locale("fr_FR"), "HH:mm");
+        if (diff === 0) return "Aujourd’hui à " + hm;
+        if (diff === 1) return "Hier à " + hm;
+        return d.toLocaleDateString(Qt.locale("fr_FR"), "dd/MM/yyyy");
+    }
+
     function fileItem(f, section) {
         const k = fileKindOf(f);
+        const folder = f.dir === "" ? "Dossier de départ" : f.dir.split("/").pop();
+        const date = fileDate(f.when);
         return {
-            kind: "file", section: section ?? fileKindNames[k], fileKind: k,
+            kind: "file", section: section ?? fileKindNames[k], fileKind: k, group: k,
             title: f.name, path: f.path, isDir: f.isDir,
-            subtitle: f.dir === "" ? "Dossier de départ" : f.dir.split("/").pop(),
+            subtitle: date ? date + " • " + folder : folder,
             location: "~/" + (f.dir ? f.dir + "/" : ""),
             icon: fileIcon(f),
-            thumb: /\.(png|jpe?g|gif|bmp|svg)$/i.test(f.name) ? "file://" + encodeURI(f.path) : ""
+            // Vignette seulement pour les images dont la signature a été vérifiée
+            // (pas de SVG : un SVG géant ferait exploser le tampon de rendu ;
+            // un faux .jpg remplirait le journal d'erreurs de décodage)
+            thumb: thumbOk[f.path] ? "file://" + encodeURI(f.path) : ""
         };
     }
 
@@ -408,7 +471,7 @@ Scope {
                     const preview = line.slice(tab + 1);
                     const img = preview.match(/^\[\[ binary data (.+?) (png|jpe?g|webp|gif|bmp) (\d+)x(\d+) \]\]$/);
                     items.push({ id: id, text: preview, isImage: !!img,
-                                 meta: img ? (img[2].toUpperCase() + " · " + img[3] + " × " + img[4] + " · " + img[1]) : "",
+                                 meta: img ? (img[3] + " × " + img[4] + " · " + img[1]) : "",
                                  ext: img ? img[2] : "" });
                     if (items.length >= 150) break;
                 }
@@ -446,9 +509,11 @@ Scope {
         const isPath = /^(file:\/\/|\/)\S+$/.test(c.text.trim());
         return {
             kind: "clip", section: "", clipId: c.id,
-            title: c.isImage ? "Image" : c.text.replace(/\s+/g, " ").trim(),
-            subtitle: c.isImage ? c.meta : (isUrl ? "Lien" : isPath ? "Fichier" : "Texte"),
+            title: c.isImage ? "Image " + c.ext.toUpperCase() : c.text.replace(/\s+/g, " ").trim(),
+            subtitle: c.isImage ? "Image · " + c.meta : (isUrl ? "Lien" : isPath ? "Fichier" : "Texte"),
             symbol: c.isImage ? "photo" : isUrl ? "link" : isPath ? "doc" : "text.alignleft",
+            // Comme Tahoe : icône de document du type copié
+            icon: Quickshell.iconPath(c.isImage ? "image-x-generic" : isUrl ? "text-html" : "text-x-generic", "text-x-generic"),
             thumb: c.isImage ? (clipThumbs[c.id] ?? "") : "",
             fullText: c.text
         };
@@ -463,6 +528,26 @@ Scope {
         for (const it of items) out.push(it);
     }
 
+    // Groupes de la recherche générale, dans l'ordre d'affichage. Tahoe ne met
+    // plus d'en-têtes de section : les résultats restent groupés dans cet
+    // ordre et chaque groupe présent devient une pastille de filtre sous le
+    // champ (« Applications », « Actions », « Documents »…).
+    readonly property var groupNames: ({
+        apps: "Applications", calc: "Calcul", actions: "Actions", documents: "Documents",
+        pdf: "PDF", folders: "Dossiers", images: "Images"
+    })
+    // Filtre de groupe choisi ("" = tous)
+    property string resultFilter: ""
+
+    // Tous les résultats de la recherche générale (sans filtre)
+    readonly property var allResults: buildAll()
+    // Pastilles : groupes présents (au moins deux, sinon inutile)
+    readonly property var resultGroups: {
+        const seen = [];
+        for (const it of allResults) if (it.group && it.group !== "web" && !seen.includes(it.group)) seen.push(it.group);
+        return seen.length > 1 ? seen.map(g => ({ id: g, name: groupNames[g] ?? g })) : [];
+    }
+
     function buildResults() {
         const out = [];
         if (!active) return out;
@@ -473,14 +558,18 @@ Scope {
             return out;
         }
         if (mode === "actions") {
-            pushSection(out, q ? "" : "Suggestions", matchActions(q ? 40 : 60));
+            pushSection(out, "", matchActions(q ? 40 : 60));
             return out;
         }
-        if (mode === "files") return out;      // vue en icônes : voir fileGrid
-        if (mode === "apps") return out;       // vue grille : voir appGrid
-        if (!q) return out;
+        if (mode !== "") return out;           // Applications / Fichiers : grilles
+        if (!resultFilter) return allResults;
+        return allResults.filter(it => it.group === resultFilter);
+    }
 
-        // --- Recherche générale ---
+    function buildAll() {
+        const out = [];
+        if (!active || mode !== "" || !q) return out;
+
         // Les correspondances trop lâches (sous-séquences éparses) sont écartées.
         const apps = matchApps(8).filter(a => a.s >= 35);
         const calc = calcItem();
@@ -490,41 +579,43 @@ Scope {
         const files = rankedFiles().filter(f => Fuzzy.score(q, f.name) >= 60);
         const fileTopScore = files.length ? Fuzzy.score(q, files[0].name) : 0;
 
-        // Meilleur résultat : calcul, sinon app très pertinente, sinon document
-        // dont le nom commence par la requête, sinon action exacte
+        // Meilleur résultat (en tête, sélectionné) : calcul, sinon app très
+        // pertinente, sinon document dont le nom commence par la requête,
+        // sinon action exacte
         let top = null;
         if (calc) top = calc;
         else if (apps.length && apps[0].s >= 50) top = appItem(apps[0].e, "Meilleur résultat");
         else if (fileTopScore >= 80) top = fileItem(files[0]);
         else if (actions.length && Fuzzy.score(q, actions[0].title) >= 80) top = actions[0];
-        if (top) pushSection(out, "Meilleur résultat", [Object.assign({}, top, { top: true })]);
+        if (top) out.push(Object.assign({}, top, { top: true }));
 
         const appRest = apps.filter(a => !(top && top.kind === "app" && top.id === a.e.id)).slice(0, 5);
-        pushSection(out, "Applications", appRest.map(a => appItem(a.e, "Applications")));
-        pushSection(out, "Actions", actions.filter(a => a !== top).slice(0, 3));
+        pushSection(out, "", appRest.map(a => appItem(a.e, "Applications")));
+        pushSection(out, "", actions.filter(a => a !== top).slice(0, 3));
 
-        // Fichiers par type, 4 max par section
+        // Fichiers par type, 4 max par groupe
         const groups = { folders: [], documents: [], pdf: [], images: [] };
         for (const f of files) {
             if (top && top.kind === "file" && top.path === f.path) continue;
             const k = fileKindOf(f);
             if (groups[k].length < 4) groups[k].push(fileItem(f));
         }
-        pushSection(out, "Documents", groups.documents);
-        pushSection(out, "Documents PDF", groups.pdf);
-        pushSection(out, "Dossiers", groups.folders);
-        pushSection(out, "Images", groups.images);
+        pushSection(out, "", groups.documents);
+        pushSection(out, "", groups.pdf);
+        pushSection(out, "", groups.folders);
+        pushSection(out, "", groups.images);
 
         // Toujours en dernier : recherche sur le Web
-        pushSection(out, "Rechercher sur le Web", [{
-            kind: "web", title: query.trim(), subtitle: "Rechercher sur le Web", symbol: "globe", tint: "#0a84ff"
-        }]);
+        out.push({ kind: "web", group: "web", title: query.trim(), subtitle: "Rechercher sur le Web",
+                   symbol: "globe", tint: "#0a84ff" });
         return out;
     }
 
-    // Vue Applications (Tahoe) : suggestions (apps les plus utilisées) puis
-    // toutes les apps par ordre alphabétique ; pastille = filtre de catégorie,
-    // la saisie filtre à l'intérieur de la catégorie choisie.
+    // Vue Applications (Tahoe) : une rangée de suggestions (apps les plus
+    // utilisées, complétée par celles du Dock), un trait, puis toutes les apps
+    // par ordre alphabétique. Pastille = filtre de catégorie ; la saisie
+    // filtre à l'intérieur de la catégorie choisie.
+    readonly property int suggestionCount: Metrics.gridColumns
     function buildAppGrid() {
         if (!active || mode !== "apps") return [];
         if (q) {
@@ -534,16 +625,16 @@ Scope {
         }
         const all = Apps.all.map(e => appItem(e, ""));
         if (appCategory) return all.filter(a => a.category === appCategory);
-        const out = [];
         const used = Apps.all.filter(e => usage.apps[e.id])
             .sort((a, b) => usageBoost(b.id) - usageBoost(a.id))
-            .slice(0, 7);
-        if (used.length) {
-            out.push({ header: true, title: "Suggestions" });
-            for (const e of used) out.push(appItem(e, ""));
-            out.push({ header: true, title: "Toutes les apps" });
+            .slice(0, suggestionCount);
+        for (const id of Apps.pinned) {
+            if (used.length >= suggestionCount) break;
+            const e = Apps.entryFor(id);
+            if (e && !e.noDisplay && !used.includes(e)) used.push(e);
         }
-        return out.concat(all);
+        if (!used.length) return all;
+        return used.map(e => appItem(e, "")).concat([{ separator: true }], all);
     }
 
     readonly property var fileGrid: {

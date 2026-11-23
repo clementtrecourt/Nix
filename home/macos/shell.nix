@@ -38,8 +38,15 @@
     networkmanager
     bluez
     power-profiles-daemon
+    dconf
+    wf-recorder # enregistrement d'écran (barre de capture Cmd+Maj+5)
+    hyprsunset # Night Shift (Control Center > Écran)
     macosPkgs.macos-screenshot
     macosPkgs.macos-wm
+    macosPkgs.macos-appearance
+    # « Réglages… » du Control Center / « À propos de ce Mac » : gnome-control-center
+    # lancé hors GNOME (et wdisplays pour les écrans)
+    macosPkgs.macos-settings
   ];
   # Les apps lancées depuis le Dock/Spotlight héritent de ce PATH : on garde
   # ensuite les profils utilisateur et système.
@@ -47,7 +54,8 @@
     lib.makeBinPath runtimeDeps
     + ":/run/wrappers/bin:/etc/profiles/per-user/${config.home.username}/bin:${config.home.profileDirectory}/bin:/run/current-system/sw/bin";
 in {
-  home.packages = [pkgs.quickshell];
+  # macos-settings : entrée « Réglages » dans Spotlight / Applications
+  home.packages = [pkgs.quickshell macosPkgs.macos-settings pkgs.wf-recorder pkgs.hyprsunset];
 
   # Fichiers QML liés un à un (recursive) : le dossier reste inscriptible pour
   # settings.json et les fichiers d'état éventuels du shell.

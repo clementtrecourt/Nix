@@ -25,6 +25,11 @@ PanelWindow {
     // barre reste survolable (bascule d'un menu à l'autre).
     exclusionMode: ExclusionMode.Normal
     exclusiveZone: 0
+    // En plein écran, la barre abandonne sa zone exclusive : on décale alors la
+    // couche nous-mêmes sous la barre révélée (sinon le menu la recouvre et on
+    // ne peut plus glisser d'un titre à l'autre).
+    readonly property var bar: controller.bars[screenName] ?? null
+    margins.top: bar && bar.fullscreen ? Theme.menuBarHeight : 0
     anchors {
         top: true
         bottom: true
@@ -32,11 +37,12 @@ PanelWindow {
         right: true
     }
 
-    // Clic hors du menu : fermeture
+    // Clic hors du menu : fermeture immédiate (AppKit ne fait un fondu qu'après
+    // le choix d'un élément)
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.AllButtons
-        onPressed: menuLayer.controller.close(true)
+        onPressed: menuLayer.controller.close(false)
     }
 
     // Saisie rapide : sélectionne l'élément suivant qui commence par la lettre
@@ -63,10 +69,7 @@ PanelWindow {
             const p = loader.item?.deepest();
             if (!p) return;
             switch (event.key) {
-            case Qt.Key_Escape:
-                if (p.parentPanel) p.parentPanel.closeSub();
-                else menuLayer.controller.close(true);
-                break;
+            case Qt.Key_Escape: p.keyEscape(); break;
             case Qt.Key_Down: p.move(1); break;
             case Qt.Key_Up: p.move(-1); break;
             case Qt.Key_Right: p.keyRight(); break;
@@ -89,11 +92,9 @@ PanelWindow {
         active: false
         onLoaded: menuLayer.controller.rootPanel = item
 
-        // Apparition : fondu + très léger zoom depuis le haut (≈ 100 ms) ;
-        // pas d'animation quand on glisse d'un titre à l'autre.
-        property bool animateIn: true
+        // Apparition instantanée, comme les menus AppKit (pas de fondu ni de
+        // zoom) ; seule la fermeture après le choix d'un élément est animée.
         opacity: 1
-        transformOrigin: Item.Top
 
         sourceComponent: MenuPanel {
             controller: menuLayer.controller
@@ -109,24 +110,6 @@ PanelWindow {
         x: Math.max(6, Math.min(menuLayer.controller.anchorX, menuLayer.width - (item?.width ?? 0) - 6))
         y: 3
 
-        NumberAnimation {
-            id: fadeIn
-            target: loader
-            properties: "opacity"
-            from: 0
-            to: 1
-            duration: 110
-            easing.type: Easing.OutCubic
-        }
-        NumberAnimation {
-            id: scaleIn
-            target: loader
-            properties: "scale"
-            from: 0.97
-            to: 1
-            duration: 160
-            easing.type: Easing.OutCubic
-        }
         NumberAnimation {
             id: fadeOut
             target: loader
@@ -145,19 +128,13 @@ PanelWindow {
         target: menuLayer.controller
 
         function onGenerationChanged() {
-            const wasShown = loader.active && !fadeOut.running && menuLayer.controller.screenName === menuLayer.screenName;
             fadeOut.stop();
             loader.active = false;
             if (menuLayer.controller.screenName !== menuLayer.screenName) return;
             loader.opacity = 1;
-            loader.scale = 1;
             // Focus clavier avant création : le champ du menu Aide le reprend
             keys.forceActiveFocus();
             loader.active = true;
-            if (!wasShown) {
-                fadeIn.restart();
-                scaleIn.restart();
-            }
         }
 
         function onClosingChanged() {

@@ -144,7 +144,24 @@ Scope {
             .filter(t => t !== target && t.workspace?.id === target.workspace?.id)
             .sort((a, b) => (b.lastIpcObject?.focusHistoryID ?? 0) - (a.lastIpcObject?.focusHistoryID ?? 0));
         for (const t of others) Hyprland.dispatch("alterzorder top,address:0x" + t.address);
+        // La fenêtre choisie tout au-dessus (focuswindow ne remonte pas
+        // forcément une fenêtre flottante)
+        if (!Windows.isMinimized(target)) Hyprland.dispatch("alterzorder top,address:0x" + target.address);
         Windows.focus(target);
+        // Hyprland peut redonner le focus à l'ancienne fenêtre en démappant la
+        // surface du sélecteur après notre focuswindow : on vérifie et on insiste.
+        verifyFocus.target = target;
+        verifyFocus.restart();
+    }
+    Timer {
+        id: verifyFocus
+        property var target: null
+        interval: 160
+        onTriggered: {
+            if (target && Hyprland.activeToplevel !== target && !Windows.isMinimized(target))
+                Hyprland.dispatch("focuswindow address:0x" + target.address);
+            target = null;
+        }
     }
 
     Timer {

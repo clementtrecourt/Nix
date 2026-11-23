@@ -80,10 +80,10 @@ Scope {
             opacity: win.progress
             scale: 0.96 + 0.04 * win.progress
 
-            Glass {
+            NotifGlass {
                 anchors.fill: parent
                 radius: height / 2
-                thick: true
+                tint: Theme.glassThick
             }
 
             Row {
@@ -193,10 +193,10 @@ Scope {
             height: 22
             x: Math.max(0, Math.min(win.width - width, cx - width / 2))
             y: bar.y - height - 8
-            Glass {
+            NotifGlass {
                 anchors.fill: parent
                 radius: 7
-                thick: true
+                tint: Theme.glassThick
                 shadowOffset: 2
                 shadowBlur: 0.4
             }
@@ -219,7 +219,7 @@ Scope {
             x: Math.min(win.width - width - 4, bar.x + barRow.x + optBtn.x - 8)
             y: bar.y - height - 8
 
-            Glass {
+            NotifGlass {
                 anchors.fill: parent
                 radius: Theme.radiusMenu
                 tint: Theme.menuBackground
@@ -232,10 +232,20 @@ Scope {
                 width: parent.width - 12
 
                 MenuHeader { text: "Enregistrer dans" }
+                // Ordre de macOS : Bureau, Documents, Presse-papiers, (Mail, Messages :
+                // sans équivalent ici), Aperçu, emplacements choisis, Autre emplacement…
                 MenuItem { text: "Bureau"; checked: Shots.saveTo === "desktop"; onTriggered: Shots.saveTo = "desktop" }
                 MenuItem { text: "Documents"; checked: Shots.saveTo === "documents"; onTriggered: Shots.saveTo = "documents" }
-                MenuItem { text: "Captures d'écran"; checked: Shots.saveTo === "screenshots"; onTriggered: Shots.saveTo = "screenshots" }
                 MenuItem { text: "Presse-papiers"; checked: Shots.saveTo === "clipboard"; onTriggered: Shots.saveTo = "clipboard" }
+                MenuItem { text: "Aperçu"; checked: Shots.saveTo === "preview"; onTriggered: Shots.saveTo = "preview" }
+                MenuItem { text: "Captures d’écran"; checked: Shots.saveTo === "screenshots"; onTriggered: Shots.saveTo = "screenshots" }
+                MenuItem {
+                    visible: !!Shots.customDir
+                    text: Shots.customDir.split("/").pop() || Shots.customDir
+                    checked: Shots.saveTo === "custom"
+                    onTriggered: Shots.saveTo = "custom"
+                }
+                MenuItem { text: "Autre emplacement…"; onTriggered: Shots.chooseFolder() }
                 MenuSep {}
                 MenuHeader { text: "Minuteur" }
                 MenuItem { text: "Aucun"; checked: Shots.delay === 0; onTriggered: Shots.delay = 0 }
@@ -377,10 +387,10 @@ Scope {
             onTriggered: recWin.elapsed = (Date.now() - Shots.recordStart) / 1000
         }
 
-        Glass {
+        NotifGlass {
             anchors.fill: parent
             radius: height / 2
-            thick: true
+            tint: Theme.glassThick
         }
         Row {
             id: recRow

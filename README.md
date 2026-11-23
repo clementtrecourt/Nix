@@ -17,13 +17,13 @@
 ## ⚡ Stack & Environnement
 
 * **Bureau façon macOS Tahoe (macOS 26 « Liquid Glass »)** :
-  * **Compositeur** : [Hyprland](https://hypr.land) 0.56 — fenêtres flottantes centrées, coins continus, grande ombre douce, liseré d'un pixel, flou des matériaux, glissement des espaces, gestes du pavé tactile (3/4 doigts, Mission Control), clic pour focaliser.
+  * **Compositeur** : [Hyprland](https://hypr.land) 0.56 — fenêtres flottantes centrées (en cascade pour une même app), coins continus, grande ombre douce, liseré d'un pixel, flou des matériaux, glissement des espaces, gestes du pavé tactile (3/4 doigts, Mission Control), clic pour focaliser.
   * **Barres de titre** : plugin [hyprbars](https://github.com/hyprwm/hyprland-plugins) réglé façon Tahoe (feux tricolores Ø 14 pt à gauche, symboles × − ⤢ au survol, titre centré en Inter Semi-Bold, double-clic = Zoom) ; masquées pour les apps à décorations client (GTK/libadwaita, navigateurs, Electron).
   * **Shell** : écrit sur mesure en [Quickshell](https://quickshell.org) (QML) — barre des menus, Dock, Centre de contrôle, OSD, Spotlight, notifications, Mission Control, Cmd+Tab, verrouillage, agent Polkit. Service systemd `macos-shell`.
   * **Thèmes** : [MacTahoe](https://github.com/vinceliuice) GTK 3/4 + libadwaita (sombre, accent bleu), icônes **MacTahoe-Apple-dark** (vraies icônes d'apps de macOS 26 tirées de l'input de flake `macos-icons`, jamais copiées dans le dépôt, sur base MacTahoe), Kvantum MacTahoe pour Qt, curseur `macOS` (apple-cursor), police d'interface **Inter** (substitut de SF Pro), Kitty aux couleurs de Terminal.app.
 * **Navigateur Web** : [Zen Browser](https://zen-browser.app) optimisé avec **Betterfox v148** et **Smoothfox** injectés via les Enterprise Policies NixOS.
 * **Éditeur de Code** : **Zed Editor** & **Neovim (LazyVim)** déclaratifs avec serveurs LSP intégrés (`nixd`, `rust-analyzer`, Node.js).
-* **Terminal & Shell** : **Kitty** (typographie *IBM Plex Mono / BlexMono Nerd Font*, hints natifs) + **Fish** (Starship, Zoxide, Direnv, abréviations).
+* **Terminal & Shell** : **Kitty** (typographie *JetBrains Mono Nerd Font*, couleurs du Terminal de macOS, hints natifs) + **Fish** (Starship, Zoxide, Direnv, abréviations).
 * **Multiplexeur** : **Tmux** optimisé (navigation vim, splits sans préfixe, copy-mode Wayland).
 * **Gestion des Secrets** : **SOPS-Nix** avec chiffrement cryptographique asymétrique (`age` dérivé des clés SSH).
 * **Réseau Privé Sécurisé** : **Tailscale** reliant toutes les machines et le Homelab.

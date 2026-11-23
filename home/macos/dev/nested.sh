@@ -21,6 +21,20 @@ HYPR="${HYPR:-$(P hyprland)}"
 QS="${QS:-$(P quickshell)}"
 GRIM="${GRIM:-$(P grim)}"
 JQ="${JQ:-$(command -v jq)}"
+# Pilotes GL du même nixpkgs que Hyprland/Quickshell (façon nixGL) : le Mesa de
+# /run/opengl-driver peut venir d'un nixpkgs plus récent (glibc incompatible).
+MESA="${MESA:-$(P mesa)}"
+export LIBGL_DRIVERS_PATH="$MESA/lib/dri" GBM_BACKENDS_PATH="$MESA/lib/gbm" \
+  __EGL_VENDOR_LIBRARY_FILENAMES="$MESA/share/glvnd/egl_vendor.d/50_mesa.json" \
+  LD_LIBRARY_PATH="$MESA/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# Thème d'icônes MacTahoe (paquet local home/macos/pkgs), construit à la demande :
+# aucun chemin du store figé dans le dépôt, le banc marche sur toutes les machines.
+icon_pkg() {
+  nix build --no-link --print-out-paths --impure --expr "
+    let f = builtins.getFlake \"path:$(cd "$HERE/../../.." && pwd)\";
+        pkgs = import f.inputs.nixpkgs {system = builtins.currentSystem;};
+    in (import $HERE/../pkgs {inherit pkgs; inputs = f.inputs;}).mactahoe-apple-icon-theme" 2>/dev/null | head -1
+}
 
 envload() {
   [ -f "$STATE/env" ] || { echo "pas d'instance (nested.sh start)" >&2; exit 1; }
@@ -36,6 +50,8 @@ start)
   CONF="$STATE/hyprland.conf"
   {
     echo "monitor = , ${SIZE}@60, 0x0, 1"
+    # Plugin hyprbars de la même version que Hyprland (comme en prod)
+    echo "plugin = $(P hyprlandPlugins.hyprbars)/lib/libhyprbars.so"
     if [ -f "$HERE/hyprland-dev.conf" ]; then echo "source = $HERE/hyprland-dev.conf"; fi
     echo "misc {"
     echo "  disable_hyprland_logo = true"
@@ -71,10 +87,13 @@ start)
 shell)
   envload
   if [ -f "$STATE/qs.pid" ]; then kill "$(cat "$STATE/qs.pid")" 2>/dev/null || true; fi
-  # Thème d'icônes : MacTahoe une fois empaqueté (ICON_PKG=<store path>), WhiteSur sinon.
-  ICON_PKG="${ICON_PKG:-$(cat "$HERE/icon-pkg" 2>/dev/null || P whitesur-icon-theme)}"
+  # Thème d'icônes MacTahoe (mis en cache par instance ; ICON_PKG=<store path> pour forcer)
+  if [ -z "${ICON_PKG:-}" ]; then
+    [ -d "$(cat "$STATE/icon-pkg" 2>/dev/null)" ] || icon_pkg > "$STATE/icon-pkg"
+    ICON_PKG="$(cat "$STATE/icon-pkg")"
+  fi
   export XDG_DATA_DIRS="$ICON_PKG/share:${XDG_DATA_DIRS:-/run/current-system/sw/share}"
-  export QS_ICON_THEME="${QS_ICON_THEME:-$(cat "$HERE/icon-theme" 2>/dev/null || echo WhiteSur-dark)}"
+  export QS_ICON_THEME="${QS_ICON_THEME:-$(cat "$HERE/icon-theme" 2>/dev/null || echo MacTahoe-Apple-dark)}"
   nohup "$QS/bin/quickshell" -p "$SHELL_DIR" > "$STATE/qs.log" 2>&1 &
   echo $! > "$STATE/qs.pid"
   sleep "${WAIT:-3}"

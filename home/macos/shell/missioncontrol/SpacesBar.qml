@@ -93,22 +93,26 @@ Item {
         }
         Rectangle {
             anchors.fill: parent
-            color: Theme.dark ? Qt.rgba(0, 0, 0, 0.16) : Qt.rgba(1, 1, 1, 0.07)
+            // Bande plus claire que le bureau (+20/255 environ sur la capture de
+            // référence) : verre dépoli clair, un peu moins lumineux en sombre
+            color: Theme.dark ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(1, 1, 1, 0.11)
         }
-        // Liseré clair en bas de la bande (verre)
+        // Liseré à peine plus clair en bas de la bande (mesuré : +2/255)
         Rectangle {
             anchors.bottom: parent.bottom
             width: parent.width
             height: 1
-            color: Theme.dark ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(1, 1, 1, 0.18)
+            color: Qt.rgba(1, 1, 1, 0.04)
         }
     }
     Rectangle {
         anchors.top: band.bottom
         width: parent.width
-        height: 30
+        // Ombre douce sous la bande (~ -18/255 au ras, nulle à 50 pt)
+        height: 50
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, Theme.dark ? 0.20 : 0.13) }
+            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, Theme.dark ? 0.22 : 0.18) }
+            GradientStop { position: 0.35; color: Qt.rgba(0, 0, 0, Theme.dark ? 0.09 : 0.07) }
             GradientStop { position: 1.0; color: "transparent" }
         }
     }

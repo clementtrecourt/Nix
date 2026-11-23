@@ -57,6 +57,26 @@ Scope {
         toplevel = t;
         address = t.address;
         restoring = false;
+        external = false;
+        srcRect = windowRect(t);
+        dstRect = srcRect;
+        progress = 0;
+        dock.model.setLanding(address, true);
+        shot.captureSource = t.wayland;
+        overlay.visible = true;
+        startTimer.restart();
+    }
+
+    // Fenêtre minimisée hors du Dock (Cmd+M de macos-wm, bouton jaune de la
+    // barre de titre) : elle a déjà disparu de l'écran ; on rejoue l'effet depuis
+    // son dernier emplacement (la capture d'une fenêtre cachée reste possible).
+    property bool external: false
+    function animateMinimized(t) {
+        if (!t || anim.running || overlay.visible) return;
+        toplevel = t;
+        address = t.address;
+        restoring = false;
+        external = true;
         srcRect = windowRect(t);
         dstRect = srcRect;
         progress = 0;
@@ -72,6 +92,7 @@ Scope {
         toplevel = t;
         address = t.address;
         restoring = true;
+        external = false;
         srcRect = windowRect(t);
         dstRect = thumbRect(address, Qt.size(srcRect.width, srcRect.height));
         progress = 1;
@@ -86,7 +107,7 @@ Scope {
         id: startTimer
         interval: 60
         onTriggered: {
-            if (!root.restoring) {
+            if (!root.restoring && !root.external) {
                 Windows.minimize(root.toplevel);
             }
             if (!shot.hasContent) {
@@ -111,7 +132,7 @@ Scope {
 
     // Pendant la minimisation, la cible suit la tuile qui s'ouvre dans le Dock
     FrameAnimation {
-        running: anim.running && !root.restoring
+        running: (anim.running || (root.debugHold >= 0 && overlay.visible)) && !root.restoring
         onTriggered: root.dstRect = root.thumbRect(root.address, Qt.size(root.srcRect.width, root.srcRect.height))
     }
 
@@ -139,6 +160,7 @@ Scope {
     onProgressChanged: if (debugHold >= 0 && anim.running) { anim.stop(); progress = debugHold; }
     function debugAt(p) { debugHold = p; anim.stop(); progress = p; }
     function debugEnd() { debugHold = -1; finish(); }
+    function debugState() { return "p=" + progress.toFixed(2) + " running=" + anim.running + " overlay=" + overlay.visible + " content=" + shot.hasContent + " ext=" + external + " dur=" + duration; }
 
     PanelWindow {
         id: overlay

@@ -2,7 +2,7 @@ import QtQuick
 import Quickshell
 import qs.common
 
-// Menu déroulant Tahoe : plaque de verre (rayon 12), lignes de 24 pt, pictos à
+// Menu déroulant Tahoe : plaque de verre (rayon 14), lignes de 24 pt, pictos à
 // gauche, raccourcis alignés à droite, sous-menus en cascade (récursif).
 // Contenu : `items` (tableau JS, voir Menus.qml) ou `handle` (menu DBus SNI).
 Item {
@@ -29,6 +29,8 @@ Item {
 
     // Requête du champ de recherche (menu Aide)
     property string query: ""
+    // Sections dépliables ouvertes (clé : texte de l'élément)
+    property var expanded: ({})
 
     // ---- Modèle normalisé ----
     QsMenuOpener {
@@ -64,16 +66,33 @@ Item {
         return n;
     }
 
+    function toggleExpanded(key) {
+        const x = Object.assign({}, expanded);
+        x[key] = !x[key];
+        expanded = x;
+    }
+
     readonly property var model: {
         let src;
         if (handle) src = opener.children.values;
         else src = items ?? [];
-        let out = src.map(e => normalize(e));
+        let out = [];
+        for (const e of src) {
+            const n = normalize(e);
+            out.push(n);
+            // Section dépliable ouverte : ses éléments suivent, en place
+            if (n.disclosure) {
+                n.expanded = !!expanded[n.text];
+                if (n.expanded) for (const c of (n.children ?? [])) out.push(normalize(c));
+            }
+        }
         // Menu Aide : résultats de recherche parmi les menus de l'app
         if (out.length > 0 && out[0].search && query.trim() !== "") {
-            const q = query.trim().toLowerCase();
+            // (insensible à la casse et aux accents, comme macOS : « re » trouve « Récents »)
+            const fold = t => (t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            const q = fold(query.trim());
             const found = (out[0].provider ? out[0].provider() : [])
-                .filter(e => (e.text ?? "").toLowerCase().includes(q))
+                .filter(e => fold(e.text).includes(q))
                 .slice(0, 12)
                 .map(e => normalize(Object.assign({}, e, { shortcut: null, pathText: e.path.join(" ▸ ") })));
             out = [out[0], { header: true, text: "Éléments de menu" }].concat(
@@ -101,38 +120,58 @@ Item {
         for (const e of model) {
             if (e.separator) continue;
             if (e.search) { search = true; continue; }
-            if (e.mods || e.globe) mw = Math.max(mw, fm.advanceWidth(e.mods ?? "") + (e.globe ? 14 : 0));
+            if (e.mods || e.globe) {
+                // Modificateurs espacés de 2 pt, globe de 12 pt (voir MenuRow)
+                const chars = Array.from(e.mods ?? "");
+                let m = chars.reduce((a, ch) => a + fm.advanceWidth(ch), 0) + (e.globe ? 12 : 0);
+                m += 2 * Math.max(0, chars.length + (e.globe ? 1 : 0) - 1);
+                mw = Math.max(mw, m);
+            }
             if (e.key) kw = Math.max(kw, fm.advanceWidth(e.key));
             if (e.icon || e.iconSource || e.checked || e.checkable || e.minimized) lead = true;
         }
-        const textX = lead ? 36 : 14;
-        const keys = kw > 0 ? 22 + Math.ceil(mw) + 1 + Math.ceil(kw) : 0;
+        const textX = lead ? 37 : 16;
+        const keys = kw > 0 ? 22 + Math.ceil(mw) + 3 + Math.ceil(kw) : 0;
         // 2e passage : largeur nécessaire par ligne. Marge droite : 14 pt +
         // respiration (macOS laisse au moins ~20 pt après le texte).
         let w = 0;
         for (const e of model) {
             if (e.separator || e.search) continue;
-            let need = (e.header ? 14 : e.network ? 46 : textX)
+            let need = (e.header ? 16 : e.network ? 46 : textX)
                 + fm.advanceWidth(e.text ?? "") * (e.header ? 0.9 : 1) + 24 + keys;
             if (e.pathText) need += fm.advanceWidth(e.pathText) * (e.info ? 1 : 0.85) + 12;
-            if (e.hasSubmenu) need += 16;
+            if (e.hasSubmenu || e.disclosure) need += 16;
             if (e.toggle !== undefined && e.toggle !== null) need += 40;
             if (e.locked) need += 20;
             if (e.bold) need += 6;
             w = Math.max(w, need);
         }
         if (search) w = Math.max(w, 260);
-        return { textX: textX, modsW: Math.ceil(mw) + 1, keyW: Math.ceil(kw), width: Math.ceil(Math.max(w, 140)) };
+        return { textX: textX, modsW: Math.ceil(mw) + 3, keyW: Math.ceil(kw), width: Math.ceil(Math.max(w, 140)) };
     }
 
     width: metrics.width
     height: column.implicitHeight + 10
 
     // ---- Rendu ----
+    // Rayon : ~14 pt mesuré sur Tahoe (Fenêtre > Déplacer et redimensionner,
+    // capture 2x), un peu plus que Theme.radiusMenu (12) des menus contextuels.
+    readonly property real radius: 14
+
+    // Teinte posée par un Rectangle (alpha correct) plutôt que par la teinte du
+    // shader de Glass : celui-ci multiplie une seconde fois par l'alpha une
+    // couleur que Qt lui passe déjà prémultipliée, ce qui rendait les menus
+    // clairs gris-bleu (rgb 156,172,183 au lieu de ~235,236,240).
+    Rectangle {
+        anchors.fill: parent
+        radius: panel.radius
+        color: Theme.menuBackground
+        antialiasing: true
+    }
     Glass {
         anchors.fill: parent
-        radius: Theme.radiusMenu
-        tint: Theme.menuBackground
+        radius: panel.radius
+        tint: "transparent"
         shadowBlur: 0.5
         shadowOffset: 4
     }
@@ -159,6 +198,7 @@ Item {
                         highlighted: panel.currentIndex === slot.index
                         flashOff: panel.flashOff
                         textX: panel.metrics.textX
+                        expanded: !!slot.modelData.expanded
                         modsW: panel.metrics.modsW
                         keyW: panel.metrics.keyW
                         onHovered: panel.hover(slot.index)
@@ -235,6 +275,8 @@ Item {
         const e = model[i];
         if (e.hasSubmenu) { openSub(i, viaKeyboard); return; }
         currentIndex = i;
+        // Section dépliable : s'ouvre / se replie sur place
+        if (e.disclosure) { toggleExpanded(e.text); return; }
         // Interrupteur : bascule sur place, le menu reste ouvert
         if (e.keepOpen) {
             const r = rowAt(i);
@@ -267,19 +309,36 @@ Item {
     }
 
     // ---- Clavier ----
-    function deepest() { return childPanel ? childPanel.deepest() : panel; }
+    // Menu qui reçoit le clavier : le plus profond qui a une sélection. Un
+    // sous-menu ouvert au survol mais sans élément sélectionné laisse la main
+    // au menu parent (→ y entre, ↑ ↓ le referment), comme sur macOS.
+    function deepest() {
+        return childPanel && childPanel.currentIndex >= 0 ? childPanel.deepest() : panel;
+    }
     function move(d) {
         const n = model.length;
         if (n === 0) return;
         let i = currentIndex;
         for (let k = 0; k < n; k++) {
             i = i < 0 ? (d > 0 ? 0 : n - 1) : (i + d + n) % n;
-            if (selectable(i)) { currentIndex = i; return; }
+            if (selectable(i)) {
+                currentIndex = i;
+                if (subIndex !== -1 && subIndex !== i) closeSub();
+                return;
+            }
         }
+    }
+    // Échap : referme le sous-menu ouvert, sinon remonte d'un niveau
+    function keyEscape() {
+        if (childPanel) closeSub();
+        else if (parentPanel) parentPanel.closeSub();
+        else panel.controller.close(false);   // Échap : fermeture immédiate
     }
     function selectFirst() { currentIndex = -1; move(1); }
     function keyRight() {
-        if (currentIndex >= 0 && model[currentIndex]?.hasSubmenu) openSub(currentIndex, true);
+        const e = currentIndex >= 0 ? model[currentIndex] : null;
+        if (e?.disclosure) { if (!e.expanded) toggleExpanded(e.text); }
+        else if (e?.hasSubmenu) openSub(currentIndex, true);
         else panel.controller.step(1);
     }
     function keyLeft() {

@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
 import qs.common
+import qs.services
 import "decor.js" as Decor
 
 // Une fenêtre dans Mission Control : vignette vivante (ScreencopyView du
@@ -35,6 +36,7 @@ Item {
     property bool dragging: false
     property point dragPos: Qt.point(0, 0)    // coin haut-gauche pendant le glisser
     property real dragScale: 1
+    property bool draggable: true             // faux : clic seulement (fenêtres réduites)
 
     signal activated()
     signal dragMoved(real x, real y)
@@ -64,7 +66,14 @@ Item {
     width: baseW + (tw * dragScale - baseW) * dragBlend
     height: baseH + (th * dragScale - baseH) * dragBlend
     // Échelle courante par rapport à la vraie fenêtre
-    readonly property real sc: width / Math.max(1, realRect.width)
+    // Largeur de la vraie fenêtre (différente de realRect pour une fenêtre
+    // réduite, qui part du bas de l'écran déjà à sa taille de vignette)
+    property real naturalWidth: realRect.width
+    readonly property real sc: width / Math.max(1, naturalWidth)
+    // La capture Wayland est opaque (alpha perdu) : une fenêtre translucide
+    // (terminal) « sauterait » au départ. Fondu enchaîné très bref avec la vraie
+    // fenêtre, restée dessous, au tout début (et à la toute fin) de l'animation.
+    opacity: Math.min(1, progress / 0.06)
 
     // Ombre portée (decoration:shadow d'Hyprland : 0 20 60, 0x99 active / 0x55).
     // Elle n'apparaît qu'avec le fond d'écran de Mission Control : au départ,
@@ -97,7 +106,7 @@ Item {
         id: shot
         anchors.fill: parent
         radius: tile.windowRadius * tile.sc
-        // Sous la capture : fond de la barre (terminaux translucides floutés par Hyprland)
+        // Sous la capture : fond de la barre
         color: tile.hasBar ? Decor.barColor(tile.cls) : "transparent"
 
         ScreencopyView {
@@ -113,7 +122,7 @@ Item {
         // Barre de titre hyprbars, dessinée à taille réelle puis mise à l'échelle
         Item {
             visible: tile.hasBar
-            width: tile.realRect.width
+            width: tile.naturalWidth
             height: Decor.barHeight
             scale: tile.sc
             transformOrigin: Item.TopLeft
@@ -167,8 +176,9 @@ Item {
         anchors.top: parent.bottom
         anchors.topMargin: 10
         anchors.horizontalCenter: parent.horizontalCenter
-        width: Math.min(titleText.implicitWidth + 22, Math.max(140, tile.width + 40))
-        height: 24
+        readonly property real maxW: Math.max(160, tile.width + 40)
+        width: titleRow.implicitWidth + 20
+        height: 26
         radius: height / 2
         color: Qt.rgba(0.12, 0.12, 0.13, 0.78)
         border.width: 1
@@ -177,16 +187,27 @@ Item {
         visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: 140 } }
 
-        Text {
-            id: titleText
+        // Icône de l'app + titre de la fenêtre
+        Row {
+            id: titleRow
             anchors.centerIn: parent
-            width: Math.min(implicitWidth, parent.width - 22)
-            text: tile.toplevel?.title || tile.cls
-            color: "white"
-            font.family: Theme.font
-            font.pixelSize: 13
-            font.weight: Font.Medium
-            elide: Text.ElideRight
+            spacing: 6
+            IconImage {
+                anchors.verticalCenter: parent.verticalCenter
+                implicitSize: 16
+                source: Apps.icon(tile.cls)
+            }
+            Text {
+                id: titleText
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, titlePill.maxW - 20 - 22)
+                text: tile.toplevel?.title || tile.cls
+                color: "white"
+                font.family: Theme.font
+                font.pixelSize: 13
+                font.weight: Font.Medium
+                elide: Text.ElideRight
+            }
         }
     }
 
@@ -207,7 +228,7 @@ Item {
         onPositionChanged: e => {
             if (!pressed) return;
             const pt = mapToItem(tile.parent, e.x, e.y);
-            if (!tile.dragging && Math.hypot(pt.x - pressAt.x, pt.y - pressAt.y) > 6) {
+            if (tile.draggable && !tile.dragging && Math.hypot(pt.x - pressAt.x, pt.y - pressAt.y) > 6) {
                 tile.dragPos = Qt.point(tile.x, tile.y);
                 tile.dragging = true;
             }

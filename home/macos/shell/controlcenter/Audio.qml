@@ -16,9 +16,23 @@ Singleton {
     // Sorties matérielles (pas les flux applicatifs)
     readonly property var outputs: Pipewire.nodes.values.filter(n => n.isSink && !n.isStream && n.audio)
 
+    // Nom affiché façon macOS : "Haut-parleurs", nom de l'écran pour une sortie
+    // HDMI/DisplayPort (ex. "C27JG5x"), nom de l'appareil Bluetooth / USB.
+    // Les descriptions ALSA brutes ("Starship/Matisse HD Audio Controller Analog
+    // Stereo") ne sont jamais montrées telles quelles.
     function nameOf(n) {
         if (!n) return "";
-        return n.description || n.nickname || n.name;
+        const name = n.name ?? "";
+        const desc = n.description || "";
+        const nick = n.nickname || "";
+        if (name.startsWith("bluez_")) return desc || nick || name;
+        if (/hdmi|displayport|\.dp-/i.test(name)) {
+            // nick = nom du moniteur (EDID) quand il est connu
+            return nick && !/hdmi|displayport|analog/i.test(nick) ? nick : "Écran HDMI";
+        }
+        if (name.includes(".usb-") || /usb/i.test(desc)) return desc.replace(/ (Analog|Digital) Stereo.*$/, "") || nick;
+        if (/analog/i.test(name)) return "Haut-parleurs";
+        return desc || nick || name;
     }
     readonly property string sinkName: nameOf(sink)
 

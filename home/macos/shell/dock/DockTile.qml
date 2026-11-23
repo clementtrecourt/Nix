@@ -88,7 +88,8 @@ Item {
     readonly property string iconKey: {
         if (kind === "folder") return "downloads";
         if (kind === "trash") return dock.trashFull ? "user-trash-full" : "user-trash";
-        if (!isApp) return "";
+        // Fenêtre minimisée : icône de son app (badge de la miniature)
+        if (!isApp && !isWindow) return "";
         if (appId === dock.model.appsTileId) return "apps";
         const e = Apps.entryFor(appId || cls);
         return e ? e.id : (cls || appId).toLowerCase();
@@ -99,22 +100,27 @@ Item {
         if (kind === "trash") return iconKey;
         if (appId === dock.model.appsTileId) return "macos-apps";
         const e = Apps.entryFor(appId || cls);
-        return (e && e.icon) ? e.icon : iconKey;
+        // Sans entrée .desktop : l'id tel quel (les noms d'icônes sont sensibles à la casse)
+        if (e && e.icon) return e.icon;
+        return isWindow ? (cls || iconKey) : (appId || cls || iconKey);
     }
     onIconKeyChanged: dock.icons.want(iconKey, themeIcon)
     onThemeIconChanged: dock.icons.want(iconKey, themeIcon)
     readonly property var iconInfo: iconKey ? (dock.icons.resolved[iconKey] ?? null) : null
     readonly property string iconSource: {
-        if (iconInfo) return iconInfo.path;
+        if (iconInfo && iconInfo.path) return iconInfo.path;
         if (kind === "folder") return Quickshell.iconPath("folder-download", "folder");
         if (kind === "trash") return Quickshell.iconPath(iconKey, "user-trash");
         if (appId === dock.model.appsTileId)
             return Quickshell.iconPath("macos-apps", true) || Quickshell.iconPath("view-app-grid", "application-x-executable");
-        return Apps.icon(appId || cls);
+        return Apps.icon(isWindow ? cls : (appId || cls));
     }
     // Échelle d'affichage dans la toile : 1 pour une toile Apple (squircle 824/1024),
     // sinon ramène le squircle MacTahoe (87,5 %) aux 80,5 % de Tahoe.
     readonly property real iconScale: (iconInfo && iconInfo.apple) ? 1 : dock.themeIconScale
+    // Icône absente du thème (forme libre, non conforme à la grille Apple) : Tahoe
+    // la réduit et la pose sur un squircle gris (« boîte »).
+    readonly property bool boxed: isApp && appId !== dock.model.appsTileId && !!iconInfo && !!iconInfo.foreign
 
     // ---- Rebond (lancement / demande d'attention), piloté par l'horloge du Dock ----
     // Lancement : paraboles de 0,7 s, hauteur ≈ 0,5 tuile ; on termine le saut en cours
@@ -173,10 +179,29 @@ Item {
         // fond ni ombre ajoutés. Rastérisée une fois à la taille maximale agrandie
         // (sourceSize fixe), puis réduite par mipmap : nette et sans re-rastérisation
         // pendant l'agrandissement.
+        // Squircle gris des icônes « en boîte » (toile Apple : squircle à 80,5 %)
+        Rectangle {
+            id: box
+            visible: tile.boxed
+            anchors.centerIn: parent
+            width: tile.vSize * 0.805
+            height: width
+            // Coin continu Apple ≈ 22,4 % du côté (approché par un arc)
+            radius: width * 0.225
+            gradient: Gradient {
+                GradientStop { position: 0; color: Theme.dark ? "#4a4a4e" : "#fbfbfd" }
+                GradientStop { position: 1; color: Theme.dark ? "#323235" : "#e4e4e8" }
+            }
+            border.width: 0.5
+            border.color: Theme.dark ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(0, 0, 0, 0.08)
+            layer.enabled: tile.pressed
+            layer.effect: MultiEffect { brightness: -0.35 }
+        }
+
         Image {
             id: icon
             anchors.centerIn: parent
-            width: tile.vSize * tile.iconScale
+            width: tile.boxed ? box.width * 0.66 : tile.vSize * tile.iconScale
             height: width
             source: tile.iconSource
             sourceSize: Qt.size(tile.dock.iconPixels, tile.dock.iconPixels)
@@ -222,20 +247,29 @@ Item {
                 visible: hasContent
             }
             // Repli : icône de l'app si la capture est impossible
-            IconImage {
+            Image {
                 anchors.centerIn: parent
                 visible: !shot.hasContent
-                implicitSize: Math.min(parent.width, parent.height)
-                source: tile.isWindow ? Apps.icon(tile.cls) : ""
+                width: Math.min(parent.width, parent.height) * tile.iconScale
+                height: width
+                source: tile.isWindow ? tile.iconSource : ""
+                sourceSize: Qt.size(tile.dock.iconPixels, tile.dock.iconPixels)
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                mipmap: true
             }
         }
-        IconImage {
-            // Badge de l'app en bas à droite, comme macOS
+        Image {
+            // Badge de l'app en bas à droite, comme macOS (même icône que sa tuile)
             visible: shot.hasContent
-            implicitSize: Math.round(thumbBox.width * 0.42)
+            width: Math.round(thumbBox.width * 0.42)
+            height: width
             x: thumbBox.width - width - thumbBox.width * 0.02
             y: thumbBox.height - height - thumbBox.height * 0.02
-            source: tile.isWindow ? Apps.icon(tile.cls) : ""
+            source: tile.isWindow ? tile.iconSource : ""
+            sourceSize: Qt.size(tile.dock.iconPixels, tile.dock.iconPixels)
+            fillMode: Image.PreserveAspectFit
+            smooth: true
             mipmap: true
         }
     }

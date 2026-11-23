@@ -29,18 +29,25 @@ Scope {
     property bool buttonsShown: false
     property bool cmdHeld: false
     property bool appsAsList: false     // options de la vue Applications : grille / liste
+    property bool menuOpen: false       // menu « … » de la vue Applications ouvert
     property int historyPos: -1
     property real slow: 1               // ralentissement des animations (débogage)
     property int forceHoverButton: -1   // débogage : survol forcé d'un bouton de mode
     property var targetScreen: Quickshell.screens[0]
 
+    // Symboles des boutons de Tahoe : « A » de l'App Store, dossier, calques
+    // (Raccourcis), documents sur presse-papiers. Le nom du mode sert de texte
+    // indicatif du champ (« Applications », « Presse-papiers »…).
     readonly property var modes: [
-        { id: "apps", label: "Applications", symbol: "square.grid.3x3", key: "⌘1", placeholder: "Rechercher dans les applications" },
-        { id: "files", label: "Fichiers", symbol: "doc", key: "⌘2", placeholder: "Rechercher dans les fichiers" },
-        { id: "actions", label: "Actions", symbol: "square.2.layers.3d", key: "⌘3", placeholder: "Rechercher dans les actions" },
-        { id: "clipboard", label: "Presse-papiers", symbol: "list.clipboard", key: "⌘4", placeholder: "Rechercher dans le presse-papiers" }
+        { id: "apps", label: "Applications", symbol: "appstore", key: "1" },
+        { id: "files", label: "Fichiers", symbol: "folder", key: "2" },
+        { id: "actions", label: "Actions", symbol: "square.2.layers.3d", key: "3" },
+        { id: "clipboard", label: "Presse-papiers", symbol: "document.on.clipboard", key: "4" }
     ]
     readonly property var modeInfo: modes.find(m => m.id === mode) ?? null
+    // Bouton de mode survolé (-1 = aucun) : le champ annonce le mode et son raccourci
+    property int hoverMode: -1
+    readonly property var hoverInfo: buttonsVisible && hoverMode >= 0 ? modes[hoverMode] : null
 
     Search {
         id: search
@@ -73,6 +80,9 @@ Scope {
         gridNavigated = false;
         search.appCategory = "";
         search.fileKind = "";
+        menuOpen = false;
+        hoverMode = -1;
+        search.resultFilter = "";
         shown = true;
     }
     function hide() {
@@ -88,6 +98,7 @@ Scope {
         query = "";
         historyPos = -1;
         gridNavigated = false;
+        menuOpen = false;
         search.appCategory = "";
         search.fileKind = "";
         if (m !== "") buttonsShown = false;
@@ -191,17 +202,24 @@ Scope {
                         }
                         readonly property real finalX: Metrics.groupWidth - Metrics.buttonsWidth + Metrics.buttonGap
                                                        + index * (Metrics.buttonSize + Metrics.buttonSpacing)
-                        readonly property real hiddenX: Metrics.groupWidth - Metrics.buttonsWidth - Metrics.buttonSize - 6
+                        // Départ : à moitié sous l'extrémité droite ACTUELLE de la capsule
+                        // (qui se rétracte en même temps). Le verre de la capsule est
+                        // translucide : le bouton n'est opaque qu'à mesure qu'il en sort,
+                        // et « bourgeonne » hors de l'extrémité en grossissant, comme une
+                        // goutte.
+                        readonly property real hiddenX: panel.width - Metrics.buttonSize * 0.75
                         x: hiddenX + (finalX - hiddenX) * t
                         y: 0
                         z: -1
-                        opacity: Math.max(0, Math.min(1, t * 2.2))
-                        scale: 0.55 + 0.45 * Math.min(1.2, t)
+                        opacity: Math.max(0, Math.min(1, (x + Metrics.buttonSize * 0.6 - panel.width) / (Metrics.buttonSize * 0.5)))
+                        scale: 0.35 + 0.65 * Math.min(1.15, t)
                         visible: t > 0.01
                         symbol: modelData.symbol
-                        label: modelData.label
-                        shortcut: modelData.key
                         forceHover: root.forceHoverButton === index
+                        onHoveredChanged: {
+                            if (hovered) root.hoverMode = index;
+                            else if (root.hoverMode === index) root.hoverMode = -1;
+                        }
                         onClicked: root.setMode(modelData.id)
                     }
                 }
@@ -212,12 +230,14 @@ Scope {
                     width: root.buttonsVisible ? Metrics.groupWidth - Metrics.buttonsWidth : Metrics.groupWidth
                     height: Metrics.barHeight + (root.bodyShown ? root.bodyHeight + 1 : 0)
                     radius: Metrics.barRadius
-                    // Ombre douce et légère : au-delà de ~5 % d'opacité Hyprland
-                    // floute aussi la zone d'ombre (ignore_alpha), ce qui dessinerait
-                    // une bande floue sous la capsule.
-                    shadowBlur: 1.0
-                    shadowOffset: 8
-                    shadowColor: Qt.rgba(0, 0, 0, Theme.dark ? 0.2 : 0.12)
+                    // Ombre douce et légère : au-delà de 5 % d'opacité Hyprland
+                    // floute aussi la zone d'ombre (layerrule ignore_alpha 0.05),
+                    // ce qui dessinerait une bande floue sous la capsule. On plafonne
+                    // donc l'ombre juste sous ce seuil (plateau large et diffus).
+                    shadowBlur: 1.4
+                    shadowOffset: 10
+                    shadowColor: Qt.rgba(0, 0, 0, Theme.dark ? 0.35 : 0.2)
+                    shadowMax: 0.045
 
                     Behavior on width {
                         NumberAnimation {
@@ -240,15 +260,15 @@ Scope {
                         // Loupe, ou symbole du mode (survol : chevron retour)
                         Item {
                             id: lead
-                            x: 18
-                            width: 26
+                            x: Metrics.leadCenter - width / 2
+                            width: Metrics.glyphSize
                             height: parent.height
                             Symbol {
                                 anchors.centerIn: parent
                                 name: root.mode === "" ? "magnifyingglass"
                                      : (leadMouse.containsMouse ? "chevron.left" : root.modeInfo.symbol)
-                                size: root.mode === "" ? Metrics.glyphSize : 20
-                                color: root.mode === "" ? Theme.labelSecondary : Theme.label
+                                size: Metrics.glyphSize
+                                color: Theme.dark ? "#c2c2c7" : "#606065"
                             }
                             MouseArea {
                                 id: leadMouse
@@ -266,16 +286,40 @@ Scope {
                             anchors.fill: field
                             verticalAlignment: Text.AlignVCenter
                             visible: field.text.length === 0
-                            text: root.modeInfo ? root.modeInfo.placeholder : "Recherche Spotlight"
+                            text: root.modeInfo ? root.modeInfo.label
+                                 : (root.hoverInfo ? root.hoverInfo.label : "Recherche Spotlight")
                             font: field.font
                             color: Theme.labelSecondary
                             elide: Text.ElideRight
                         }
 
+                        // Jeton de filtre (catégorie d'apps / type de fichier) dans le
+                        // champ, comme Tahoe : Effacement sur champ vide le retire.
+                        Rectangle {
+                            id: token
+                            readonly property string label: root.filterLabel
+                            visible: label !== ""
+                            x: Metrics.textX - 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: visible ? tokenText.implicitWidth + 20 : 0
+                            height: 30
+                            radius: height / 2
+                            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.85)
+                            Text {
+                                id: tokenText
+                                anchors.centerIn: parent
+                                text: token.label
+                                font.family: Theme.font
+                                font.pixelSize: 16
+                                font.weight: Font.Medium
+                                color: "white"
+                            }
+                        }
+
                         TextInput {
                             id: field
-                            x: lead.x + lead.width + 12
-                            width: parent.width - x - (optionsButton.visible ? 52 : 22)
+                            x: token.visible ? token.x + token.width + 8 : Metrics.textX
+                            width: parent.width - x - (optionsButton.visible ? 52 : (keyHint.visible ? keyHint.width + 30 : 22))
                             height: parent.height
                             verticalAlignment: TextInput.AlignVCenter
                             font.family: Theme.fontDisplay
@@ -315,31 +359,72 @@ Scope {
                             }
                         }
 
-                        // Bouton d'options (vue Applications : grille / liste)
+                        // Survol d'un bouton de mode : touches du raccourci (« ⌘ » « 1 »)
+                        // en petites touches grises à droite du champ, comme Tahoe
+                        Row {
+                            id: keyHint
+                            visible: root.hoverInfo !== null && field.text.length === 0
+                            anchors.right: parent.right
+                            anchors.rightMargin: 22
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 4
+                            Repeater {
+                                model: ["command", root.hoverInfo ? root.hoverInfo.key : ""]
+                                delegate: Rectangle {
+                                    required property string modelData
+                                    required property int index
+                                    width: 19
+                                    height: 19
+                                    radius: 5
+                                    color: Theme.fillHover
+                                    Symbol {
+                                        visible: parent.index === 0
+                                        anchors.centerIn: parent
+                                        name: "command"
+                                        size: 12
+                                        // Couleur opaque : la recoloration de Symbol
+                                        // gère mal une couleur semi-transparente
+                                        color: Theme.dark ? "#b4b4b9" : "#5c5c61"
+                                    }
+                                    Text {
+                                        visible: parent.index > 0
+                                        anchors.centerIn: parent
+                                        text: parent.modelData
+                                        font.family: Theme.font
+                                        font.pixelSize: 11
+                                        font.weight: Font.Medium
+                                        color: Theme.dark ? "#b4b4b9" : "#5c5c61"
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bouton « ⋯ » (vue Applications) : menu Grille / Liste
                         Item {
                             id: optionsButton
                             visible: root.mode === "apps"
                             anchors.right: parent.right
-                            anchors.rightMargin: 13
+                            anchors.rightMargin: 17
                             anchors.verticalCenter: parent.verticalCenter
-                            width: 28
-                            height: 28
+                            width: 26
+                            height: 26
                             Rectangle {
                                 anchors.fill: parent
                                 radius: width / 2
-                                color: optMouse.containsMouse ? Theme.fillHover : Theme.fill
+                                color: Theme.fill
+                                visible: optMouse.containsMouse || root.menuOpen
                             }
                             Symbol {
                                 anchors.centerIn: parent
-                                name: root.appsAsList ? "square.grid.2x2" : "list.bullet"
-                                size: 14
-                                color: Theme.label
+                                name: "ellipsis.circle"
+                                size: 22
+                                color: Theme.dark ? "#c2c2c7" : "#606065"
                             }
                             MouseArea {
                                 id: optMouse
                                 anchors.fill: parent
                                 hoverEnabled: true
-                                onClicked: root.appsAsList = !root.appsAsList
+                                onClicked: root.menuOpen = !root.menuOpen
                             }
                         }
                     }
@@ -349,8 +434,8 @@ Scope {
                         id: sep
                         visible: root.bodyShown
                         y: Metrics.barHeight
-                        x: 18
-                        width: parent.width - 36
+                        x: Metrics.sidePad
+                        width: parent.width - 2 * Metrics.sidePad
                         height: 1
                         color: Theme.separator
                     }
@@ -364,14 +449,60 @@ Scope {
                         opacity: root.bodyShown ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: 140 * root.slow } }
 
+                        // Pastilles de filtre (groupes de résultats, catégories
+                        // d'apps, types de fichiers), en fondu sur le bord droit
+                        ListView {
+                            id: chips
+                            visible: root.chipsShown
+                            x: Metrics.sidePad
+                            y: Metrics.chipsTop
+                            width: parent.width - 2 * Metrics.sidePad
+                            height: Metrics.chipHeight
+                            orientation: ListView.Horizontal
+                            spacing: Metrics.chipSpacing
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            model: root.chipModel
+                            layer.enabled: contentWidth > width
+                            layer.effect: MultiEffect {
+                                maskEnabled: true
+                                maskSource: chipsFade
+                                maskThresholdMin: 0.0
+                                maskSpreadAtMin: 1.0
+                            }
+                            delegate: Chip {
+                                required property var modelData
+                                text: modelData.name
+                                checked: root.chipChecked(modelData.id)
+                                onClicked: root.pickChip(modelData.id)
+                            }
+                        }
+
+                        // Masque : opaque, puis fondu sur les 36 derniers points
+                        Rectangle {
+                            id: chipsFade
+                            visible: false
+                            layer.enabled: true
+                            width: chips.width
+                            height: chips.height
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop { position: 0.0; color: "white" }
+                                GradientStop { position: 1 - 36 / Math.max(36, chipsFade.width); color: "white" }
+                                GradientStop { position: 1.0; color: "transparent" }
+                            }
+                        }
+
                         // Liste (recherche générale, Actions, Presse-papiers, Applications en liste)
                         ListView {
                             id: list
                             visible: root.bodyKind === "list"
+                            y: root.chipsArea
                             width: parent.width
-                            height: root.listHeight
+                            // La marge basse reste hors de la vue : aucune ligne
+                            // suivante n'y dépasse au repos
+                            height: parent.height - y - Metrics.listPadBottom
                             topMargin: Metrics.listPadTop
-                            bottomMargin: Metrics.listPadBottom
                             clip: true
                             boundsBehavior: Flickable.StopAtBounds
                             model: root.listModel
@@ -382,91 +513,63 @@ Scope {
                                 onClicked: { list.sel = index; root.activate(false); }
                                 onSecondaryAction: { search.copyClip(modelData.clipId); root.close(); }
                             }
-                            onModelChanged: { sel = root.firstSelectable(); positionViewAtBeginning(); }
+                            onModelChanged: { sel = 0; positionViewAtBeginning(); }
                         }
 
                         // Message vide (presse-papiers vide, aucun résultat…)
                         Text {
                             visible: root.bodyKind === "empty"
-                            anchors.centerIn: parent
+                            x: 0
+                            y: root.chipsArea
+                            width: parent.width
+                            height: parent.height - y
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                             text: root.emptyText
                             font.family: Theme.font
                             font.pixelSize: 15
                             color: Theme.labelSecondary
                         }
 
-                        // Grilles (Applications, Fichiers) avec pastilles de filtre
-                        Item {
+                        // Grilles (Applications, Fichiers)
+                        IconGrid {
+                            id: grid
                             visible: root.bodyKind === "grid"
-                            anchors.fill: parent
-
-                            ListView {
-                                id: chips
-                                x: 16
-                                y: 12
-                                width: parent.width - 32
-                                height: Metrics.chipHeight
-                                orientation: ListView.Horizontal
-                                spacing: 6
-                                clip: true
-                                boundsBehavior: Flickable.StopAtBounds
-                                model: root.chipModel
-                                layer.enabled: true
-                                layer.effect: MultiEffect {
-                                    maskEnabled: true
-                                    maskSource: chipsFade
-                                    maskThresholdMin: 0.0
-                                    maskSpreadAtMin: 1.0
-                                }
-                                delegate: Chip {
-                                    required property var modelData
-                                    text: modelData.name
-                                    checked: root.mode === "apps" ? search.appCategory === modelData.id
-                                                                  : search.fileKind === modelData.id
-                                    onClicked: {
-                                        if (root.mode === "apps") search.appCategory = modelData.id;
-                                        else search.fileKind = modelData.id;
-                                    }
-                                }
-                            }
-
-                            // Masque : opaque, puis fondu sur les 36 derniers points
-                            Rectangle {
-                                id: chipsFade
-                                visible: false
-                                layer.enabled: true
-                                width: chips.width
-                                height: chips.height
-                                gradient: Gradient {
-                                    orientation: Gradient.Horizontal
-                                    GradientStop { position: 0.0; color: "white" }
-                                    GradientStop { position: 1 - 36 / Math.max(36, chipsFade.width); color: "white" }
-                                    GradientStop { position: 1.0; color: "transparent" }
-                                }
-                            }
-
-                            IconGrid {
-                                id: grid
-                                x: 12
-                                y: chips.y + chips.height + 4
-                                width: parent.width - 24
-                                height: parent.height - y - 10
-                                items: root.gridItems
-                                columns: Metrics.gridColumns
-                                showSelection: root.query.length > 0 || root.gridNavigated
-                                onActivated: item => root.activateItem(item, false)
-                            }
-
-                            Text {
-                                visible: grid.flat.length === 0
-                                anchors.centerIn: grid
-                                text: search.filesLoading ? "Recherche…" : "Aucun résultat"
-                                font.family: Theme.font
-                                font.pixelSize: 15
-                                color: Theme.labelSecondary
-                            }
+                            y: root.chipsArea
+                            width: parent.width
+                            height: parent.height - y
+                            bottomMargin: 8
+                            items: root.gridItems
+                            columns: Metrics.gridColumns
+                            showSelection: root.query.length > 0 || root.gridNavigated
+                            onActivated: item => root.activateItem(item, false)
+                        }
+                        Text {
+                            visible: root.bodyKind === "grid" && grid.flat.length === 0
+                            anchors.centerIn: grid
+                            text: search.filesLoading ? "Recherche…" : "Aucun résultat"
+                            font.family: Theme.font
+                            font.pixelSize: 15
+                            color: Theme.labelSecondary
                         }
                     }
+                }
+
+                // Menu du bouton « … » (au-dessus du panneau, aligné à droite)
+                MouseArea {
+                    // clic ailleurs dans le panneau : ferme le menu
+                    anchors.fill: panel
+                    visible: root.menuOpen
+                    onClicked: root.menuOpen = false
+                }
+                OptionsMenu {
+                    id: optionsMenu
+                    x: panel.width - width - 10
+                    y: Metrics.barHeight - 6
+                    z: 10
+                    open: root.menuOpen
+                    asList: root.appsAsList
+                    onPicked: asList => { root.appsAsList = asList; root.menuOpen = false; }
                 }
             }
         }
@@ -492,19 +595,60 @@ Scope {
 
     // ---- Corps ----
     readonly property string bodyKind: {
-        if (mode === "apps") return appsAsList ? "list" : "grid";
+        if (mode === "apps") return appsAsList ? (listModel.length ? "list" : "empty") : "grid";
         if (mode === "files") return "grid";
         if (mode === "actions" || mode === "clipboard") return listModel.length ? "list" : "empty";
         if (query.trim().length) return listModel.length ? "list" : "empty";
         return "none";
     }
     readonly property bool bodyShown: bodyKind !== "none"
-    readonly property string emptyText: mode === "clipboard" ? "Aucun élément dans le presse-papiers" : "Aucun résultat"
+
+    // ---- Pastilles de filtre ----
+    readonly property var chipModel: {
+        if (mode === "apps") return search.appCategoriesPresent;
+        if (mode === "files") return [
+            { id: "folders", name: "Dossiers" }, { id: "documents", name: "Documents" },
+            { id: "pdf", name: "PDF" }, { id: "images", name: "Images" }
+        ];
+        if (mode === "") return search.resultGroups;
+        return [];
+    }
+    readonly property bool chipsShown: bodyShown && chipModel.length > 0
+    readonly property int chipsArea: chipsShown ? Metrics.chipsTop + Metrics.chipHeight + Metrics.chipsBottom : 0
+    function chipChecked(id) {
+        if (mode === "apps") return search.appCategory === id;
+        if (mode === "files") return search.fileKind === id;
+        return search.resultFilter === id;
+    }
+    // Une pastille choisie se désélectionne au second clic
+    function pickChip(id) {
+        if (mode === "apps") search.appCategory = search.appCategory === id ? "" : id;
+        else if (mode === "files") search.fileKind = search.fileKind === id ? "" : id;
+        else search.resultFilter = search.resultFilter === id ? "" : id;
+        gridNavigated = false;
+    }
+    function clearFilter() {
+        search.appCategory = "";
+        search.fileKind = "";
+        search.resultFilter = "";
+    }
+
+    // Libellé du jeton de filtre affiché dans le champ ("" = aucun filtre)
+    readonly property string filterLabel: {
+        if (mode === "apps" && search.appCategory)
+            return (search.appCategoriesPresent.find(c => c.id === search.appCategory) ?? { name: "" }).name;
+        if (mode === "files" && search.fileKind)
+            return (chipModel.find(c => c.id === search.fileKind) ?? { name: "" }).name;
+        if (mode === "" && search.resultFilter)
+            return search.groupNames[search.resultFilter] ?? "";
+        return "";
+    }
+    readonly property string emptyText: mode === "clipboard" && !query.length ? "Aucun élément dans le presse-papiers" : "Aucun résultat"
 
     readonly property var listModel: {
         if (mode === "apps") {
-            // Applications en liste : mêmes éléments que la grille, en-têtes de catégorie inclus
-            return search.appGrid.map(i => i.header ? i : Object.assign({}, i, { subtitle: "" }));
+            // Applications en liste : mêmes éléments que la grille, sans le trait
+            return search.appGrid.filter(i => !i.separator && !i.header);
         }
         return search.results;
     }
@@ -516,34 +660,23 @@ Scope {
         }
         return [];
     }
-    readonly property var chipModel: {
-        if (mode === "apps") return [{ id: "", name: "Toutes" }].concat(search.appCategoriesPresent);
-        if (mode === "files") return [
-            { id: "", name: "Tous" }, { id: "folders", name: "Dossiers" }, { id: "documents", name: "Documents" },
-            { id: "pdf", name: "PDF" }, { id: "images", name: "Images" }
-        ];
-        return [];
-    }
 
-    readonly property real maxBody: Math.max(200, (targetScreen?.height ?? 982) * 0.56)
-    readonly property int gridChrome: 12 + Metrics.chipHeight + 4 + 10
-    readonly property int gridRows: Math.max(2, Math.min(5, Math.floor((maxBody + 60 - gridChrome) / Metrics.gridCellHeight)))
+    // Hauteur disponible sous le champ : s'arrête au-dessus du Dock (~90 pt).
+    readonly property real screenH: targetScreen?.height ?? 982
+    readonly property real maxBody: Math.max(200, screenH * (1 - Metrics.topRatio) - Metrics.barHeight - 96)
+    // Liste : coupée sur une limite de ligne (pas de ligne à moitié visible
+    // en bas du panneau au repos, comme Tahoe).
     readonly property real listHeight: {
-        let h = Metrics.listPadTop + Metrics.listPadBottom;
-        for (const it of listModel) h += it.header ? Metrics.headerHeight : (it.top ? Metrics.topRowHeight : Metrics.rowHeight);
-        return Math.min(maxBody, h);
+        const pad = Metrics.listPadTop + Metrics.listPadBottom;
+        const fit = Math.max(1, Math.floor((maxBody - chipsArea - pad) / Metrics.rowHeight));
+        return pad + Math.min(listModel.length, fit) * Metrics.rowHeight;
     }
     readonly property real bodyHeight: {
-        // Grille : un nombre entier de rangées (pas de rangée coupée au repos)
-        if (bodyKind === "grid") return gridChrome + gridRows * Metrics.gridCellHeight;
-        if (bodyKind === "empty") return 72;
-        if (mode === "apps" || mode === "actions" || mode === "clipboard") return Math.min(maxBody, Math.max(listHeight, 300));
-        return listHeight;
-    }
-
-    function firstSelectable() {
-        for (let i = 0; i < listModel.length; i++) if (!listModel[i].header) return i;
-        return 0;
+        // Grilles : panneau de hauteur fixe (≈ carré comme Tahoe), les
+        // rangées suivantes défilent sous le bord bas
+        if (bodyKind === "grid") return Math.min(maxBody, Metrics.appsPanelHeight - Metrics.barHeight - 1);
+        if (bodyKind === "empty") return chipsArea + 72;
+        return chipsArea + listHeight;
     }
 
     // =====================================================================
@@ -572,7 +705,9 @@ Scope {
         }
         switch (k) {
         case Qt.Key_Escape:
-            if (mode !== "") setMode("");
+            if (menuOpen) menuOpen = false;
+            else if (filterLabel !== "" && query.length === 0) clearFilter();
+            else if (mode !== "") setMode("");
             else if (query.length) query = "";
             else close();
             event.accepted = true;
@@ -618,8 +753,10 @@ Scope {
             event.accepted = true;
             return;
         }
-        if (k === Qt.Key_Backspace && query.length === 0 && mode !== "") {
-            setMode("");
+        if (k === Qt.Key_Backspace && query.length === 0 && (mode !== "" || filterLabel !== "")) {
+            // Retire d'abord le jeton de filtre, puis sort du mode
+            if (filterLabel !== "") clearFilter();
+            else setMode("");
             event.accepted = true;
         }
     }
@@ -654,7 +791,7 @@ Scope {
         target: "spotlight-debug"
         function open(m: string): void {
             ShellState.open(m === "apps" ? "apps" : "spotlight");
-            if (m && m !== "apps" && m !== "main") root.setMode(m);
+            if (m !== "apps") root.setMode(m === "main" ? "" : m);
         }
         function type(text: string): void { root.query = text; }
         function buttons(on: bool): void { if (on) root.revealButtons(); else root.buttonsShown = false; }
@@ -667,9 +804,11 @@ Scope {
         }
         function slowdown(f: real): void { root.slow = f; }
         function category(id: string): void { search.appCategory = id; }
+        function chip(id: string): void { root.pickChip(id); }
         function filekind(id: string): void { search.fileKind = id; }
         function cmd(on: bool): void { root.cmdHeld = on; }
         function applist(on: bool): void { root.appsAsList = on; }
+        function menu(on: bool): void { root.menuOpen = on; }
         function dark(on: bool): void { Theme.dark = on; }
         function state(): string {
             return JSON.stringify({ shown: root.shown, mode: root.mode, query: root.query, body: root.bodyKind,

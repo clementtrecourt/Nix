@@ -1,7 +1,9 @@
 import QtQuick
 import qs.common
 
-// Pastille de filtre (catégories de la vue Applications, types de fichiers).
+// Pastille de filtre sous le champ (Tahoe) : groupes de résultats, catégories
+// de la vue Applications, types de fichiers. Capsule grise discrète au texte
+// secondaire ; choisie, elle prend la couleur d'accent.
 Item {
     id: root
 
@@ -11,7 +13,7 @@ Item {
 
     signal clicked()
 
-    implicitWidth: label.implicitWidth + 24
+    implicitWidth: label.implicitWidth + 22
     implicitHeight: Metrics.chipHeight
 
     Rectangle {
@@ -27,9 +29,8 @@ Item {
         anchors.centerIn: parent
         text: root.text
         font.family: Theme.font
-        font.pixelSize: 12
-        font.weight: Font.Medium
-        color: root.checked ? "white" : Theme.label
+        font.pixelSize: Metrics.chipFontSize
+        color: root.checked ? "white" : (mouse.containsMouse ? Theme.label : Theme.labelSecondary)
     }
     MouseArea {
         id: mouse

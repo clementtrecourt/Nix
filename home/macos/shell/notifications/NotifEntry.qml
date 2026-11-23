@@ -24,16 +24,24 @@ QtObject {
     // Actions affichables : [{ identifier, text, ref }] (sans "default")
     property var actions: []
     property var defaultAction: null
+    // Réponse en ligne possible (Messages, etc.) : seulement tant que la
+    // notification D-Bus est vivante.
+    readonly property bool canReply: !!notif && notif.hasInlineReply
+    readonly property string replyPlaceholder: notif ? (notif.inlineReplyPlaceholder ?? "") : ""
 
     // Bannière actuellement affichée à l'écran
     property bool popup: false
+    // Interne (NotifStore) : mise à jour de remplacement en attente ; bannière à
+    // réafficher après un rechargement à chaud
+    property bool pendingUpdate: false
+    property bool wasPopup: false
 
     function serialize() {
         return {
             uid: uid, notifId: notif ? notif.id : -1, appName: appName, appKey: appKey, appIcon: appIcon,
             // Les images "image://" (données D-Bus) ne survivent pas au redémarrage
             image: image.startsWith("image://") ? "" : image,
-            summary: summary, body: body, time: time, urgency: urgency
+            summary: summary, body: body, time: time, urgency: urgency, popup: popup
         };
     }
 }

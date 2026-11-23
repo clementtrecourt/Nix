@@ -2,7 +2,7 @@ import QtQuick
 import Quickshell.Io
 import qs.common
 
-// Widget Horloge (petit, analogique) façon macOS : cadran sombre, chiffres 1-12,
+// Widget Horloge (petit, analogique) façon macOS : cadran sombre, 60 graduations, chiffres 1-12,
 // aiguilles blanches à bouts arrondis, trotteuse orange, code de la ville (PAR).
 Item {
     id: w
@@ -54,20 +54,35 @@ Item {
             ctx.fillStyle = Theme.dark ? "#0d0d0e" : "#ffffff";
             ctx.fill();
 
-            // Chiffres
+            // Graduations des 60 minutes au bord du cadran (plus marquées aux heures)
+            ctx.lineCap = "round";
+            for (let m = 0; m < 60; m++) {
+                const a = m * Math.PI / 30;
+                const hour = m % 5 === 0;
+                const r0 = r * (hour ? 0.86 : 0.885), r1 = r * 0.95;
+                ctx.strokeStyle = Theme.dark ? (hour ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.28)")
+                                             : (hour ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.22)");
+                ctx.lineWidth = hour ? 1.4 : 0.9;
+                ctx.beginPath();
+                ctx.moveTo(c + Math.sin(a) * r0, c - Math.cos(a) * r0);
+                ctx.lineTo(c + Math.sin(a) * r1, c - Math.cos(a) * r1);
+                ctx.stroke();
+            }
+
+            // Chiffres, à l'intérieur des graduations
             ctx.fillStyle = Theme.dark ? "#ffffff" : "#000000";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.font = "500 " + Math.round(s * 0.118) + "px '" + Theme.font + "'";
+            ctx.font = "500 " + Math.round(s * 0.112) + "px '" + Theme.font + "'";
             for (let h = 1; h <= 12; h++) {
                 const a = h * Math.PI / 6;
-                ctx.fillText(String(h), c + Math.sin(a) * r * 0.78, c - Math.cos(a) * r * 0.78 + 0.5);
+                ctx.fillText(String(h), c + Math.sin(a) * r * 0.70, c - Math.cos(a) * r * 0.70 + 0.5);
             }
 
             // Ville
             ctx.fillStyle = Theme.dark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.5)";
             ctx.font = "600 " + Math.round(s * 0.075) + "px '" + Theme.font + "'";
-            ctx.fillText(w.city, c, c - r * 0.36);
+            ctx.fillText(w.city, c, c - r * 0.33);
 
             const t = w.now;
             const sec = t.getSeconds();

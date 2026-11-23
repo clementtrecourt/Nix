@@ -38,4 +38,13 @@ Singleton {
     // de l'écran, -1 = inconnu). Renseigné par la barre ; le HUD volume/luminosité
     // (controlcenter/Osd.qml) s'affiche centré sous cette icône, comme sur Tahoe.
     property real controlCenterIconX: -1
+
+    // HUD volume / luminosité (controlcenter/Osd.qml) : type affiché ("volume",
+    // "brightness", "keyboard"), "" quand il est masqué. Sur Tahoe, l'élément
+    // correspondant de la barre des menus (Son, Écran) apparaît en surbrillance
+    // tant que le HUD est visible, et le HUD se centre dessous : la barre peut
+    // publier le x du centre de cet élément dans osdAnchorX (-1 = inconnu ; le HUD
+    // se centre alors sous l'icône du Control Center).
+    property string osdKind: ""
+    property real osdAnchorX: -1
 }

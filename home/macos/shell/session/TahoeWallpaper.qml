@@ -9,6 +9,8 @@ ShaderEffect {
     property bool darkMode: Theme.dark
     property real aspect: width / Math.max(1, height)
     property real dark: darkMode ? 1 : 0
+    // 1 pixel en coordonnées de texture (finesse de la lèvre du verre)
+    property real pxv: 1 / Math.max(1, height)
 
     Behavior on dark {
         NumberAnimation { duration: 900; easing.type: Easing.InOutQuad }

@@ -12,6 +12,9 @@ import Quickshell.Io
 //   2. thème d'icônes (MacTahoe-Apple-dark = vraies icônes Tahoe en PNG 1024 ;
 //      sinon MacTahoe) : le PNG le plus grand s'il couvre la taille
 //      affichée maximale (agrandissement × densité), sinon le SVG via le thème.
+//   3. absente du thème : icône amont (hicolor) via Quickshell.iconPath, que le
+//      Dock pose sur un squircle gris réduit, comme Tahoe pour les icônes non
+//      conformes à la grille Apple.
 // La recherche se fait dans un script shell (aucun accès disque synchrone en QML),
 // relancé quand de nouvelles icônes sont demandées et toutes les 20 s (pour
 // prendre en compte une surcharge déposée pendant que le shell tourne).
@@ -61,6 +64,27 @@ Item {
 theme="$1"; ovr="$2"; min="$3"; shift 3
 dirs="${XDG_DATA_HOME:-$HOME/.local/share}:${XDG_DATA_DIRS:-/run/current-system/sw/share}"
 base="${theme%-dark}"; base="${base%-light}"
+# Thèmes à parcourir : le thème, ses parents (Inherits=, sauf hicolor), puis la base
+themes="$theme"; todo="$theme"
+while [ -n "$todo" ]; do
+  cur="${todo%% *}"; [ "$cur" = "$todo" ] && todo="" || todo="${todo#* }"
+  IFS=:
+  for d in $dirs; do
+    f="$d/icons/$cur/index.theme"
+    [ -f "$f" ] || continue
+    inh=$(sed -n "s/^Inherits=//p" "$f" | head -1 | tr "," " ")
+    break
+  done
+  unset IFS
+  for i in $inh; do
+    case " $themes hicolor " in *" $i "*) ;; *) themes="$themes $i"; todo="$todo $i" ;; esac
+  done
+  inh=""
+  todo="${todo# }"
+done
+case " $themes " in *" $base "*) ;; *) themes="$themes $base" ;; esac
+# Séparées par « : » (la boucle de recherche tourne avec IFS=:)
+themes=$(printf %s "$themes" | tr " " :)
 for pair in "$@"; do
   key="${pair%%=*}"; name="${pair#*=}"
   low=$(printf %s "$key" | tr "[:upper:]" "[:lower:]")
@@ -72,14 +96,19 @@ for pair in "$@"; do
   done
   if [ -n "$found" ]; then printf "%s\\t%s\\t1\\n" "$key" "$found"; continue; fi
   case "$name" in /*) [ -f "$name" ] && printf "%s\\t%s\\t0\\n" "$key" "$name"; continue ;; esac
-  best=""; bestsz=0
+  best=""; bestsz=0; svg=""
   IFS=:
   for d in $dirs; do
     # Thème choisi seulement : hicolor (icônes amont non stylées) ne doit pas
     # passer devant un SVG du thème ; le repli hicolor reste assuré par Qt.
-    for t in "$theme" "$base"; do
+    for t in $themes; do
       r="$d/icons/$t"
       [ -d "$r" ] || continue
+      for f in "$r"/*/*/"$name".svg "$r"/*/"$name".svg; do
+        [ -f "$f" ] || continue
+        # Préférer le dessin « scalable » aux variantes 16/22/24 px simplifiées
+        case "$svg" in */scalable/*) ;; *) case "$f" in */scalable/*) svg="$f" ;; *) [ -z "$svg" ] && svg="$f" ;; esac ;; esac
+      done
       for f in "$r"/*/*/"$name".png "$r"/*/"$name".png; do
         [ -f "$f" ] || continue
         rel="${f#$r/}"
@@ -93,7 +122,11 @@ for pair in "$@"; do
   unset IFS
   # Toile >= 512 px : icône Apple exportée d un Mac (squircle à 80,5 %) -> 2
   if [ -n "$best" ] && [ "$bestsz" -ge 512 ]; then printf "%s\\t%s\\t2\\n" "$key" "$best";
-  elif [ -n "$best" ] && [ "$bestsz" -ge "$min" ]; then printf "%s\\t%s\\t0\\n" "$key" "$best"; fi
+  elif [ -n "$best" ] && [ "$bestsz" -ge "$min" ]; then printf "%s\\t%s\\t0\\n" "$key" "$best";
+  elif [ -n "$svg" ]; then printf "%s\\t%s\\t0\\n" "$key" "$svg";
+  elif [ -n "$best" ]; then printf "%s\\t%s\\t0\\n" "$key" "$best";
+  # Absente du thème : icône amont (hicolor…), mise « en boîte » par le Dock
+  else printf "%s\\t\\t3\\n" "$key"; fi
 done
 '
 
@@ -106,7 +139,9 @@ done
                     const f = line.split("\t");
                     if (f.length < 3) continue;
                     // apple : toile Apple (1024, squircle 824) affichée à 100 %
-                    r[f[0]] = { path: "file://" + f[1], override: f[2] === "1", apple: f[2] !== "0" };
+                    // foreign : absente du thème (Tahoe la pose sur un squircle gris)
+                    if (f[2] === "3") { r[f[0]] = { path: "", override: false, apple: false, foreign: true }; continue; }
+                    r[f[0]] = { path: "file://" + f[1], override: f[2] === "1", apple: f[2] !== "0", foreign: false };
                 }
                 if (JSON.stringify(r) !== JSON.stringify(root.resolved)) root.resolved = r;
             }

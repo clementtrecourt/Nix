@@ -14,9 +14,10 @@ import qs.services
 //   [ Wi-Fi      ] [ Lecture   ]
 //   [ Bluetooth  ] [ en cours  ]
 //   [ AirDrop    ] (SM) (Recop.)
-//   (Sombre)(Calc) [ Concentr. ]
+//   (Sombre)(Capt.)[ Concentr. ]
 //   [ Écran ---------------- ☼ ]
 //   [ Son ------------- 🔊 (⌾) ]
+//          ( Modifier les commandes )
 //
 // Un clic sur un module (hors pastille) le déplie : la plaque du module se
 // transforme (ressort) en carte pleine largeur avec la liste détaillée, les
@@ -32,7 +33,7 @@ Scope {
     // la surface sur un autre écran pendant qu'elle est visible).
     property bool shown: false
     property var targetScreen: Quickshell.screens[0]
-    // Module déplié : "", "wifi", "bluetooth", "sound", "focus"
+    // Module déplié : "", "wifi", "bluetooth", "sound", "focus", "display", "mirroring"
     property string expanded: ""
     // Progression du dépliage (0 = grille, 1 = carte), peut dépasser 1 (ressort)
     property real ex: 0
@@ -50,19 +51,31 @@ Scope {
     readonly property bool btOn: !!btAdapter && btAdapter.enabled
     readonly property var btConnected: btAdapter ? btAdapter.devices.values.filter(d => d.connected) : []
 
+    // Module d'origine du dépliage : sa plaque est masquée pendant que la carte
+    // en sort (morphose : une seule plaque visible, pas deux superposées).
+    property Item sourceTile: null
+
     function expand(name, tile) {
-        if (expanded !== "" || !tile) return;
+        if (!tile) return;
+        // Déjà déplié (hors repli en cours) : on ignore. Pendant le repli d'un
+        // autre module, on enchaîne directement (le clic n'est pas perdu).
+        if (expanded !== "" && !collapseAnim.running) return;
+        collapseAnim.stop();
+        if (sourceTile) sourceTile.glassVisible = true;
         const p = tile.mapToItem(grid, 0, 0);
         fromRect = Qt.rect(p.x, p.y, tile.width, tile.height);
         fromRadius = tile.radius;
+        sourceTile = tile;
+        tile.glassVisible = false;
         expanded = name;
-        collapseAnim.stop();
+        ex = 0;
         expandAnim.restart();
     }
     function collapse() {
         if (expanded === "") return;
         expandAnim.stop();
         collapseAnim.restart();
+        keys.forceActiveFocus();
     }
     function close() { ShellState.close(); }
 
@@ -72,6 +85,9 @@ Scope {
             if (!win.visible)
                 targetScreen = Quickshell.screens.find(s => s.name === name) ?? Quickshell.screens[0];
             Brightness.refresh();
+            // Échap doit toujours atteindre `keys` (un champ de saisie d'un
+            // module déplié a pu garder le focus)
+            keys.forceActiveFocus();
         } else if (expanded !== "") {
             collapse();
         }
@@ -94,7 +110,18 @@ Scope {
         to: 0
         duration: CCStyle.durCollapse
         easing.type: Easing.OutCubic
-        onFinished: cc.expanded = ""
+        onFinished: {
+            cc.expanded = "";
+            if (cc.sourceTile) cc.sourceTile.glassVisible = true;
+            cc.sourceTile = null;
+        }
+    }
+
+    // Capture : laisse le Control Center disparaître avant d'ouvrir la barre
+    Timer {
+        id: shotTimer
+        interval: CCStyle.durClose + 60
+        onTriggered: Quickshell.execDetached(["hyprctl", "dispatch", "global", "macos:screenshot-ui"])
     }
 
     GlobalShortcut {
@@ -108,7 +135,7 @@ Scope {
     IpcHandler {
         target: "controlcenter-debug"
         function expand(name: string): void {
-            const t = { wifi: wifiTile, bluetooth: btTile, sound: soundTile, focus: focusTile }[name];
+            const t = { wifi: wifiTile, bluetooth: btTile, sound: soundTile, focus: focusTile, display: displayTile, mirroring: mirrorTile }[name];
             cc.expand(name, t);
         }
         function collapse(): void { cc.collapse(); }
@@ -116,6 +143,14 @@ Scope {
         // Simule un rétroéclairage (machine de test sans /sys/class/backlight)
         function fakeBrightness(v: real): void { Brightness.available = true; Brightness.value = v; }
         function state(): string { return JSON.stringify({ open: cc.open, expanded: cc.expanded, ex: cc.ex, opacity: content.opacity, scale: content.scale }); }
+        // Fige la progression du dépliage (captures image par image), -1 = libère
+        function freeze(name: string, k: real): void {
+            if (k < 0) { cc.collapse(); return; }
+            const t = { wifi: wifiTile, bluetooth: btTile, sound: soundTile, focus: focusTile, display: displayTile, mirroring: mirrorTile }[name];
+            cc.expand(name, t);
+            expandAnim.stop();
+            cc.ex = k;
+        }
     }
 
     PanelWindow {
@@ -196,7 +231,7 @@ Scope {
             Item {
                 id: grid
                 width: CCStyle.width
-                height: 6 * CCStyle.cell + 5 * CCStyle.gap
+                height: editTile.y + editTile.height
                 readonly property int s: CCStyle.cell + CCStyle.gap
                 opacity: 1 - Math.min(1, cc.ex * 1.8)
                 scale: 1 - 0.05 * Math.min(1, cc.ex)
@@ -226,64 +261,79 @@ Scope {
                     onToggled: if (cc.btAdapter) cc.btAdapter.enabled = !cc.btAdapter.enabled
                     onExpand: cc.expand("bluetooth", btTile)
                 }
+                // AirDrop n'existe pas ici : affiché dans son état "Désactivé" de
+                // Tahoe (pastille grise, pictogramme barré), sans action.
                 PillModule {
                     x: 0; y: 2 * grid.s
                     title: "AirDrop"
                     subtitle: "Désactivé"
-                    symbol: "airdrop"
+                    symbol: "airdrop.slash"
                     glyphSize: 23
-                    disabled: true
                 }
 
                 NowPlaying {
                     x: 2 * grid.s; y: 0
                 }
+                // Stage Manager : pas d'équivalent sous Hyprland. Affiché pleinement
+                // (disposition par défaut de Tahoe), réagit au survol / à la
+                // pression, sans action.
                 CircleModule {
                     x: 2 * grid.s; y: 2 * grid.s
                     symbol: "squares.leading.rectangle"
-                    glyphSize: 34
-                    disabled: true
+                    glyphSize: 32
                 }
+                // Recopie de l'écran : se déplie comme sur Tahoe (liste des
+                // récepteurs AirPlay ; ici aucun, lien vers les réglages des écrans).
                 CircleModule {
+                    id: mirrorTile
                     x: 3 * grid.s; y: 2 * grid.s
                     symbol: "rectangle.on.rectangle"
-                    glyphSize: 35
-                    disabled: true
+                    glyphSize: 33
+                    onClicked: cc.expand("mirroring", mirrorTile)
                 }
 
                 CircleModule {
                     x: 0; y: 3 * grid.s
                     symbol: "circle.lefthalf.filled.inverse"
-                    glyphSize: 30
+                    glyphSize: 28
                     on: Theme.dark
                     onClicked: Appearance.toggle()
                 }
+                // Capture d'écran (défaut de Tahoe) : ferme le Control Center puis
+                // ouvre la barre de capture (raccourci global macos:screenshot-ui,
+                // contrat Cmd+Maj+5, porté par le composant notifications).
                 CircleModule {
                     x: grid.s; y: 3 * grid.s
-                    symbol: "calculator"
-                    glyphSize: 30
-                    onClicked: { Apps.launch("org.gnome.Calculator"); cc.close(); }
+                    symbol: "camera.viewfinder"
+                    glyphSize: 27
+                    onClicked: {
+                        cc.close();
+                        shotTimer.restart();
+                    }
                 }
                 PillModule {
                     id: focusTile
                     x: 2 * grid.s; y: 3 * grid.s
-                    title: Focus.doNotDisturb ? "Ne pas déranger" : "Concentration"
+                    title: Focus.doNotDisturb ? Focus.modeName : "Concentration"
                     subtitle: Focus.untilLabel
-                    symbol: "moon.fill"
+                    symbol: Focus.doNotDisturb ? Focus.modeSymbol : "moon.fill"
                     glyphSize: 20
                     on: Focus.doNotDisturb
-                    onGlyph: CCStyle.indigo
+                    onGlyph: Focus.modeColor
                     onToggled: Focus.toggle()
                     onExpand: cc.expand("focus", focusTile)
                 }
 
                 SliderModule {
+                    id: displayTile
                     x: 0; y: 4 * grid.s
+                    expandable: true
+                    onTitleClicked: cc.expand("display", displayTile)
                     title: "Écran"
                     leftSymbol: "sun.min.fill"
-                    leftSize: 19
+                    leftSize: 17
                     rightSymbol: "sun.max.fill"
-                    rightSize: 21
+                    rightSize: 17
                     value: Brightness.value
                     sliderEnabled: Brightness.available
                     onMoved: v => Brightness.set(v)
@@ -293,15 +343,42 @@ Scope {
                     x: 0; y: 5 * grid.s
                     title: "Son"
                     leftSymbol: Audio.muted ? "speaker.slash.fill" : "speaker.fill"
-                    leftSize: 21
+                    leftSize: 19
                     rightSymbol: "speaker.wave.3.fill"
-                    rightSize: 28
+                    rightSize: 20
                     accessory: true
+                    expandable: true
                     value: Audio.muted ? 0 : Audio.volume
                     sliderEnabled: Audio.ready
                     onMoved: v => Audio.setVolume(v)
                     onAccessoryClicked: cc.expand("sound", soundTile)
                     onTitleClicked: cc.expand("sound", soundTile)
+                }
+
+                // « Modifier les commandes » : petite capsule de verre centrée à
+                // 17 pt sous le module Son (Tahoe : 23,5 pt de haut, texte 13 pt
+                // en vibrancy, 10 pt de marge). La personnalisation n'existe pas
+                // ici : elle ouvre les réglages d'apparence du système.
+                CCTile {
+                    id: editTile
+                    y: 5 * grid.s + CCStyle.cell + 17
+                    x: (grid.width - width) / 2
+                    width: editLabel.implicitWidth + 22
+                    height: 24
+                    radius: height / 2
+                    onClicked: {
+                        CCActions.openSettings("appearance");
+                        cc.close();
+                    }
+                    Text {
+                        renderType: Text.CurveRendering
+                        id: editLabel
+                        anchors.centerIn: parent
+                        text: "Modifier les commandes"
+                        color: CCStyle.vibrant
+                        font.family: Theme.font
+                        font.pixelSize: 13
+                    }
                 }
             }
 
@@ -328,7 +405,6 @@ Scope {
                     shadowBlur: 0.3 + 0.6 * Math.min(1, card.k)
                     shadowOffset: 2 + 4 * Math.min(1, card.k)
                     shadowColor: Qt.rgba(0, 0, 0, 0.25)
-                    opacity: Math.min(1, card.k * 4)
                 }
 
                 Item {
@@ -348,7 +424,7 @@ Scope {
                             id: loader
                             y: 2
                             active: cc.expanded !== ""
-                            sourceComponent: ({ wifi: wifiDetail, bluetooth: btDetail, sound: soundDetail, focus: focusDetail })[cc.expanded] ?? null
+                            sourceComponent: ({ wifi: wifiDetail, bluetooth: btDetail, sound: soundDetail, focus: focusDetail, display: displayDetail, mirroring: mirrorDetail })[cc.expanded] ?? null
                         }
                     }
                 }
@@ -365,5 +441,15 @@ Scope {
         Component { id: btDetail; BluetoothDetail {} }
         Component { id: soundDetail; SoundDetail {} }
         Component { id: focusDetail; FocusDetail {} }
+        Component { id: displayDetail; DisplayDetail {} }
+        Component { id: mirrorDetail; MirroringDetail {} }
+
+        // Un champ de saisie d'un module déplié (mot de passe Wi-Fi) rend le
+        // focus clavier : Échap doit de nouveau replier / fermer.
+        Connections {
+            target: loader.item
+            ignoreUnknownSignals: true
+            function onFocusReleased() { keys.forceActiveFocus(); }
+        }
     }
 }

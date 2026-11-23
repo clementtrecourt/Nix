@@ -20,13 +20,13 @@ Item {
         radius: height / 2
         color: Theme.fill
 
-        Symbol {
+        Glyph {
             id: glass
             anchors.verticalCenter: parent.verticalCenter
             x: 8
             name: "magnifyingglass"
             size: 13
-            color: Theme.labelSecondary
+            tint: Theme.labelSecondary
         }
 
         TextInput {

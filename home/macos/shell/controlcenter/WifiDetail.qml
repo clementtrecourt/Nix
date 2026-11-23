@@ -19,6 +19,8 @@ Column {
         .sort((a, b) => b.signalStrength - a.signalStrength)
     property bool othersOpen: known.length === 0
     property var pskTarget: null
+    // Fin de saisie du mot de passe : le Control Center reprend le focus clavier
+    signal focusReleased()
 
     function strengthSymbol(n) {
         const s = n.signalStrength ?? 1;
@@ -85,6 +87,7 @@ Column {
         height: visible ? 64 : 0
 
         Text {
+            renderType: Text.CurveRendering
             x: 16
             y: 4
             width: parent.width - 32
@@ -105,6 +108,7 @@ Column {
             border.color: Qt.rgba(0.04, 0.52, 1, 0.8)
 
             TextInput {
+                renderType: TextInput.CurveRendering
                 id: pskField
                 anchors.fill: parent
                 anchors.leftMargin: 10
@@ -118,8 +122,13 @@ Column {
                 Keys.onReturnPressed: {
                     if (root.pskTarget && text.length > 0) root.pskTarget.connectWithPsk(text);
                     root.pskTarget = null;
+                    root.focusReleased();
                 }
-                Keys.onEscapePressed: event => { root.pskTarget = null; event.accepted = true; }
+                Keys.onEscapePressed: event => {
+                    root.pskTarget = null;
+                    event.accepted = true;
+                    root.focusReleased();
+                }
             }
         }
     }
@@ -127,7 +136,7 @@ Column {
     DetailFooter {
         text: "Réglages Wi-Fi…"
         onClicked: {
-            Quickshell.execDetached(["gnome-control-center", "wifi"]);
+            CCActions.openSettings("wifi");
             ShellState.close();
         }
     }

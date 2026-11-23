@@ -19,21 +19,21 @@ Column {
             x: 21 - width / 2
             anchors.verticalCenter: parent.verticalCenter
             name: Audio.muted ? "speaker.slash.fill" : "speaker.fill"
-            size: 21
+            size: 18
             color: CCStyle.text
         }
         CCSlider {
-            x: 34
-            width: parent.width - 34 - 44
+            x: 31.5
+            width: parent.width - 31.5 - 35
             anchors.verticalCenter: parent.verticalCenter
             value: Audio.muted ? 0 : Audio.volume
             onMoved: v => Audio.setVolume(v)
         }
         Symbol {
-            x: parent.width - 23 - width / 2
+            x: parent.width - 21 - width / 2
             anchors.verticalCenter: parent.verticalCenter
             name: "speaker.wave.3.fill"
-            size: 28
+            size: 20
             color: CCStyle.text
         }
     }
@@ -53,7 +53,7 @@ Column {
     DetailFooter {
         text: "Réglages Son…"
         onClicked: {
-            Quickshell.execDetached(["gnome-control-center", "sound"]);
+            CCActions.openSettings("sound");
             ShellState.close();
         }
     }

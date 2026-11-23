@@ -32,17 +32,21 @@ Item {
     // --- Réglages fins (optionnels) ---
     // Liseré spéculaire : couleur, épaisseur, intensité minimale hors lumière.
     property color rimColor: Theme.glassHighlight
-    property real rimWidth: 1.5
-    property real rimBase: Theme.dark ? 0.28 : 0.40
+    property real rimWidth: 1.2
+    property real rimBase: Theme.dark ? 0.42 : 0.50
     // Lueur interne (épaisseur du verre).
     property color glowColor: Theme.glassGlow
     property real glowWidth: Math.min(14, Math.min(width, height) * 0.22)
+    // Bande sombre interne (réfraction dans l'épaisseur du verre, sous le liseré).
+    property color shadeColor: Theme.glassShade
+    property real shadeWidth: Math.min(7, Math.min(width, height) * 0.14)
     // Angle (degrés) de la lumière : 225 = vient du haut-gauche.
     property real lightAngle: 225
     // Alpha max de l'ombre. Hyprland floute tout pixel des surfaces "macos-*"
-    // dont l'alpha dépasse ignore_alpha (0.25 attendu) : une ombre plus opaque
-    // ferait apparaître un halo flouté autour du verre.
-    property real shadowMax: 0.22
+    // dont l'alpha dépasse ignore_alpha (Theme.layerBlurIgnoreAlpha = 0.05) :
+    // une ombre plus opaque ferait apparaître un halo flouté, au contour net,
+    // autour du verre. L'ombre de Tahoe est de toute façon très discrète.
+    property real shadowMax: Theme.layerBlurIgnoreAlpha - 0.003
 
     readonly property real _sigma: shadowEnabled ? Math.max(0.5, shadowBlur * 14) : 0
     readonly property int _pad: shadowEnabled ? Math.ceil(_sigma * 3 + Math.abs(shadowOffset)) : 1
@@ -69,6 +73,8 @@ Item {
         property real shadowSigma: root._sigma
         property real shadowOffsetY: root.shadowOffset
         property real shadowMax: root.shadowMax
+        property color shadeColor: root.shadeColor
+        property real shadeWidth: root.shadeWidth
         // Direction dans laquelle se propage la lumière (repère écran, y vers le bas)
         property vector2d lightDir: Qt.vector2d(-Math.cos(root.lightAngle * Math.PI / 180),
                                                 -Math.sin(root.lightAngle * Math.PI / 180))

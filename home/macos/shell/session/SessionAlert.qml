@@ -99,12 +99,28 @@ Scope {
                 width: parent.width - 40
                 spacing: 0
 
-                Image {
+                // Icône Tahoe : disque gris "verre" + pictogramme d'alimentation
+                // (même icône pour Éteindre / Redémarrer / Fermer la session)
+                Item {
                     width: 64
                     height: 64
-                    sourceSize: Qt.size(128, 128)
-                    source: Quickshell.iconPath("computer", "nix-snowflake")
-                    smooth: true
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 2
+                        radius: width / 2
+                        gradient: Gradient {
+                            GradientStop { position: 0; color: Theme.dark ? "#8E8E93" : "#B4B4B9" }
+                            GradientStop { position: 1; color: Theme.dark ? "#6C6C71" : "#97979D" }
+                        }
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, Theme.dark ? 0.18 : 0.35)
+                    }
+                    Symbol {
+                        anchors.centerIn: parent
+                        name: root.kind === "logout" ? "rectangle.portrait.and.arrow.right" : "power"
+                        size: 32
+                        color: "white"
+                    }
                 }
                 Item { width: 1; height: 14 }
                 Text {
@@ -134,16 +150,26 @@ Scope {
                     checked: true
                 }
                 Item { width: 1; height: 18 }
-                Row {
+                // Boutons côte à côte ; empilés pleine largeur (action par défaut
+                // en haut) si un libellé ne tient pas, comme les alertes Tahoe.
+                Item {
+                    id: buttons
                     width: parent.width
-                    spacing: 8
+                    readonly property real half: (width - 8) / 2
+                    // (implicitWidth = libellé + 32 ; on tolère une marge intérieure de 10 px)
+                    readonly property bool stacked: cancelBtn.implicitWidth - 12 > half || okBtn.implicitWidth - 12 > half
+                    height: stacked ? okBtn.height * 2 + 8 : okBtn.height
                     TahoeButton {
-                        width: (parent.width - 8) / 2
+                        id: cancelBtn
+                        width: buttons.stacked ? buttons.width : buttons.half
+                        y: buttons.stacked ? okBtn.height + 8 : 0
                         text: "Annuler"
                         onClicked: root.cancel()
                     }
                     TahoeButton {
-                        width: (parent.width - 8) / 2
+                        id: okBtn
+                        width: buttons.stacked ? buttons.width : buttons.half
+                        x: buttons.stacked ? 0 : buttons.half + 8
                         text: root.t.button
                         isDefault: true
                         onClicked: root.confirm()

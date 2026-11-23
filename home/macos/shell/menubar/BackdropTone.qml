@@ -9,6 +9,9 @@ import Quickshell.Wayland
 // pixels de la bande de la barre via un Canvas, moyenne de luminance relative.
 // Les pixels proches de la couleur actuelle du texte (nos propres libellés)
 // sont ignorés ; un hystérésis évite le clignotement sur les fonds moyens.
+//
+// Deux zones sont mesurées séparément (menus à gauche, icônes d'état à droite) :
+// sur un fond d'écran mi-sombre mi-clair, chaque groupe reste lisible.
 Item {
     id: root
 
@@ -16,11 +19,17 @@ Item {
     property int stripHeight: 32
     // Échantillonnage actif (écran allumé, pas de plein écran)
     property bool active: true
-    // Vrai = fond clair -> texte noir
+    // Vrai = fond clair -> texte noir (barre entière, zone gauche, zone droite)
     property bool light: false
+    property bool lightLeft: false
+    property bool lightRight: false
     property real luminance: 0
-    // Couleur actuelle du texte (exclue de la mesure)
-    readonly property bool textIsWhite: !light
+    property real luminanceLeft: 0
+    property real luminanceRight: 0
+    // Étendue des zones, en pixels logiques de l'écran : [0, leftEnd] et
+    // [rightStart, largeur] (0 / largeur : toute la barre)
+    property real leftEnd: 0
+    property real rightStart: 0
 
     // Largeur d'échantillonnage (la hauteur suit le ratio de l'écran)
     readonly property int sw: 160
@@ -65,7 +74,8 @@ Item {
         id: grabTimer
         interval: 150
         onTriggered: {
-            if (!view.hasContent) { root.busy = false; return; }
+            // (pendant un rechargement du shell, l'ancienne vue n'a plus de fenêtre)
+            if (!view.hasContent || !view.Window.window) { root.busy = false; return; }
             const ok = view.grabToImage(r => {
                 shot.source = r.url;
                 root._keep = r; // garde le résultat en vie jusqu'au chargement
@@ -95,24 +105,44 @@ Item {
             ctx.clearRect(0, 0, width, height);
             ctx.drawImage(shot, 0, 0, root.sw, root.sh);
             const d = ctx.getImageData(0, 0, width, height).data;
-            let sum = 0, n = 0;
-            const tw = root.textIsWhite;
-            for (let i = 0; i < d.length; i += 4) {
-                const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
-                const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-                // Nos propres libellés : blanc pur ou noir pur
-                if (tw ? l > 0.93 : l < 0.07) continue;
-                sum += l;
-                n++;
-            }
+            const sw = root.screen?.width ?? 1920;
+            const xl = root.leftEnd > 0 ? Math.ceil(root.leftEnd * width / sw) : width;
+            const xr = root.rightStart > 0 ? Math.floor(root.rightStart * width / sw) : 0;
+            // Moyenne de luminance d'une plage de colonnes, sans nos libellés.
+            // Si presque tout est exclu, c'est le fond lui-même qui est blanc
+            // (ou noir) pur : on garde alors tous les pixels.
+            const measure = (x0, x1, textWhite) => {
+                let sum = 0, n = 0, sumAll = 0, nAll = 0;
+                for (let y = 0; y < height; y++) {
+                    for (let x = Math.max(0, x0); x < Math.min(width, x1); x++) {
+                        const i = (y * width + x) * 4;
+                        const l = 0.2126 * d[i] / 255 + 0.7152 * d[i + 1] / 255 + 0.0722 * d[i + 2] / 255;
+                        sumAll += l;
+                        nAll++;
+                        // Nos propres libellés : blanc pur ou noir pur
+                        if (textWhite ? l > 0.93 : l < 0.07) continue;
+                        sum += l;
+                        n++;
+                    }
+                }
+                if (nAll === 0) return -1;
+                return n >= nAll * 0.4 ? sum / n : sumAll / nAll;
+            };
+            // Hystérésis : bascule en noir au-dessus de 0,63, en blanc sous 0,53 (une traînée claire à 0,65
+            // derrière l'horloge passe en noir ; un bleu moyen à 0,6 reste en blanc)
+            const decide = (was, lum) => lum < 0 ? was : (!was && lum > 0.63) ? true : (was && lum < 0.53) ? false : was;
+            const all = measure(0, width, !root.light);
+            const left = measure(0, xl, !root.lightLeft);
+            const right = measure(xr, width, !root.lightRight);
             shot.source = "";
             root._keep = null;
             root.busy = false;
-            if (n === 0) return;
-            const lum = sum / n;
-            root.luminance = lum;
-            if (!root.light && lum > 0.66) root.light = true;
-            else if (root.light && lum < 0.54) root.light = false;
+            if (all >= 0) root.luminance = all;
+            if (left >= 0) root.luminanceLeft = left;
+            if (right >= 0) root.luminanceRight = right;
+            root.light = decide(root.light, all);
+            root.lightLeft = decide(root.lightLeft, left);
+            root.lightRight = decide(root.lightRight, right);
         }
     }
 

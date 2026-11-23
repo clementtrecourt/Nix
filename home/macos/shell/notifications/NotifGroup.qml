@@ -11,6 +11,7 @@ Item {
 
     required property string key
     property int cardWidth: 344
+    property Item menuHost: null
 
     readonly property var items: { NotifStore.entries; return NotifStore.groupItems(key); }
     readonly property bool expanded: NotifStore.isExpanded(key) && items.length > 1
@@ -26,8 +27,14 @@ Item {
     NotificationCard {
         id: collapsedCard
         width: grp.cardWidth
-        visible: !grp.expanded
+        // Fondu (pas de disparition sèche) pendant que les cartes se déploient
+        opacity: grp.expanded ? 0 : 1
+        visible: opacity > 0
+        enabled: !grp.expanded
+        interactive: !grp.expanded
+        Behavior on opacity { NumberAnimation { duration: 140 * NotifStore.slow } }
         entry: grp.head
+        menuHost: grp.menuHost
         stackCount: grp.items.length
         clearAllMode: grp.items.length > 1
         onClicked: {
@@ -51,6 +58,8 @@ Item {
         Item {
             width: parent.width
             height: 28
+            opacity: grp.expanded ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 260 * NotifStore.slow; easing.type: Easing.OutCubic } }
             Text {
                 anchors.left: parent.left
                 anchors.leftMargin: 4
@@ -69,10 +78,10 @@ Item {
                 Item {
                     width: lessLabel.implicitWidth + 30
                     height: 24
-                    Glass {
+                    NotifGlass {
                         anchors.fill: parent
                         radius: height / 2
-                        thick: true
+                        tint: Theme.dark ? Qt.rgba(0.20, 0.20, 0.21, 0.72) : Qt.rgba(0.97, 0.97, 0.98, 0.80)
                         shadowOffset: 2
                         shadowBlur: 0.5
                     }
@@ -111,10 +120,30 @@ Item {
             }
         }
 
-        // Les cartes « se déplient » depuis la tête de pile
+        // Les cartes « se déplient » depuis la pile repliée : chacune part de la
+        // position de sa lamelle (tête en haut, les suivantes 9 pt plus bas,
+        // légèrement réduites) et glisse vers sa place.
         add: Transition {
-            NumberAnimation { property: "y"; from: 36; duration: 380 * NotifStore.slow; easing.type: Easing.OutCubic }
-            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 260 * NotifStore.slow }
+            NumberAnimation {
+                property: "y"
+                from: Math.min(Math.max(ViewTransition.index - 1, 0), 2) * 9
+                duration: 420 * NotifStore.slow
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: [0.2, 0.9, 0.25, 1.0, 1, 1]
+            }
+            NumberAnimation {
+                property: "scale"
+                from: ViewTransition.index <= 1 ? 1 : 0.93
+                to: 1
+                duration: 420 * NotifStore.slow
+                easing.type: Easing.OutCubic
+            }
+            NumberAnimation {
+                property: "opacity"
+                from: ViewTransition.index <= 1 ? 1 : 0.6
+                to: 1
+                duration: 300 * NotifStore.slow
+            }
         }
         move: Transition {
             NumberAnimation { property: "y"; duration: 300 * NotifStore.slow; easing.type: Easing.OutCubic }
@@ -124,8 +153,11 @@ Item {
             model: grp.expanded ? grp.items : []
             NotificationCard {
                 required property var modelData
+                required property int index
+                z: -index            // la tête reste au-dessus pendant le déploiement
                 width: grp.cardWidth
                 entry: modelData
+                menuHost: grp.menuHost
                 onClicked: NotifStore.activate(modelData)
                 onCloseClicked: NotifStore.dismiss(modelData)
             }

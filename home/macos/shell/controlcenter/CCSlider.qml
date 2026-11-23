@@ -63,6 +63,11 @@ Item {
         preventStealing: true
         onPressed: mouse => s.moved(s.valueAt(mouse.x))
         onPositionChanged: mouse => { if (pressed) s.moved(s.valueAt(mouse.x)); }
-        onWheel: wheel => s.moved(Math.max(0, Math.min(1, s.value + (wheel.angleDelta.y > 0 ? 1 : -1) / s.steps)))
+        // Molette : un cran (120) = un pas de 1/16 ; un pavé tactile envoie de
+        // petits deltas, appliqués proportionnellement (pas un pas par événement).
+        onWheel: wheel => {
+            const d = (wheel.angleDelta.y !== 0 ? wheel.angleDelta.y : -wheel.angleDelta.x) / 120 / s.steps;
+            if (d !== 0) s.moved(Math.max(0, Math.min(1, s.value + d)));
+        }
     }
 }

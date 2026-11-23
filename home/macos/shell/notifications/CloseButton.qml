@@ -24,12 +24,12 @@ Item {
     Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
     Behavior on scale { NumberAnimation { duration: Theme.durMed; easing.type: Easing.OutBack; easing.overshoot: 1.6 } }
 
-    Glass {
+    NotifGlass {
         anchors.fill: parent
         radius: height / 2
-        thick: true
-        shadowOffset: 2
-        shadowBlur: 0.5
+        tint: Theme.dark ? Qt.rgba(0.20, 0.20, 0.21, 0.80) : Qt.rgba(0.97, 0.97, 0.98, 0.85)
+        // Pas d'ombre : elle s'ajouterait à celle de la carte (halo flouté Hyprland)
+        shadowEnabled: false
     }
     Rectangle {
         anchors.fill: parent

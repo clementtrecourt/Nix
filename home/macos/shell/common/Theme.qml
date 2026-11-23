@@ -71,7 +71,17 @@ Singleton {
     // ---- Liquid Glass : réglages fins (Glass.qml, agent controlcenter) ----
     // Lueur interne près des bords (épaisseur du verre)
     readonly property color glassGlow: dark ? Qt.rgba(1, 1, 1, 0.13) : Qt.rgba(1, 1, 1, 0.40)
-    // Modules du Control Center / HUD : verre "clair" plus transparent que les panneaux
-    readonly property color glassModule: dark ? Qt.rgba(0.22, 0.22, 0.23, 0.36) : Qt.rgba(0.42, 0.42, 0.45, 0.27)
-    readonly property color glassModuleHover: dark ? Qt.rgba(0.30, 0.30, 0.31, 0.40) : Qt.rgba(0.52, 0.52, 0.55, 0.31)
+    // Modules du Control Center / HUD : verre "clair" plus transparent que les panneaux.
+    // Mode clair : voile BLANC léger (le module est une version plus claire du fond,
+    // jamais grisée) ; mode sombre : voile gris foncé.
+    readonly property color glassModule: dark ? Qt.rgba(0.22, 0.22, 0.23, 0.36) : Qt.rgba(1, 1, 1, 0.12)
+    readonly property color glassModuleHover: dark ? Qt.rgba(0.30, 0.30, 0.31, 0.40) : Qt.rgba(1, 1, 1, 0.20)
+
+    // Seuil ignore_alpha de la layerrule Hyprland des surfaces "macos-*" : tout
+    // pixel plus opaque reçoit le flou d'arrière-plan. Les ombres dessinées dans
+    // une surface doivent rester sous ce seuil (sinon halo flouté).
+    readonly property real layerBlurIgnoreAlpha: 0.05
+
+    // Bande sombre interne du Liquid Glass (Glass.qml : réfraction près des bords)
+    readonly property color glassShade: dark ? Qt.rgba(0, 0, 0, 0.10) : Qt.rgba(0.2, 0.18, 0.16, 0.05)
 }

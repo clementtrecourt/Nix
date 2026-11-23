@@ -55,10 +55,12 @@ Scope {
     }
 
     // "12th Gen Intel(R) Core(TM) i5-12600K" -> "Intel Core i5-12600K"
+    // "AMD Ryzen 5 3600 6-Core Processor"    -> "AMD Ryzen 5 3600"
     function cleanCpu(s) {
         if (!s) return "—";
         return s.replace(/\((R|TM|tm|r)\)/g, "").replace(/^\d+(st|nd|rd|th) Gen /, "")
-            .replace(/ CPU/, "").replace(/ @ .*/, "").replace(/\s+/g, " ").trim();
+            .replace(/ CPU/, "").replace(/ @ .*/, "")
+            .replace(/\s+\d+-Core( Processor)?/i, "").replace(/\s+(Processor|with Radeon.*)$/i, "").replace(/\s+/g, " ").trim();
     }
     // Mémoire installée (MemTotal arrondi au pair supérieur : 31,3 Gio -> 32 Go)
     function memory(kb) {
@@ -140,7 +142,8 @@ Scope {
                         ["Mémoire", root.memory(root.info.memkb)],
                         ["Disque de démarrage", root.info.disk ?? "NixOS"],
                         ["Numéro de série", root.info.host ?? "—"],
-                        ["NixOS", (root.info.version ?? "") + (root.codename ? " " + root.codename : "")]
+                        // comme "macOS | Tahoe 26.1" : nom de code puis version
+                        ["NixOS", ((root.codename ? root.codename + " " : "") + (root.info.version ?? "")).trim()]
                     ]
                     Item {
                         required property var modelData

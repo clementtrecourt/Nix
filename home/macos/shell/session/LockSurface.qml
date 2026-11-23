@@ -2,15 +2,24 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Widgets
+import Quickshell.Networking
+import Quickshell.Services.UPower
 import qs.common
+import qs.menubar
 
-// Contenu d'un écran verrouillé, mise en page macOS Tahoe :
-//  - fond d'écran net (depuis Sonoma l'écran de verrouillage montre le fond
-//    tel quel) ;
-//  - en haut au centre : date puis grande heure en "verre" (remplissage givré
-//    tiré du fond, voile blanc, ombre douce) ;
-//  - en bas au centre : avatar rond, nom, champ mot de passe en pilule de verre
-//    "Saisir le mot de passe", flèche d'envoi, secousse sur erreur.
+// Contenu d'un écran verrouillé, mise en page macOS Tahoe (proportions
+// relevées sur une capture de l'écran verrouillé Tahoe, rapportées à la
+// hauteur de l'écran) :
+//  - fond d'écran net, exactement comme sur le bureau (depuis Sonoma l'écran
+//    de verrouillage montre le fond tel quel, sans voile ni dégradé) ;
+//  - en haut au centre : date abrégée (« lun. 23 nov. ») puis grande heure en
+//    Liquid Glass translucide : le fond flouté transparaît dans les chiffres,
+//    éclairci par un voile laiteux, avec une arête claire et une ombre douce ;
+//  - en haut à droite : source de saisie (« Français » + clavier), Wi-Fi,
+//    batterie sur un portable ;
+//  - en bas au centre : avatar, nom et, au repos, une simple ligne d'indice
+//    « Saisir le mot de passe ». La pilule de verre du mot de passe n'apparaît
+//    qu'à la première frappe (ou au clic), et elle seule secoue sur erreur.
 Item {
     id: root
 
@@ -18,22 +27,38 @@ Item {
     property var screen
 
     readonly property real s: Math.max(0.75, Math.min(height / 982, 1.6))   // échelle (réf. MacBook Air 13")
+    // Hauteur des capitales / chiffres d'Inter, en fraction du corps
+    readonly property real capRatio: 0.727
+
+    // Champ mot de passe affiché (sinon : ligne d'indice). Vrai dès qu'on tape,
+    // reste vrai après une erreur, retombe au repos après 10 s champ vide.
+    property bool engaged: false
+    readonly property bool fieldShown: engaged || lockRoot.password.length > 0 || lockRoot.authenticating
+    function engage() {
+        engaged = true;
+        idle.restart();
+        input.forceActiveFocus();
+    }
+    Connections {
+        target: root.lockRoot
+        function onPasswordChanged() {
+            if (root.lockRoot.password.length > 0) root.engaged = true;
+            idle.restart();
+        }
+    }
+    Timer {
+        id: idle
+        interval: 10000
+        onTriggered: {
+            if (root.lockRoot.password.length === 0 && !root.lockRoot.authenticating) root.engaged = false;
+            else restart();
+        }
+    }
 
     // ---------------- Fond ----------------
     WallpaperView {
         id: wp
         anchors.fill: parent
-    }
-    // Léger assombrissement en bas pour la lisibilité du nom / champ
-    Rectangle {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        height: parent.height * 0.35
-        gradient: Gradient {
-            GradientStop { position: 0; color: "transparent" }
-            GradientStop { position: 1; color: Qt.rgba(0, 0, 0, 0.18) }
-        }
     }
 
     SystemClock {
@@ -44,22 +69,21 @@ Item {
     // ---------------- Date + heure ----------------
     Item {
         id: top
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: Math.round(46 * root.s)
-        width: Math.max(dateText.implicitWidth, timeBox.width)
-        height: timeBox.y + timeBox.height
+        anchors.fill: parent
         opacity: 0
         transform: Translate { id: topShift; y: -14 }
 
         Text {
             id: dateText
             anchors.horizontalCenter: parent.horizontalCenter
-            // Interface en français (comme le reste du shell), quel que soit LANG
-            text: Qt.locale("fr_FR").toString(clock.date, "dddd d MMMM")
+            // Centre des capitales à 10,7 % de la hauteur
+            y: Math.round(root.height * 0.107 + font.pixelSize * root.capRatio / 2 - baselineOffset)
+            // Interface en français, jour et mois abrégés comme Tahoe (« Sun Jul 27 »)
+            text: Qt.locale("fr_FR").toString(clock.date, "ddd d MMM")
             font.family: Theme.font
-            font.pixelSize: Math.round(22 * root.s)
+            font.pixelSize: Math.round(23 * root.s)
             font.weight: Font.DemiBold
-            color: Qt.rgba(1, 1, 1, 0.92)
+            color: Qt.rgba(1, 1, 1, 0.94)
             // Ombre : copie sombre floutée dessous (évite les franges colorées
             // d'un layer sur le texte lui-même)
             Text {
@@ -67,38 +91,39 @@ Item {
                 anchors.fill: parent
                 text: parent.text
                 font: parent.font
-                color: Qt.rgba(0, 0, 0, 0.5)
+                color: Qt.rgba(0, 0, 0, 0.45)
                 layer.enabled: true
                 layer.effect: MultiEffect {
                     blurEnabled: true
                     blur: 0.5
                     blurMax: 12
-                    opacity: 0.6
+                    opacity: 0.5
                 }
             }
         }
 
-        // Heure "Liquid Glass"
+        // Heure "Liquid Glass" : chiffres de 13,9 % à 23,9 % de la hauteur
         Item {
             id: timeBox
             anchors.horizontalCenter: parent.horizontalCenter
-            y: dateText.height - Math.round(10 * root.s)
+            readonly property real px: Math.round(root.height * 0.100 / root.capRatio)
+            y: Math.round(root.height * 0.239 - timeText.baselineOffset)
             width: timeText.implicitWidth + 40
             height: timeText.implicitHeight
 
-            // Forme de l'heure (masque)
+            // Forme de l'heure
             Text {
                 id: timeText
                 anchors.centerIn: parent
                 text: Qt.formatTime(clock.date, "H:mm")
                 font.family: root.clockFamily
-                font.pixelSize: Math.round(118 * root.s)
-                font.weight: Font.Bold
-                font.letterSpacing: -2 * root.s
+                font.pixelSize: timeBox.px
+                font.weight: Font.DemiBold
+                font.letterSpacing: 0
                 color: "white"
                 visible: false
-                layer.enabled: true
             }
+            // Masque (texte blanc opaque dans une texture)
             Item {
                 id: maskItem
                 anchors.fill: parent
@@ -112,60 +137,36 @@ Item {
                 }
             }
 
-            // Ombre portée douce (lisibilité sur fond clair) : texte sombre
-            // dessiné sous le verre, seule son ombre dépasse.
+            // Ombre portée douce : texte sombre flouté sous le verre
             Text {
                 anchors.centerIn: parent
+                anchors.verticalCenterOffset: Math.round(3 * root.s)
                 text: timeText.text
                 font: timeText.font
-                anchors.verticalCenterOffset: 2
                 color: Qt.rgba(0, 0, 0, 0.5)
                 layer.enabled: true
                 layer.effect: MultiEffect {
                     blurEnabled: true
                     blur: 1.0
-                    blurMax: 24
+                    blurMax: 32
                 }
-                opacity: Theme.dark ? 0.35 : 0.45
+                opacity: Theme.dark ? 0.30 : 0.24
             }
-            // Fond d'écran sous l'heure, flouté et éclairci = verre givré
+            // Fond d'écran sous l'heure, flouté : il transparaît dans les chiffres
             ShaderEffectSource {
                 id: under
                 sourceItem: wp
                 // Géométrie explicite (mapToItem ne se réévalue pas au placement)
-                sourceRect: Qt.rect(top.x + timeBox.x, top.y + topShift.y + timeBox.y, timeBox.width, timeBox.height)
+                sourceRect: Qt.rect(timeBox.x, timeBox.y + topShift.y, timeBox.width, timeBox.height)
                 anchors.fill: parent
                 visible: false
             }
-            MultiEffect {
-                anchors.fill: parent
-                source: under
-                autoPaddingEnabled: false
-                blurEnabled: true
-                blur: 1
-                blurMax: 40
-                brightness: 0.38
-                saturation: 0.45
-                maskEnabled: true
-                maskSource: maskItem
-            }
-            // Voile blanc translucide (luminosité du verre)
-            MultiEffect {
-                anchors.fill: parent
-                source: maskItem
-                autoPaddingEnabled: false
-                opacity: 0.34
-            }
-            // Arête du verre : contour fin et lumineux des chiffres
-            Text {
-                anchors.centerIn: parent
-                text: timeText.text
-                font: timeText.font
-                color: "transparent"
-                style: Text.Outline
-                styleColor: Qt.rgba(1, 1, 1, 0.55)
-            }
-            // Reflet spéculaire : plus clair en haut des chiffres
+            // Verre des chiffres, composé dans une seule couche puis découpé
+            // par la forme du texte (masque à bord adouci : pas d'épaississement
+            // ni de frange) :
+            //  - fond flouté qui transparaît ;
+            //  - voile laiteux (≈ fond × 0,55 + blanc × 0,45, mesuré sur Tahoe) ;
+            //  - reflet un peu plus clair en haut.
             Item {
                 anchors.fill: parent
                 layer.enabled: true
@@ -173,15 +174,107 @@ Item {
                     autoPaddingEnabled: false
                     maskEnabled: true
                     maskSource: maskItem
+                    maskThresholdMin: 0.5
+                    maskSpreadAtMin: 1.0
+                }
+                MultiEffect {
+                    anchors.fill: parent
+                    source: under
+                    autoPaddingEnabled: false
+                    blurEnabled: true
+                    blur: 1
+                    blurMax: 48
+                    saturation: -0.1
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    color: "white"
+                    opacity: Theme.dark ? 0.40 : 0.50
                 }
                 Rectangle {
                     anchors.fill: parent
                     gradient: Gradient {
-                        GradientStop { position: 0.15; color: Qt.rgba(1, 1, 1, 0.35) }
-                        GradientStop { position: 0.55; color: Qt.rgba(1, 1, 1, 0.0) }
-                        GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0.10) }
+                        GradientStop { position: 0.15; color: Qt.rgba(1, 1, 1, 0.12) }
+                        GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0.0) }
                     }
                 }
+            }
+            // Arête du verre : contour fin et clair des chiffres
+            Text {
+                anchors.centerIn: parent
+                text: timeText.text
+                font: timeText.font
+                color: "transparent"
+                style: Text.Outline
+                styleColor: Qt.rgba(1, 1, 1, 0.38)
+            }
+        }
+    }
+
+    // ---------------- Statut (coin supérieur droit) ----------------
+    // Comme l'écran de verrouillage macOS : source de saisie, Wi-Fi, batterie.
+    Row {
+        id: status
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 6
+        anchors.rightMargin: 14
+        height: 18
+        spacing: 12
+        opacity: top.opacity
+
+        readonly property var battery: UPower.displayDevice
+        readonly property var wifi: Networking.devices.values.find(d => d.type === DeviceType.Wifi) ?? null
+        readonly property var network: wifi?.networks?.values?.find(n => n.connected) ?? null
+
+        // Source de saisie : nom court + pictogramme clavier
+        Row {
+            visible: root.lockRoot.layoutName !== ""
+            spacing: 6
+            anchors.verticalCenter: parent.verticalCenter
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.lockRoot.layoutName
+                font.family: Theme.font
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+                color: Qt.rgba(1, 1, 1, 0.9)
+            }
+            Symbol {
+                anchors.verticalCenter: parent.verticalCenter
+                name: "keyboard"
+                size: 17
+                color: Qt.rgba(1, 1, 1, 0.9)
+            }
+        }
+        Row {
+            visible: status.battery && status.battery.isLaptopBattery && status.battery.isPresent
+            spacing: 6
+            anchors.verticalCenter: parent.verticalCenter
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Math.round((status.battery?.percentage ?? 0) * 100) + " %"
+                font.family: Theme.font
+                font.pixelSize: 12
+                font.weight: Font.Medium
+                color: "white"
+            }
+            BatteryGlyph {
+                anchors.verticalCenter: parent.verticalCenter
+                color: "white"
+                level: status.battery?.percentage ?? 1
+                charging: status.battery?.state === UPowerDeviceState.Charging
+                pluggedFull: !UPower.onBattery && status.battery?.state === UPowerDeviceState.FullyCharged
+            }
+        }
+        WifiGlyph {
+            visible: status.wifi !== null
+            anchors.verticalCenter: parent.verticalCenter
+            color: "white"
+            off: !Networking.wifiEnabled
+            level: {
+                const st = status.network?.signalStrength ?? 0;
+                return !status.network ? 0 : st > 0.66 ? 3 : st > 0.33 ? 2 : 1;
             }
         }
     }
@@ -195,27 +288,30 @@ Item {
     }
 
     // ---------------- Utilisateur + mot de passe ----------------
-    Column {
+    // Centres mesurés sur Tahoe : avatar 87,3 %, nom 91,5 %, indice 93,7 %.
+    Item {
         id: bottom
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: Math.round(74 * root.s)
-        spacing: 0
+        anchors.fill: parent
         opacity: 0
-        transform: Translate { id: shake; x: 0 }
 
-        // Avatar (~/.face ou monogramme)
+        // Avatar (~/.face ou monogramme) ; un clic fait apparaître le champ
         Avatar {
+            id: avatar
             anchors.horizontalCenter: parent.horizontalCenter
-            size: 56
-            source: "file://" + root.lockRoot.facePath
+            size: Math.round(52 * root.s)
+            y: Math.round(root.height * 0.873 - height / 2)
+            source: root.lockRoot.faceSource
             name: root.lockRoot.fullName
+            MouseArea {
+                anchors.fill: parent
+                onClicked: root.engage()
+            }
         }
 
-        Item { width: 1; height: 10 }
-
         Text {
+            id: nameText
             anchors.horizontalCenter: parent.horizontalCenter
+            y: Math.round(root.height * 0.915 - height / 2)
             text: root.lockRoot.fullName
             font.family: Theme.font
             font.pixelSize: 13
@@ -224,26 +320,54 @@ Item {
             layer.enabled: true
             layer.effect: MultiEffect {
                 shadowEnabled: true
-                shadowColor: Qt.rgba(0, 0, 0, 0.35)
+                shadowColor: Qt.rgba(0, 0, 0, 0.30)
                 shadowBlur: 0.4
                 shadowVerticalOffset: 1
             }
         }
 
-        Item { width: 1; height: 10 }
+        // Indice au repos (« Touch ID or Enter Password » sur un Mac à Touch ID)
+        Text {
+            id: hint
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: Math.round(root.height * 0.937 - height / 2)
+            text: "Saisir le mot de passe"
+            font.family: Theme.font
+            font.pixelSize: 11
+            font.weight: Font.Medium
+            color: Qt.rgba(1, 1, 1, 0.68)
+            opacity: root.fieldShown ? 0 : 1
+            Behavior on opacity { NumberAnimation { duration: 160 } }
+            MouseArea {
+                anchors.fill: parent
+                anchors.margins: -6
+                enabled: !root.fieldShown
+                cursorShape: Qt.IBeamCursor
+                onClicked: root.engage()
+            }
+        }
 
-        // Champ mot de passe (pilule de verre)
+        // Champ mot de passe (pilule de verre), à la place de l'indice
         Item {
             id: field
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 186
-            height: 30
+            y: Math.round(root.height * 0.937 - height / 2 + 4)
+            width: 180
+            height: 28
+            opacity: root.fieldShown ? 1 : 0
+            scale: root.fieldShown ? 1 : 0.94
+            // Reste "visible" (opacité nulle) : le TextInput garde le focus
+            // clavier pour capter la première frappe.
+            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+            Behavior on scale { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
+            // Seul le champ secoue sur erreur (comme macOS)
+            transform: Translate { id: shake; x: 0 }
 
             // Verre : fond flouté + voile
             ShaderEffectSource {
                 id: fieldUnder
                 sourceItem: wp
-                sourceRect: Qt.rect(bottom.x + shake.x + field.x, bottom.y + field.y, field.width, field.height)
+                sourceRect: Qt.rect(field.x + shake.x, field.y, field.width, field.height)
                 anchors.fill: parent
                 visible: false
             }
@@ -258,42 +382,34 @@ Item {
                     blurEnabled: true
                     blur: 1
                     blurMax: 32
-                    brightness: 0.12
-                    saturation: 0.2
+                    brightness: 0.10
+                    saturation: 0.1
                 }
             }
             Rectangle {
                 anchors.fill: parent
                 radius: height / 2
-                color: Qt.rgba(1, 1, 1, 0.14)
+                color: Qt.rgba(1, 1, 1, 0.16)
                 border.width: 1
-                border.color: Qt.rgba(1, 1, 1, 0.20)
-                // liseré spéculaire du haut
-                Rectangle {
-                    anchors.fill: parent
-                    radius: parent.radius
-                    color: "transparent"
-                    border.width: 1
-                    border.color: Qt.rgba(1, 1, 1, 0.18)
-                    anchors.topMargin: 0
-                    anchors.bottomMargin: 1
-                }
+                border.color: Qt.rgba(1, 1, 1, 0.24)
             }
 
             Text {
-                anchors.centerIn: parent
+                anchors.left: parent.left
+                anchors.leftMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
                 visible: input.text.length === 0
                 text: "Saisir le mot de passe"
                 font.family: Theme.font
-                font.pixelSize: 13
-                color: Qt.rgba(1, 1, 1, 0.62)
+                font.pixelSize: 12
+                color: Qt.rgba(1, 1, 1, 0.60)
             }
 
             TextInput {
                 id: input
                 anchors.left: parent.left
                 anchors.right: go.left
-                anchors.leftMargin: 13
+                anchors.leftMargin: 12
                 anchors.rightMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
                 focus: true
@@ -309,11 +425,15 @@ Item {
                 text: root.lockRoot.password
                 onTextEdited: root.lockRoot.password = text
                 onAccepted: root.lockRoot.submit()
-                Keys.onEscapePressed: root.lockRoot.password = ""
+                // Échap : efface et revient à l'indice
+                Keys.onEscapePressed: {
+                    root.lockRoot.password = "";
+                    root.engaged = false;
+                }
                 cursorDelegate: Rectangle {
                     width: 1.5
                     color: "white"
-                    visible: input.activeFocus && input.text.length > 0 && !input.readOnly
+                    visible: input.activeFocus && root.fieldShown && !input.readOnly
                     SequentialAnimation on opacity {
                         loops: Animation.Infinite
                         running: true
@@ -327,12 +447,12 @@ Item {
             Item {
                 id: go
                 anchors.right: parent.right
-                anchors.rightMargin: 5
+                anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
                 width: 20
                 height: 20
-                opacity: input.text.length > 0 ? 1 : 0
-                scale: input.text.length > 0 ? 1 : 0.6
+                opacity: input.text.length > 0 || root.lockRoot.authenticating ? 1 : 0
+                scale: opacity > 0 ? 1 : 0.6
                 Behavior on opacity { NumberAnimation { duration: 140 } }
                 Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack } }
 
@@ -374,6 +494,7 @@ Item {
                 MouseArea {
                     id: goMouse
                     anchors.fill: parent
+                    enabled: go.opacity > 0
                     onClicked: root.lockRoot.submit()
                 }
             }
@@ -382,18 +503,21 @@ Item {
                 anchors.fill: parent
                 anchors.rightMargin: 28
                 cursorShape: Qt.IBeamCursor
-                onClicked: input.forceActiveFocus()
+                onClicked: root.engage()
             }
         }
 
-        Item { width: 1; height: 8 }
-
+        // Message d'erreur sous le champ (ne secoue pas)
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: field.bottom
+            anchors.topMargin: 7
             text: root.lockRoot.errorText
-            visible: text.length > 0
+            opacity: text.length > 0 ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 160 } }
             font.family: Theme.font
             font.pixelSize: 11
+            font.weight: Font.Medium
             color: Qt.rgba(1, 1, 1, 0.85)
         }
     }
@@ -417,7 +541,11 @@ Item {
         function onUnlockingChanged() {
             if (root.lockRoot.unlocking) leave.restart();
         }
-        function onShakeSerialChanged() { shakeAnim.restart(); }
+        function onShakeSerialChanged() {
+            root.engaged = true;
+            idle.restart();
+            shakeAnim.restart();
+        }
     }
     ParallelAnimation {
         id: leave

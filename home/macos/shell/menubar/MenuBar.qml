@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.common
 import qs.services
 
 // Barre de menus macOS Tahoe : une barre par écran (Bar.qml), une couche de menu
@@ -15,6 +16,23 @@ Scope {
     Menus {
         id: menuModel
         onAboutRequested: cls => about.show(cls)
+        // Finder > Vider la corbeille… : confirmation, puis `gio trash --empty`
+        onEmptyTrashRequested: count => alert.show({
+            title: "Voulez-vous vraiment supprimer définitivement "
+                + (count > 1 ? "les " + count + " éléments" : "l’élément") + " de la corbeille ?",
+            message: "Vous ne pouvez pas annuler cette action.",
+            confirmText: "Vider la corbeille",
+            iconSource: Quickshell.iconPath("user-trash-full", "user-trash"),
+            onConfirm: () => {
+                Quickshell.execDetached(["gio", "trash", "--empty"]);
+                emptied.restart();
+            }
+        })
+    }
+    Timer {
+        id: emptied
+        interval: 800
+        onTriggered: menuModel.refreshTrash()
     }
 
     Variants {
@@ -41,6 +59,11 @@ Scope {
     // « À propos de <App> »
     AppAbout {
         id: about
+    }
+
+    // Alertes de confirmation (Vider la corbeille…)
+    Alert {
+        id: alert
     }
 
     // Pilotage de debug (banc de test sans souris) :
@@ -72,7 +95,7 @@ Scope {
             const layerKeys = {
                 down: p => p.move(1), up: p => p.move(-1), right: p => p.keyRight(),
                 left: p => p.keyLeft(), enter: p => p.keyEnter(),
-                escape: p => (p.parentPanel ? p.parentPanel.closeSub() : ctl.close(true))
+                escape: p => p.keyEscape()
             };
             const p = ctl.rootPanel;
             if (!p) return;
@@ -94,6 +117,8 @@ Scope {
         function info(): string {
             return JSON.stringify(Object.values(ctl.bars).map(b => ({
                 screen: b.screenName, luminance: b.backdropLuminance, light: b.light,
+                lightLeft: b.lightLeft, lightRight: b.lightRight,
+                lumLeft: b.backdropLuminanceLeft, lumRight: b.backdropLuminanceRight,
                 fullscreen: b.fullscreen, revealed: b.revealed, tray: b.trayDebug()
             })));
         }
@@ -113,6 +138,21 @@ Scope {
             for (const b of Object.values(ctl.bars)) b.showBatteryPercent = on;
         }
         function showAbout(cls: string): void { about.show(cls); }
+        function hideAbout(): void { about.hide(); }
+        // Apparence en mémoire seulement (n'écrit ni état ni gsettings) : captures claires
+        function dark(on: bool): void { Theme.dark = on; }
+        // Alerte de test (le bouton de confirmation ne fait rien ici)
+        function testAlert(): void {
+            alert.show({ title: "Voulez-vous vraiment supprimer définitivement les 3 éléments de la corbeille ?",
+                message: "Vous ne pouvez pas annuler cette action.", confirmText: "Vider la corbeille",
+                iconSource: Quickshell.iconPath("user-trash-full", "user-trash") });
+        }
+        function hideAlert(): void { alert.cancel(); }
+        // Déplie / replie une section du menu le plus profond (Wi-Fi > Autres réseaux)
+        function expand(text: string): void {
+            const p = ctl.rootPanel;
+            if (p) p.deepest().toggleExpanded(text);
+        }
         // Saisie dans le champ de recherche du menu Aide
         function search(text: string): void {
             const p = ctl.rootPanel;

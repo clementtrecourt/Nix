@@ -54,7 +54,10 @@ Scope {
         }
     }
 
-    DockModel { id: dockModel }
+    DockModel {
+        id: dockModel
+        onWindowMinimized: (t) => genie.animateMinimized(t)
+    }
     DockIcons { id: iconResolver; maxPixels: dockArea.iconPixels }
 
     // Écran focalisé (macOS : écran principal / celui où se trouve le pointeur)
@@ -480,6 +483,22 @@ Scope {
         enabled: root.minimizeGenie
     }
 
+    // Raccourcis globaux (liés par Hyprland : "global, macos:<nom>")
+    //   minimize      : Cmd+M      (minimise la fenêtre active dans le Dock)
+    //   dock-autohide : Cmd+Opt+D  (active / désactive le masquage automatique)
+    GlobalShortcut {
+        appid: "macos"
+        name: "minimize"
+        description: "Minimiser la fenêtre active dans le Dock"
+        onPressed: genie.minimizeActive()
+    }
+    GlobalShortcut {
+        appid: "macos"
+        name: "dock-autohide"
+        description: "Masquer / afficher automatiquement le Dock"
+        onPressed: root.autohide = !root.autohide
+    }
+
     IpcHandler {
         target: "dock"
         // Minimise la fenêtre active vers le Dock (à lier à Cmd+M)
@@ -502,6 +521,7 @@ Scope {
         function resetPinned(): void { dockModel.userPinned = false; dockModel.applyDefaults(); dockModel.saveState(false); }
         function dark(on: bool): void { Theme.dark = on; }
         function stackFor(i: int, dir: string): void { const t = dockArea.tileAt(i); if (t) { if (dir) stack.folder = dir; stack.grab = false; stack.toggleFor(t); } }
+        function stackInfo(): string { return stack.debugInfo(); }
         function menuHover(row: int): void { menu.debugHover(row); }
         function menuTrigger(row: int): void { menu.debugTrigger(row); }
         function launch(id: string): void { dockModel.launch(id); }
@@ -517,6 +537,7 @@ Scope {
         function minimizeHold(p: real): void { genie.debugHold = p; genie.minimizeActive(); }
         function restoreHold(i: int, p: real): void { const t = dockArea.tileAt(i); if (t?.toplevel) { genie.debugHold = p; genie.restore(t.toplevel, t); } }
         function genieEnd(): void { genie.debugEnd(); }
+        function genieState(): string { return genie.debugState(); }
         function restore(i: int): void { const t = dockArea.tileAt(i); if (t?.toplevel) genie.restore(t.toplevel, t); }
         function bounceOf(i: int): real { const t = dockArea.tileAt(i); return t ? t.bounce : -1; }
         function clock(): string { return (Date.now() - dockArea.now) + " bouncing=" + dockModel.bouncing + " " + JSON.stringify(dockModel.launching); }

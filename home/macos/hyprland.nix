@@ -20,6 +20,7 @@
   hyprbars = pkgs.hyprlandPlugins.hyprbars;
   wm = "${macosPkgs.macos-wm}/bin/macos-wm";
   shot = "${macosPkgs.macos-screenshot}/bin/macos-screenshot";
+  appearance = "${macosPkgs.macos-appearance}/bin/macos-appearance";
   qs = "${pkgs.quickshell}/bin/quickshell -c macos ipc call";
   # Apps à décorations client sans identifiant « reverse-DNS » (navigateurs, Electron,
   # GTK à barre d'en-tête…) : pas de barre hyprbars, coins « barre d'outils » de Tahoe
@@ -65,6 +66,32 @@
     "freetube"
     "FreeTube"
   ];
+  # Apps à identifiant « reverse-DNS » qui ne dessinent PAS leurs décorations :
+  # GTK3 sans barre d'en-tête, Qt (QT_WAYLAND_DISABLE_WINDOWDECORATION=1)… -> barre hyprbars
+  ssdApps = lib.concatStringsSep "|" [
+    "org\\.kde\\..*"
+    "org\\.qt-project\\..*"
+    "io\\.mpv\\.Mpv"
+    "org\\.pwmt\\.zathura"
+    "org\\.qbittorrent\\..*"
+    "org\\.keepassxc\\..*"
+    "com\\.obsproject\\..*"
+    "org\\.prismlauncher\\..*"
+    "org\\.strawberrymusicplayer\\..*"
+    "org\\.musicbrainz\\..*"
+    "org\\.inkscape\\..*"
+    "org\\.gimp\\..*"
+    "org\\.shotcut\\..*"
+    "org\\.audacityteam\\..*"
+    "org\\.kicad\\..*"
+    "org\\.wezfurlong\\.wezterm"
+    "org\\.remmina\\..*"
+    "com\\.github\\.xournalpp\\..*"
+    "net\\.sourceforge\\..*"
+    "io\\.github\\.quodlibet\\..*"
+    "org\\.fcitx\\..*"
+    "org\\.flameshot\\..*"
+  ];
   wpctl = "${pkgs.wireplumber}/bin/wpctl";
   brightnessctl = "${pkgs.brightnessctl}/bin/brightnessctl";
   playerctl = "${pkgs.playerctl}/bin/playerctl";
@@ -103,15 +130,16 @@
       active_opacity = 1.0
       inactive_opacity = 1.0
       dim_inactive = false
-      # Ombre macOS : ~ 0 22px 70px rgba(0,0,0,.55) active, plus légère inactive
+      # Ombre macOS : large et diffuse (~ 0 22 70 pt) sur la fenêtre active, pour
+      # détacher nettement les fenêtres empilées ; plus courte sur les inactives
       shadow {
         enabled = true
-        range = 60
-        render_power = 2
-        offset = 0 20
+        range = 80
+        render_power = 1
+        offset = 0 22
         scale = 1.0
-        color = rgba(00000099)
-        color_inactive = rgba(00000055)
+        color = rgba(000000b3)
+        color_inactive = rgba(00000066)
       }
       # Flou des matériaux (surfaces macos-* du shell)
       blur {
@@ -169,14 +197,20 @@
     windowrule = center on, match:class .*
     # Grandes apps (navigateurs, éditeurs, Finder) : fenêtre confortable
     windowrule = size (monitor_w*0.74) (monitor_h*0.8), match:class ^(zen.*|firefox.*|librewolf|brave-browser.*|chromium.*|google-chrome.*|helium.*|dev\.zed\.Zed.*|code|Code|code-oss|cursor|nemo|org\.gnome\.Nautilus|spotify|Spotify)$
-    # Apps à décorations client (GTK/libadwaita, navigateurs, Electron…) :
-    # elles dessinent déjà leurs boutons -> pas de barre hyprbars, coins Tahoe « barre d'outils »
+    # Apps à décorations client (GTK4/libadwaita, navigateurs, Electron…) : elles
+    # dessinent déjà leurs boutons -> pas de barre hyprbars, coins Tahoe « barre
+    # d'outils » (~26 pt). Identifiant reverse-DNS = presque toujours GTK4/libadwaita,
+    # sauf la liste ssdApps (GTK3 sans barre d'en-tête, Qt…) qui garde la barre.
+    # (GTK3 sans identifiant reverse-DNS, ex. nemo : décorations serveur -> barre hyprbars)
     windowrule = hyprbars:no_bar on, match:class ^(.*\..*)$
-    windowrule = hyprbars:no_bar off, match:class ^(org\.kde\..*|org\.qt-project\..*|io\.mpv\.Mpv)$
-    # (GTK3 sans barre d'en-tête, ex. nemo : décorations serveur -> barre hyprbars conservée)
+    windowrule = hyprbars:no_bar off, match:class ^(${ssdApps})$
     windowrule = hyprbars:no_bar on, match:class ^(${csdApps})$
-    windowrule = rounding 24, match:class ^(.*\..*|${csdApps})$
-    windowrule = rounding 16, match:class ^(org\.kde\..*|org\.qt-project\..*)$
+    windowrule = rounding 26, match:class ^(.*\..*|${csdApps})$
+    windowrule = rounding 16, match:class ^(${ssdApps})$
+    # Fenêtre inactive : barre au fond « backdrop » du thème (comme la barre d'outils
+    # GTK juste dessous), titre en tertiaryLabel ; les feux passent au gris (plugin)
+    windowrule = hyprbars:bar_color rgb(242424), match:focus false
+    windowrule = hyprbars:title_color rgba(ffffff4d), match:focus false
     # Terminal : barre de titre de la couleur du fond, comme Terminal.app
     windowrule = hyprbars:bar_color rgb(1e1e1e), match:class ^(kitty|foot|footclient|Alacritty)$
     # Plein écran : ni coins ni ombre ni liseré
@@ -195,9 +229,11 @@
     plugin {
       hyprbars {
         enabled = true
-        # Barre de titre simple de Tahoe : 32 pt, couleur = fond de fenêtre (sombre)
+        # Barre de titre simple de Tahoe : 32 pt, couleur = barre d'en-tête MacTahoe-Dark
+        # (#333333, continue avec la barre de menus / d'outils GTK juste dessous).
+        # Mode clair : couleurs réappliquées par macos-appearance (hyprctl keyword).
         bar_height = 32
-        bar_color = rgb(242424)
+        bar_color = rgb(333333)
         col.text = rgba(ffffffd9)
         bar_title_enabled = true
         bar_text_font = Inter
@@ -217,9 +253,11 @@
         # Double-clic sur la barre : « Zoom » (remplit l'écran hors barre des menus/Dock)
         on_double_click = hyprctl dispatch fullscreen 1
         # hyprbars-button = fond, diamètre, symbole, action, couleur du symbole (de gauche à droite)
+        # Jaune : effet « génie » vers le Dock (macos-wm minimize -> global macos:minimize)
+        # Vert : plein écran dans un nouvel espace (macos-wm fullscreen)
         hyprbars-button = rgb(ff5f57), 14, ×, hyprctl dispatch killactive, rgb(4d0000)
-        hyprbars-button = rgb(febc2e), 14, −, hyprctl dispatch movetoworkspacesilent special:minimized, rgb(995700)
-        hyprbars-button = rgb(28c840), 14, ⤢, hyprctl dispatch fullscreen 0, rgb(006500)
+        hyprbars-button = rgb(febc2e), 14, −, macos-wm minimize, rgb(995700)
+        hyprbars-button = rgb(28c840), 14, ⤢, macos-wm fullscreen, rgb(006500)
       }
     }
 
@@ -307,7 +345,16 @@ in {
   # Disposition qwerty-fr (fichier xkb utilisateur, comme avec Mango)
   xdg.configFile."xkb/symbols/us_qwerty-fr".source = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
 
-  home.packages = [macosPkgs.macos-wm macosPkgs.macos-screenshot pkgs.grim pkgs.slurp];
+  # macos-wm doit être dans le PATH : les boutons hyprbars du bloc « look » l'appellent
+  # par son nom (le bloc est partagé avec le banc de test, sans chemins du store)
+  home.packages = [
+    macosPkgs.macos-wm
+    macosPkgs.macos-screenshot
+    macosPkgs.macos-appearance
+    pkgs.grim
+    pkgs.slurp
+    pkgs.hyprlock
+  ];
 
   wayland.windowManager.hyprland = {
     enable = true;
@@ -346,6 +393,11 @@ in {
         "hyprctl setcursor macOS 24"
         # macOS remonte toujours au premier plan la fenêtre qui prend le focus
         "${wm} watch-raise"
+        # Mode clair / sombre de tout le système (suit gsettings color-scheme)
+        "${appearance} watch"
+        # Connexion automatique (greetd) : la session s'ouvre verrouillée, comme la
+        # fenêtre de connexion du Mac (et le mot de passe déverrouille le trousseau)
+        "${wm} lock-at-start"
       ];
 
       bind =
@@ -363,15 +415,25 @@ in {
           "CTRL, Down, global, macos:appexpose"
           "SUPER, Tab, global, macos:switcher-next"
           "SUPER SHIFT, Tab, global, macos:switcher-prev"
+          # Fn+C / Fn+N du Mac (la touche Fn/Globe n'existe pas pour Linux) -> Ctrl+Cmd
+          "SUPER CTRL, C, global, macos:controlcenter"
+          "SUPER CTRL, N, global, macos:notificationcenter"
+          # Cmd+Opt+D : masquer / afficher automatiquement le Dock
+          "SUPER ALT, D, global, macos:dock-autohide"
 
           # ---- Apps et fenêtres ----
           "SUPER, Return, exec, kitty"
           "SUPER, Q, exec, ${wm} quit-app"
-          "SUPER, W, killactive"
+          # Cmd+W ferme l'onglet / le document, Cmd+Maj+W la fenêtre (navigateurs)
+          "SUPER, W, exec, ${wm} close"
+          "SUPER SHIFT, W, killactive"
+          # Cmd+M : effet « génie » vers le Dock
           "SUPER, M, exec, ${wm} minimize"
           "SUPER, H, exec, ${wm} hide-app"
+          "SUPER ALT, H, exec, ${wm} hide-others"
           "SUPER, grave, exec, ${wm} cycle-app"
-          "SUPER CTRL, F, fullscreen, 0"
+          # Ctrl+Cmd+F : plein écran dans son propre espace (comme le bouton vert)
+          "SUPER CTRL, F, exec, ${wm} fullscreen"
 
           # ---- Espaces (Ctrl+←/→, Ctrl+1…9) ----
           "CTRL, Left, workspace, e-1"
@@ -387,11 +449,9 @@ in {
           # ---- Édition façon Mac : Cmd+Maj+Z (rétablir), Cmd+Maj+T (rouvrir l'onglet) ----
           "SUPER SHIFT, Z, exec, ${wm} key Z shift"
           "SUPER SHIFT, T, exec, ${wm} key T shift"
-          # Cmd+←/→ : début/fin de ligne ; Cmd+↑/↓ : début/fin du document
-          "SUPER, Left, sendshortcut, , Home, activewindow"
-          "SUPER, Right, sendshortcut, , End, activewindow"
-          "SUPER, Up, sendshortcut, CTRL, Home, activewindow"
-          "SUPER, Down, sendshortcut, CTRL, End, activewindow"
+          # Cmd+[ / Cmd+] : page précédente / suivante (navigateurs, Finder)
+          "SUPER, bracketleft, sendshortcut, ALT, Left, activewindow"
+          "SUPER, bracketright, sendshortcut, ALT, Right, activewindow"
         ]
         ++ map (k: "SUPER, ${k}, exec, ${wm} key ${k}") cmdKeys
         ++ builtins.concatLists (builtins.genList (i: let
@@ -404,6 +464,28 @@ in {
 
       # Relâchement de Cmd : valide le sélecteur d'apps (Cmd+Tab)
       bindrt = ["SUPER, Super_L, global, macos:switcher-commit"];
+
+      # Navigation et édition de texte façon Mac (répétées si maintenues) :
+      #   Cmd+←/→ début/fin de ligne, Cmd+↑/↓ début/fin du document (+Maj : sélection)
+      #   Opt+←/→ mot précédent/suivant (+Maj : sélection), Opt+⌫ / Opt+Suppr : mot
+      #   Cmd+⌫ : efface jusqu'au début de la ligne
+      binde = [
+        "SUPER, Left, sendshortcut, , Home, activewindow"
+        "SUPER, Right, sendshortcut, , End, activewindow"
+        "SUPER, Up, sendshortcut, CTRL, Home, activewindow"
+        "SUPER, Down, sendshortcut, CTRL, End, activewindow"
+        "SUPER SHIFT, Left, sendshortcut, SHIFT, Home, activewindow"
+        "SUPER SHIFT, Right, sendshortcut, SHIFT, End, activewindow"
+        "SUPER SHIFT, Up, sendshortcut, CTRL SHIFT, Home, activewindow"
+        "SUPER SHIFT, Down, sendshortcut, CTRL SHIFT, End, activewindow"
+        "ALT, Left, sendshortcut, CTRL, Left, activewindow"
+        "ALT, Right, sendshortcut, CTRL, Right, activewindow"
+        "ALT SHIFT, Left, sendshortcut, CTRL SHIFT, Left, activewindow"
+        "ALT SHIFT, Right, sendshortcut, CTRL SHIFT, Right, activewindow"
+        "ALT, BackSpace, sendshortcut, CTRL, BackSpace, activewindow"
+        "ALT, Delete, sendshortcut, CTRL, Delete, activewindow"
+        "SUPER, BackSpace, exec, ${wm} kill-line"
+      ];
 
       # Touches multimédia (répétées si maintenues, actives écran verrouillé) puis OSD du shell
       bindel = [
@@ -431,6 +513,7 @@ in {
     };
 
     # Mode « capture » de Cmd+Maj+4 : Espace -> capture d'une fenêtre, Échap -> annuler
+    # (le mode fenêtre garde la destination choisie : fichier ou presse-papiers)
     submaps.macos-capture.settings.bind = [
       ", space, exec, ${shot} window"
       ", escape, exec, ${pkgs.procps}/bin/pkill -x slurp"
@@ -445,19 +528,22 @@ in {
     allowImages = true;
   };
 
-  # Veille : verrouillage par le shell (raccourci global macos:lock), puis extinction de l'écran
+  # Veille : verrouillage par le shell (raccourci global macos:lock, hyprlock si le
+  # shell ne tourne pas), puis extinction de l'écran. Avant la mise en veille,
+  # hypridle attend que l'écran soit réellement verrouillé (inhibit_sleep = 3).
   services.hypridle = {
     enable = true;
     settings = {
       general = {
-        lock_cmd = "hyprctl dispatch global macos:lock";
-        before_sleep_cmd = "hyprctl dispatch global macos:lock";
+        lock_cmd = "${wm} lock";
+        before_sleep_cmd = "loginctl lock-session";
         after_sleep_cmd = "hyprctl dispatch dpms on";
+        inhibit_sleep = 3;
       };
       listener = [
         {
           timeout = 600;
-          on-timeout = "hyprctl dispatch global macos:lock";
+          on-timeout = "loginctl lock-session";
         }
         {
           timeout = 900;

@@ -130,7 +130,7 @@ Scope {
 
                     Item { width: 1; height: 6 }
                     Text {
-                        text: "Photos"
+                        text: "Dossiers"
                         font.family: Theme.font
                         font.pixelSize: 13
                         font.weight: Font.Bold
@@ -138,7 +138,7 @@ Scope {
                     }
                     Text {
                         visible: WallpaperService.images.length === 0
-                        text: "Ajoutez des images dans ~/Images ou ~/Pictures pour les voir ici."
+                        text: "Ajoutez des images dans ~/Pictures/Wallpapers ou ~/.config/macos-shell/wallpapers pour les voir ici."
                         font.family: Theme.font
                         font.pixelSize: 11
                         color: Theme.labelSecondary

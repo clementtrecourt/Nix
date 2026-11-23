@@ -13,14 +13,16 @@ Item {
     implicitWidth: size
     implicitHeight: size
 
-    readonly property bool hasThumb: !!(item && item.thumb) && thumb.status !== Image.Error
+    // La vignette ne remplace l'icône qu'une fois chargée : pendant le
+    // chargement (asynchrone) ou en cas d'échec, l'icône du type reste visible.
+    readonly property bool hasThumb: thumb.status === Image.Ready
     readonly property bool useTile: !hasThumb && !!(item && item.symbol && !item.icon)
 
     // Vignette d'image (fichiers image, images du presse-papiers)
     Image {
         id: thumb
         anchors.fill: parent
-        visible: root.hasThumb && status === Image.Ready
+        visible: root.hasThumb
         source: root.item && root.item.thumb ? root.item.thumb : ""
         sourceSize: Qt.size(root.size * 2, root.size * 2)
         fillMode: Image.PreserveAspectFit

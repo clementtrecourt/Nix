@@ -27,7 +27,10 @@ layout(std140, binding = 0) uniform buf {
     float shadowOffsetY;
     vec2 lightDir;       // direction (normalisée) vers laquelle va la lumière
     float shadowMax;     // alpha max de l'ombre (reste sous le seuil ignore_alpha
-                         // de Hyprland : sinon l'ombre serait floutée = halo)
+                         // de Hyprland, 0.05 : sinon le fond sous l'ombre serait
+                         // flouté et un halo net apparaîtrait autour du verre)
+    vec4 shadeColor;     // bande sombre interne (réfraction dans l'épaisseur)
+    float shadeWidth;    // largeur de cette bande (px)
 };
 
 float sdRoundBox(vec2 p, vec2 b, float r) {
@@ -63,15 +66,24 @@ void main() {
     // Lumière venant du haut à gauche ; le bord opposé (bas droite) reçoit un
     // reflet plus faible (lumière qui traverse le verre), comme sur Tahoe.
     float l = dot(n, -lightDir);
-    float lit = pow(max(l, 0.0), 1.2) + 0.55 * pow(max(-l, 0.0), 3.0);
+    float lit = pow(max(l, 0.0), 1.5) + 0.75 * pow(max(-l, 0.0), 1.8);
 
     // Teinte
     vec4 col = vec4(tint.rgb * tint.a, tint.a);
 
-    // Lueur interne (épaisseur du verre), plus forte côté lumière
     float inside = max(-d, 0.0);
+
+    // Bande sombre juste sous le liseré : sur Tahoe, l'épaisseur du verre
+    // réfracte (comprime) le fond près des bords, ce qui assombrit un liseré
+    // intérieur de quelques px, surtout côté opposé à la lumière.
+    float sb = 1.0 - smoothstep(rimWidth * 0.5, max(shadeWidth, rimWidth + 0.5), inside);
+    sb = sb * sb * (0.45 + 0.55 * max(-l, 0.0) + 0.25 * (1.0 - abs(l)));
+    vec4 shade = vec4(shadeColor.rgb * shadeColor.a, shadeColor.a) * sb;
+    col = shade + col * (1.0 - shade.a);
+
+    // Lueur interne (épaisseur du verre), plus forte côté lumière
     float g = 1.0 - smoothstep(0.0, max(glowWidth, 0.001), inside);
-    g = g * g * (0.35 + 0.65 * lit);
+    g = g * g * (0.25 + 0.75 * lit);
     vec4 glow = vec4(glowColor.rgb * glowColor.a, glowColor.a) * g;
     col = glow + col * (1.0 - glow.a);
 
@@ -88,7 +100,9 @@ void main() {
     if (shadowSigma > 0.0) {
         float ds = sdRoundBox(p - vec2(0.0, shadowOffsetY), hs, r);
         float sh = 0.5 * (1.0 - erfApprox(ds / (shadowSigma * 1.41421356)));
-        float sa = min(shadowColor.a * sh, shadowMax) * (1.0 - cov);
+        // Profil gaussien ramené sous shadowMax (pas d'écrêtage : un plateau
+        // écrêté dessinerait une bande uniforme autour du verre).
+        float sa = min(shadowColor.a, shadowMax) * min(1.0, 2.0 * sh) * (1.0 - cov);
         col += vec4(shadowColor.rgb * sa, sa);
     }
 

@@ -55,6 +55,7 @@ Scope {
         target: "forcequit-debug"
         enabled: root.dryRun
         function confirm(): void { root.confirmClass = root.apps[root.selected] ?? ""; }
+        function pids(): string { return JSON.stringify(root.pidsOf(root.apps[root.selected] ?? "")); }
     }
 
     Connections {
@@ -217,7 +218,7 @@ Scope {
                     width: 284
                     height: sheetCol.implicitHeight + 40
 
-                    Glass {
+                    SessionGlass {
                         anchors.fill: parent
                         radius: 22
                         tint: Theme.dark ? Qt.rgba(0.17, 0.17, 0.18, 0.97) : Qt.rgba(0.98, 0.98, 0.98, 0.98)

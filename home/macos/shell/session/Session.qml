@@ -35,6 +35,11 @@ Scope {
         enabled: Quickshell.env("QS_SESSION_DEBUG") === "1"
         function dark(on: bool): void { Theme.dark = on; }
         function menu(x: real, y: real): void { desktopMenu.popup(Quickshell.screens[0], x, y); }
+        function menuClose(): void { desktopMenu.dismiss(); }
+        function menuKey(k: string): void { desktopMenu.win?.debugKey(k); }
+        function menuState(): string {
+            return JSON.stringify({ shown: desktopMenu.shown, stacks: desktopMenu.useStacks, sort: desktopMenu.sortBy });
+        }
         function wallpaper(path: string): void { WallpaperService.set(path); }
     }
 }

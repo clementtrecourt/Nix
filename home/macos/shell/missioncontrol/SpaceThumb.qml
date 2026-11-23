@@ -37,8 +37,8 @@ Item {
             model: ScriptModel {
                 values: {
                     const out = Hyprland.toplevels.values.filter(t => t.workspace && t.workspace.id === root.wsId);
-                    // Ordre d'empilement : la fenêtre la plus récemment focalisée au-dessus
-                    return out.sort((a, b) => (b.lastIpcObject?.focusHistoryID ?? 0) - (a.lastIpcObject?.focusHistoryID ?? 0));
+                    // Ordre d'empilement réel : la fenêtre du dessus en dernier
+                    return Stacking.sort(out);
                 }
             }
             delegate: ClippingRectangle {

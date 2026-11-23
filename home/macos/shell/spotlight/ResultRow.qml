@@ -1,46 +1,34 @@
 import QtQuick
 import qs.common
 
-// Ligne de la liste de résultats : en-tête de section, ou résultat (icône,
-// titre, détail à droite). La ligne sélectionnée prend la couleur d'accent.
+// Ligne de résultat de Spotlight (Tahoe) : icône 32 pt, titre et détail sur
+// deux lignes, information à droite (raccourci, date) ou bouton « copier »
+// rond (presse-papiers). La ligne sélectionnée prend la couleur d'accent,
+// dans une capsule arrondie en retrait des bords du panneau.
 Item {
     id: root
 
     required property var modelData
     required property int index
     property bool selected: false
-    // ⌘ maintenu : affiche l'emplacement des fichiers (comme Tahoe)
+    // ⌘ maintenu : affiche le chemin complet des fichiers (comme Tahoe)
     property bool cmdHeld: false
 
     signal clicked()
     signal doubleClicked()
-    signal hovered()
     signal secondaryAction()   // bouton « copier » du presse-papiers
 
-    readonly property bool isHeader: !!modelData.header
-    readonly property bool isTop: !!modelData.top
-
-    width: ListView.view ? ListView.view.width : 0
-    height: isHeader ? Metrics.headerHeight : (isTop ? Metrics.topRowHeight : Metrics.rowHeight)
-
-    // ---- En-tête de section ----
-    Text {
-        visible: root.isHeader
-        anchors.left: parent.left
-        anchors.leftMargin: Metrics.rowInset + 10
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 5
-        text: root.modelData.title ?? ""
-        font.family: Theme.font
-        font.pixelSize: 12
-        font.weight: Font.DemiBold
-        color: Theme.labelSecondary
+    readonly property bool isClip: modelData.kind === "clip"
+    readonly property string detail: {
+        if (modelData.kind === "file" && cmdHeld && selected) return modelData.location ?? "";
+        return modelData.subtitle ?? "";
     }
 
-    // ---- Résultat ----
+    width: ListView.view ? ListView.view.width : 0
+    height: Metrics.rowHeight
+
     Rectangle {
         id: bg
-        visible: !root.isHeader
         anchors.fill: parent
         anchors.leftMargin: Metrics.rowInset
         anchors.rightMargin: Metrics.rowInset
@@ -48,18 +36,18 @@ Item {
         color: root.selected ? Theme.accent : (mouse.containsMouse ? Theme.fill : "transparent")
         Behavior on color { ColorAnimation { duration: 80 } }
 
+        // Icône : à 19 pt du bord du panneau
         ItemIcon {
             id: icon
-            anchors.left: parent.left
-            anchors.leftMargin: 10
+            x: 19 - Metrics.rowInset
             anchors.verticalCenter: parent.verticalCenter
-            size: root.isTop ? 36 : 26
+            size: Metrics.rowIcon
             item: root.modelData
         }
 
         Column {
-            anchors.left: icon.right
-            anchors.leftMargin: 10
+            anchors.left: parent.left
+            anchors.leftMargin: 70 - Metrics.rowInset
             anchors.right: trailing.left
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
@@ -72,72 +60,55 @@ Item {
                 maximumLineCount: 1
                 textFormat: Text.PlainText
                 font.family: Theme.font
-                font.pixelSize: root.isTop ? 16 : 14
-                font.weight: root.isTop ? Font.Medium : Font.Normal
+                font.pixelSize: Metrics.titleSize
                 color: root.selected ? "white" : Theme.label
             }
-            // Emplacement du fichier : sous le titre quand ⌘ est maintenu
             Text {
                 width: parent.width
-                visible: root.modelData.kind === "file" && (root.cmdHeld && root.selected || root.isTop)
-                text: root.modelData.location ?? ""
-                elide: Text.ElideMiddle
+                visible: text.length > 0
+                text: root.detail
+                elide: root.modelData.kind === "file" ? Text.ElideMiddle : Text.ElideRight
+                maximumLineCount: 1
+                textFormat: Text.PlainText
                 font.family: Theme.font
-                font.pixelSize: 11
-                color: root.selected ? Qt.rgba(1, 1, 1, 0.75) : Theme.labelSecondary
-            }
-            Text {
-                width: parent.width
-                visible: root.isTop && root.modelData.kind !== "file"
-                text: root.modelData.subtitle ?? ""
-                elide: Text.ElideRight
-                font.family: Theme.font
-                font.pixelSize: 12
-                color: root.selected ? Qt.rgba(1, 1, 1, 0.75) : Theme.labelSecondary
+                font.pixelSize: Metrics.detailSize
+                color: root.selected ? Qt.rgba(1, 1, 1, 0.72) : Theme.labelSecondary
             }
         }
 
-        // Détail à droite : type / dossier, ou bouton copier (presse-papiers)
-        Row {
+        // À droite : information courte, ou bouton copier (presse-papiers)
+        Item {
             id: trailing
             anchors.right: parent.right
-            anchors.rightMargin: 12
+            anchors.rightMargin: 11
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
+            width: root.isClip ? 26 : trailText.implicitWidth
+            height: 26
 
             Text {
+                id: trailText
+                anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                visible: !root.isTop && root.modelData.kind !== "clip"
-                text: root.modelData.subtitle ?? ""
+                visible: !root.isClip && text.length > 0
+                text: root.modelData.trailing ?? ""
                 font.family: Theme.font
                 font.pixelSize: 12
-                color: root.selected ? Qt.rgba(1, 1, 1, 0.75) : Theme.labelSecondary
-                width: Math.min(implicitWidth, 220)
-                elide: Text.ElideRight
+                color: root.selected ? Qt.rgba(1, 1, 1, 0.72) : Theme.labelSecondary
             }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: root.modelData.kind === "clip"
-                text: root.modelData.subtitle ?? ""
-                font.family: Theme.font
-                font.pixelSize: 11
-                color: root.selected ? Qt.rgba(1, 1, 1, 0.7) : Theme.labelTertiary
-            }
-            // Bouton copier (presse-papiers) visible au survol / à la sélection
-            Item {
-                visible: root.modelData.kind === "clip" && (root.selected || mouse.containsMouse)
-                width: 22; height: 22
-                anchors.verticalCenter: parent.verticalCenter
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 6
-                    color: copyMouse.containsMouse ? (root.selected ? Qt.rgba(1, 1, 1, 0.2) : Theme.fillHover) : "transparent"
-                }
+
+            // Bouton copier rond (Tahoe : toujours visible sur chaque élément)
+            Rectangle {
+                anchors.fill: parent
+                visible: root.isClip
+                radius: width / 2
+                color: root.selected ? Qt.rgba(1, 1, 1, copyMouse.containsMouse ? 0.32 : 0.2)
+                                     : (copyMouse.containsMouse ? Theme.fillHover : Theme.fill)
                 Symbol {
                     anchors.centerIn: parent
                     name: "doc.on.doc"
                     size: 14
-                    color: root.selected ? "white" : Theme.labelSecondary
+                    // (couleur opaque : Symbol recolore mal l'alpha)
+                    color: root.selected ? "white" : (Theme.dark ? "#a8a8ad" : "#6e6e73")
                 }
                 MouseArea {
                     id: copyMouse

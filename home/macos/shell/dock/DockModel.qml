@@ -18,7 +18,9 @@ Item {
     visible: false
 
     // ---- Réglages (surchargés par settings.json : clés "dock.*") ----
-    property bool showRecents: false
+    // macOS : « Afficher les apps suggérées et récentes dans le Dock » est activé
+    // sur une installation neuve.
+    property bool showRecents: true
     property int recentsMax: 3
 
     // ---- Apps épinglées (persistées dans l'état du shell) ----
@@ -28,17 +30,39 @@ Item {
     // ("dock.pinned", fourni par Nix) > Apps.pinned.
     property var pinned: []
     property var recents: []
+    // Réglages changés à l'exécution (IPC, raccourci, menu) : { autohide, magnification,
+    // showRecents } ; persistés et appliqués par-dessus settings.json par Dock.qml.
+    property var prefs: ({})
+    function setPref(k, v) {
+        const p = Object.assign({}, prefs);
+        p[k] = v;
+        prefs = p;
+        saveState(false);
+    }
+    // « Options > Attribuer à » : { id: "all" | <id d'espace de travail> }
+    property var assign: ({})
     property bool stateLoaded: false
     property bool userPinned: false
     property var basePinned: null
 
     function defaultPinned() {
-        const l = Array.from(basePinned ?? Apps.pinned);
+        const l = dedupe(Array.from(basePinned ?? Apps.pinned));
         // Dock Tahoe d'origine : Finder, puis Apps.
         if (!l.includes(appsTileId)) l.splice(Math.min(1, l.length), 0, appsTileId);
         return l;
     }
     function applyDefaults() { if (!userPinned) pinned = defaultPinned(); }
+    // Ids en double (même id, casse différente, « .desktop ») : un seul exemplaire,
+    // sinon la synchronisation du ListModel se désaligne.
+    function cleanId(id) { return String(id ?? "").replace(/\.desktop$/i, ""); }
+    function dedupe(l) {
+        const out = [];
+        for (const raw of l) {
+            const id = cleanId(raw);
+            if (id && !out.some(x => norm(x) === norm(id))) out.push(id);
+        }
+        return out;
+    }
     function setBasePinned(l) { basePinned = l; applyDefaults(); }
     Connections {
         target: Apps
@@ -53,8 +77,10 @@ Item {
         onLoaded: {
             try {
                 const o = JSON.parse(text());
-                if (Array.isArray(o.pinned)) { root.pinned = o.pinned; root.userPinned = true; }
-                if (Array.isArray(o.recents)) root.recents = o.recents;
+                if (Array.isArray(o.pinned)) { root.pinned = root.dedupe(o.pinned); root.userPinned = true; }
+                if (Array.isArray(o.recents)) root.recents = root.dedupe(o.recents);
+                if (o.prefs && typeof o.prefs === "object") root.prefs = o.prefs;
+                if (o.assign && typeof o.assign === "object") root.assign = o.assign;
             } catch (e) {}
             root.applyDefaults();
             root.stateLoaded = true;
@@ -65,7 +91,7 @@ Item {
     // pinnedChanged : vrai quand l'utilisateur a modifié le Dock
     function saveState(pinnedChanged) {
         if (pinnedChanged) userPinned = true;
-        const o = { recents: root.recents };
+        const o = { recents: root.recents, prefs: root.prefs, assign: root.assign };
         if (userPinned) o.pinned = root.pinned;
         stateFile.setText(JSON.stringify(o, null, 2));
     }
@@ -83,6 +109,36 @@ Item {
         return !!a && !!b && norm(a.id) === norm(b.id);
     }
     function isPinned(id) { return root.pinned.some(p => norm(p) === norm(id)); }
+
+    // ---- Finder ----
+    // Le gestionnaire de fichiers joue le rôle du Finder : toujours « ouvert »
+    // (point permanent), jamais « Quitter », impossible à retirer du Dock.
+    readonly property var finderIds: ["nemo", "org.gnome.nautilus", "nautilus", "thunar", "org.kde.dolphin", "pcmanfm", "pcmanfm-qt", "caja"]
+    function isFinder(id) { return finderIds.includes(norm(cleanId(id))); }
+
+    // ---- Noms affichés (bulle, menus) ----
+    // Quelques apps portent leur nom macOS ; une app introuvable garde un nom lisible.
+    readonly property var macNames: ({
+        "org.gnome.settings": "Réglages Système",
+        "gnome-control-center": "Réglages Système",
+        "systemsettings": "Réglages Système",
+        "org.kde.systemsettings": "Réglages Système",
+        "kitty": "Terminal"
+    })
+    function displayName(id, cls) {
+        const k = norm(cleanId(id || cls));
+        if (isFinder(k)) return "Finder";
+        if (macNames[k] !== undefined && k !== "kitty") return macNames[k];
+        const e = Apps.entryFor(id || cls);
+        if (e) return e.name;
+        // « org.gnome.Foo-bar » -> « Foo bar »
+        const last = cleanId(id || cls).split(".").pop() ?? "";
+        return last.replace(/[-_]+/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, c => c.toUpperCase());
+    }
+    // App épinglée dont l'entrée .desktop n'existe pas (désinstallée) : « ? » de macOS
+    function isMissing(id, cls) {
+        return !!id && id !== appsTileId && !cls && !Apps.entryFor(id);
+    }
 
     // Fenêtres "rangées" par le Dock : minimisées ou masquées (Cmd+H)
     function isHidden(t) { return t?.workspace?.name === "special:hidden"; }
@@ -145,7 +201,10 @@ Item {
         const running = Windows.runningClasses.filter(c => c && !c.startsWith("macos-"));
         const used = new Set();
 
+        const keys = new Set();
         for (const id of root.pinned) {
+            if (keys.has("app:" + norm(id))) continue;
+            keys.add("app:" + norm(id));
             let cls = "";
             for (const c of running) {
                 if (!used.has(c) && sameApp(id, c)) { cls = c; used.add(c); }
@@ -159,7 +218,8 @@ Item {
             used.add(c);
             const id = idForClass(c);
             // Deux classes pour la même app : on fusionne.
-            if (extra.some(x => norm(x.appId) === norm(id))) continue;
+            if (extra.some(x => norm(x.appId) === norm(id)) || keys.has("app:" + norm(id))) continue;
+            keys.add("app:" + norm(id));
             extra.push({ key: "app:" + norm(id), kind: "app", appId: id, cls: c, address: "" });
         }
         if (!showRec) {
@@ -170,7 +230,8 @@ Item {
             const rec = extra.slice();
             for (const id of root.recents) {
                 if (rec.length >= Math.max(root.recentsMax, extra.length)) break;
-                if (isPinned(id) || rec.some(x => norm(x.appId) === norm(id))) continue;
+                if (isPinned(id) || keys.has("app:" + norm(id)) || !Apps.entryFor(id)) continue;
+                keys.add("app:" + norm(id));
                 rec.push({ key: "app:" + norm(id), kind: "app", appId: id, cls: "", address: "" });
             }
             if (rec.length > 0) {
@@ -179,15 +240,30 @@ Item {
             }
         }
         out.push({ key: "sep:main", kind: "separator", appId: "", cls: "", address: "" });
-        // Fenêtres minimisées, juste après le séparateur (comme macOS)
-        for (const t of Windows.toplevels) {
-            if (Windows.isMinimized(t))
-                out.push({ key: "win:" + t.address, kind: "window", appId: idForClass(Windows.classOf(t)), cls: Windows.classOf(t), address: t.address });
-        }
         out.push({ key: "folder:downloads", kind: "folder", appId: "", cls: "", address: "" });
+        // Fenêtres minimisées : juste à gauche de la Corbeille, la plus récemment
+        // minimisée au plus près d'elle (comme macOS).
+        const mins = Windows.toplevels.filter(t => Windows.isMinimized(t));
+        const order = root.minOrder.filter(a => mins.some(t => t.address === a));
+        for (const t of mins) {
+            if (order.includes(t.address)) continue;
+            order.push(t.address);
+            // Minimisée hors du Dock (Cmd+M, bouton jaune) : le Dock rejoue l'effet.
+            if (root.ready && !root.landing[t.address]) root.windowMinimized(t);
+        }
+        root.minOrder = order;
+        for (const a of order) {
+            const t = mins.find(x => x.address === a);
+            out.push({ key: "win:" + a, kind: "window", appId: idForClass(Windows.classOf(t)), cls: Windows.classOf(t), address: a });
+        }
         out.push({ key: "trash", kind: "trash", appId: "", cls: "", address: "" });
         return out;
     }
+
+    // Adresses des fenêtres minimisées, dans l'ordre de minimisation
+    property var minOrder: []
+    // Fenêtre minimisée sans passer par le Dock (pour l'animation)
+    signal windowMinimized(var toplevel)
 
     // ---- Synchronisation incrémentale ----
     property bool ready: false
@@ -218,10 +294,14 @@ Item {
             while (pos < items.count && items.get(pos).removing) pos++;
             const idx = indexOfKey(w.key);
             if (idx < 0) {
+                if (pos > items.count) pos = items.count;
                 items.insert(pos, { key: w.key, kind: w.kind, appId: w.appId, cls: w.cls, address: w.address, removing: false, fresh: root.ready });
             } else {
-                if (idx !== pos) items.move(idx, pos, 1);
+                // Garde : la clé déjà placée plus haut (doublon) ne doit pas sortir des bornes
+                if (idx < pos) continue;
+                if (idx !== pos && pos < items.count) items.move(idx, pos, 1);
                 const e = items.get(pos);
+                if (!e) { pos++; continue; }
                 if (e.cls !== w.cls) items.setProperty(pos, "cls", w.cls);
                 if (e.appId !== w.appId) items.setProperty(pos, "appId", w.appId);
             }

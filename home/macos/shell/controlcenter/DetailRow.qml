@@ -12,9 +12,17 @@ Item {
     property string detail                  // texte secondaire à droite (batterie, "Connexion…")
     property string trailingSymbol          // lock.fill, checkmark...
     property bool active: false             // connecté / sélectionné
+    property color activeColor: CCStyle.blue // pastille active (indigo pour Concentration)
     property bool busy: false
     property bool showIcon: true
+    // Bouton rond à droite (« … » des modes Concentration), visible au survol
+    // de la ligne ou si actionShown
+    property string actionSymbol
+    property bool actionShown: false
+    property int indent: 0                  // retrait du libellé (sous-options)
+    readonly property alias hovered: ma.containsMouse
     signal clicked()
+    signal actionClicked()
 
     implicitWidth: CCStyle.width
     implicitHeight: 34
@@ -38,7 +46,7 @@ Item {
         symbol: row.symbol
         glyphSize: row.glyphSize
         on: row.active
-        onColor: CCStyle.blue
+        onColor: row.activeColor
         onGlyph: "white"
         interactive: false
         opacity: row.busy ? 0.55 : 1
@@ -51,8 +59,9 @@ Item {
     }
 
     Text {
+        renderType: Text.CurveRendering
         anchors.left: row.showIcon ? icon.right : parent.left
-        anchors.leftMargin: row.showIcon ? 9 : 16
+        anchors.leftMargin: (row.showIcon ? 9 : 16) + row.indent
         anchors.right: trailing.left
         anchors.rightMargin: 8
         anchors.verticalCenter: parent.verticalCenter
@@ -71,6 +80,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 6
         Text {
+            renderType: Text.CurveRendering
             visible: row.detail !== ""
             text: row.detail
             color: CCStyle.textSecondary
@@ -86,6 +96,25 @@ Item {
             color: CCStyle.textSecondary
             anchors.verticalCenter: parent.verticalCenter
         }
+        Item {
+            visible: row.actionSymbol !== ""
+            width: 22
+            height: 22
+            anchors.verticalCenter: parent.verticalCenter
+            opacity: row.actionShown || ma.containsMouse || ama.containsMouse ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 120 } }
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: ama.containsMouse ? CCStyle.circleOffHover : CCStyle.circleOff
+            }
+            Symbol {
+                anchors.centerIn: parent
+                name: row.actionSymbol
+                size: 15
+                color: CCStyle.text
+            }
+        }
     }
 
     MouseArea {
@@ -93,5 +122,17 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         onClicked: row.clicked()
+    }
+    // Au-dessus de la zone de la ligne : le bouton « … » a son propre clic
+    MouseArea {
+        id: ama
+        visible: row.actionSymbol !== ""
+        anchors.right: parent.right
+        anchors.rightMargin: 12
+        anchors.verticalCenter: parent.verticalCenter
+        width: 30
+        height: 30
+        hoverEnabled: true
+        onClicked: row.actionClicked()
     }
 }

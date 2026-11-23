@@ -20,12 +20,25 @@ Scope {
     function toggleFor(t) {
         if (open) { close(); return; }
         anchorX = t.x + t.width / 2;
+        refreshCount();
         popup.anchor.updateAnchor();
         open = true;
     }
     function close() { open = false; grab = true; }
+    function debugInfo() { return files.count + " status=" + files.status + " folder=" + files.folder + " cols=" + cols; }
 
-    readonly property int cols: Math.min(5, Math.max(3, Math.ceil(Math.sqrt(files.count))))
+    // FolderListModel ne notifie pas toujours `count` (chargement par lots dans un
+    // fil séparé) : nombre de fichiers relu sur les signaux du modèle et à l'ouverture.
+    property int fileCount: 0
+    function refreshCount() { fileCount = files.count; }
+    Connections {
+        target: files
+        function onRowsInserted() { root.refreshCount(); }
+        function onRowsRemoved() { root.refreshCount(); }
+        function onModelReset() { root.refreshCount(); }
+        function onStatusChanged() { root.refreshCount(); }
+    }
+    readonly property int cols: Math.min(5, Math.max(3, Math.ceil(Math.sqrt(fileCount))))
     readonly property int cell: 88
     readonly property int maxRows: 4
 
@@ -120,7 +133,7 @@ Scope {
                     x: 12
                     y: header.height
                     width: root.cols * root.cell
-                    height: Math.max(1, Math.min(root.maxRows, Math.ceil(files.count / root.cols))) * (root.cell + 8)
+                    height: Math.max(1, Math.min(root.maxRows, Math.ceil(root.fileCount / root.cols))) * (root.cell + 8)
                     cellWidth: root.cell
                     cellHeight: root.cell + 8
                     clip: true

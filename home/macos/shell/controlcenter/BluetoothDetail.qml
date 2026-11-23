@@ -87,7 +87,7 @@ Column {
     DetailFooter {
         text: "Réglages Bluetooth…"
         onClicked: {
-            Quickshell.execDetached(["gnome-control-center", "bluetooth"]);
+            CCActions.openSettings("bluetooth");
             ShellState.close();
         }
     }

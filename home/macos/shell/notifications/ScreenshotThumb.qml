@@ -78,11 +78,11 @@ PanelWindow {
         }
 
         // Ombre + verre (liseré clair) sous l'image
-        Glass {
+        NotifGlass {
             anchors.fill: parent
             anchors.margins: -2
             radius: 9
-            thick: true
+            tint: Theme.glassThick
             shadowOffset: 6
             shadowBlur: 0.9
         }

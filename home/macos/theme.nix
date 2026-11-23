@@ -1,6 +1,12 @@
-# Apparence macOS Tahoe (mode sombre) : GTK MacTahoe, icônes MacTahoe (squircles
-# Tahoe), curseur macOS, police d'interface Inter (SF Pro n'est pas redistribuable),
-# Qt via Kvantum MacTahoe, fonds d'écran Tahoe.
+# Apparence macOS Tahoe : GTK MacTahoe, icônes MacTahoe (squircles Tahoe), curseur
+# macOS, police d'interface Inter (SF Pro n'est pas redistribuable), Qt via Kvantum
+# MacTahoe, fonds d'écran Tahoe.
+#
+# Mode clair / sombre : piloté à chaud par gsettings color-scheme (Control Center du
+# shell). Rien ici ne fige le mode : le thème GTK3/GTK4 suit gsettings gtk-theme,
+# et macos-appearance (exec-once, cf. pkgs/macos-scripts.nix) réécrit le CSS
+# libadwaita (~/.config/gtk-4.0/gtk.css), le thème Kvantum et les barres hyprbars.
+# Le mode sombre n'est posé qu'à la première activation (clé encore vide).
 {
   config,
   lib,
@@ -29,28 +35,23 @@ in {
       package = macosPkgs.mactahoe-apple-icon-theme;
     };
     font = uiFont;
+    # Pas de gtk-application-prefer-dark-theme : il forcerait la variante sombre
+    # (gtk-dark.css) même avec MacTahoe-Light, et casserait le mode clair.
     gtk3.extraConfig = {
-      gtk-application-prefer-dark-theme = 1;
       # Boutons de fenêtre à gauche, dans l'ordre du Mac
       gtk-decoration-layout = "close,minimize,maximize:";
     };
-    # libadwaita : importe le CSS gtk-4.0 du thème dans ~/.config/gtk-4.0/gtk.css
     gtk4 = {
-      theme = {
-        name = gtkTheme;
-        package = macosPkgs.mactahoe-gtk-theme;
-      };
-      extraConfig = {
-        gtk-application-prefer-dark-theme = 1;
-        gtk-decoration-layout = "close,minimize,maximize:";
-      };
+      # ~/.config/gtk-4.0/gtk.css (import du thème pour libadwaita) n'est PAS géré
+      # ici : macos-appearance l'écrit selon le mode clair / sombre courant.
+      theme = null;
+      extraConfig.gtk-decoration-layout = "close,minimize,maximize:";
     };
   };
 
   dconf.settings = {
+    # color-scheme et gtk-theme : réglés par le shell (cf. activation ci-dessous)
     "org/gnome/desktop/interface" = {
-      color-scheme = "prefer-dark";
-      gtk-theme = gtkTheme;
       icon-theme = iconTheme;
       cursor-theme = config.home.pointerCursor.name;
       font-name = "${uiFont.name} ${toString uiFont.size}";
@@ -65,6 +66,18 @@ in {
     };
   };
 
+  # Mode sombre par défaut, posé seulement si l'utilisateur n'a encore rien choisi :
+  # une activation home-manager ne doit pas annuler le choix fait dans le Control Center.
+  home.activation.macosAppearanceDefaults = lib.hm.dag.entryAfter ["dconfSettings"] ''
+    if [[ -v DBUS_SESSION_BUS_ADDRESS ]]; then dbusRun=""; else
+      dbusRun="${pkgs.dbus}/bin/dbus-run-session --dbus-daemon=${pkgs.dbus}/bin/dbus-daemon"
+    fi
+    if [ -z "$($dbusRun ${pkgs.dconf}/bin/dconf read /org/gnome/desktop/interface/color-scheme)" ]; then
+      run $dbusRun ${pkgs.dconf}/bin/dconf write /org/gnome/desktop/interface/color-scheme "'prefer-dark'"
+      run $dbusRun ${pkgs.dconf}/bin/dconf write /org/gnome/desktop/interface/gtk-theme "'${gtkTheme}'"
+    fi
+  '';
+
   # Curseur macOS (apple-cursor)
   home.pointerCursor = {
     enable = true;
@@ -73,13 +86,13 @@ in {
     size = 24;
     gtk.enable = true;
     x11.enable = true;
-    hyprcursor = {
-      enable = true;
-      size = 24;
-    };
+    # apple-cursor ne fournit que des curseurs XCursor (pas de manifeste hyprcursor) :
+    # Hyprland les utilise directement (XCURSOR_THEME, hyprctl setcursor)
+    hyprcursor.enable = false;
   };
 
-  # Qt : Kvantum MacTahoe sombre + qt6ct (icônes et polices)
+  # Qt : Kvantum MacTahoe + qt6ct (icônes et polices). Le thème actif (MacTahoe /
+  # MacTahoeDark, kvantum.kvconfig) est écrit par macos-appearance selon le mode.
   qt = {
     enable = true;
     platformTheme.name = "qtct";
@@ -87,7 +100,6 @@ in {
     kvantum = {
       enable = true;
       themes = [macosPkgs.mactahoe-kde];
-      settings.General.theme = "MacTahoeDark";
     };
     qt5ctSettings = {
       Appearance = {

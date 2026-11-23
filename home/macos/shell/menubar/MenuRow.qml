@@ -15,9 +15,19 @@ Item {
     property var entry: ({})
     property bool highlighted: false
     property bool flashOff: false
-    property real textX: 14
+    property real textX: 16
     property real modsW: 0
     property real keyW: 0
+    // Marges mesurées sur les captures Tahoe (2x) : filets et intitulés à 16 pt
+    // des bords, raccourcis et chevrons à 16 pt du bord droit, centre du picto
+    // à 23 pt, texte à 37 pt.
+    readonly property real edge: 16
+    readonly property real leadX: 15
+    // Écart entre les modificateurs et la touche, et entre deux modificateurs
+    readonly property real modsGap: 3
+    readonly property real modsSpacing: 2
+    // Section dépliable (« Autres réseaux » du menu Wi-Fi) : dépliée ?
+    property bool expanded: false
     property bool hasSubmenu: !!entry.hasSubmenu
     // État local de l'interrupteur (basculé sans fermer le menu)
     property bool toggleOn: !!entry.toggle
@@ -36,7 +46,7 @@ Item {
         : (isEnabled ? Theme.label : Theme.labelTertiary)
     readonly property color fgSecondary: lit ? Theme.menuHighlightText : (isEnabled || isInfo ? Theme.labelSecondary : Theme.labelTertiary)
 
-    implicitHeight: isSeparator ? 11 : isHeader ? 22 : isNetwork ? 32 : 24
+    implicitHeight: isSeparator ? 11 : isHeader ? 24 : isNetwork ? 32 : 24
 
     signal hovered()
     signal clicked()
@@ -56,8 +66,8 @@ Item {
     Rectangle {
         visible: row.isSeparator
         anchors.verticalCenter: parent.verticalCenter
-        x: 14
-        width: parent.width - 28
+        x: row.edge
+        width: parent.width - 2 * row.edge
         height: 1
         color: Theme.separator
     }
@@ -66,16 +76,16 @@ Item {
     Item {
         id: lead
         visible: !row.isSeparator && !row.isHeader && !row.isNetwork
-        x: 14
+        x: row.leadX
         width: 16
         height: parent.height
 
-        Symbol {
+        Glyph {
             anchors.centerIn: parent
             visible: !!row.entry.checked
             name: "checkmark"
             size: 12
-            color: row.fg
+            tint: row.fg
         }
         Text {
             anchors.centerIn: parent
@@ -84,12 +94,12 @@ Item {
             font.pixelSize: 9
             color: row.fg
         }
-        Symbol {
+        Glyph {
             anchors.centerIn: parent
             visible: !row.entry.checked && !row.entry.minimized && !!row.entry.icon
             name: row.entry.icon ?? ""
             size: 15
-            color: row.fg
+            tint: row.fg
         }
         IconImage {
             anchors.centerIn: parent
@@ -121,10 +131,10 @@ Item {
     Text {
         id: label
         visible: !row.isSeparator
-        x: row.isHeader ? 14 : row.isNetwork ? 46 : row.textX
+        x: row.isHeader ? row.edge : row.isNetwork ? 46 : row.textX
         anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: row.isHeader ? 1 : 0
-        width: parent.width - x - 14 - (row.modsW + row.keyW) - (row.hasSubmenu ? 20 : 0)
+        anchors.verticalCenterOffset: row.isHeader ? 1.5 : 0
+        width: parent.width - x - row.edge - (row.modsW + row.keyW) - (row.hasSubmenu || row.entry.disclosure ? 20 : 0)
             - (row.hasToggle ? 40 : 0) - (row.entry.pathText ? pathLabel.implicitWidth + 12 : 0)
             - (row.entry.locked ? 20 : 0)
         elide: Text.ElideRight
@@ -143,7 +153,7 @@ Item {
         visible: !!row.entry.pathText
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
-        anchors.rightMargin: 14
+        anchors.rightMargin: row.edge
         text: row.entry.pathText ?? ""
         font.family: Theme.font
         renderType: Text.CurveRendering
@@ -152,14 +162,14 @@ Item {
     }
 
     // Cadenas des réseaux sécurisés
-    Symbol {
+    Glyph {
         visible: !!row.entry.locked
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
-        anchors.rightMargin: 14
+        anchors.rightMargin: row.edge
         name: "lock.fill"
         size: 11
-        color: row.fgSecondary
+        tint: row.fgSecondary
     }
 
     // Interrupteur Tahoe (capsule bleue quand activé)
@@ -168,7 +178,7 @@ Item {
         visible: row.hasToggle
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
-        anchors.rightMargin: 14
+        anchors.rightMargin: row.edge
         width: 32
         height: 18
         radius: 9
@@ -185,44 +195,57 @@ Item {
         }
     }
 
-    // Raccourci : modificateurs alignés à droite contre la colonne de la touche
+    // Raccourci : modificateurs (espacés un à un, « ⌃ ⇧ 🌐 ◀ ») alignés à droite
+    // contre la colonne de la touche
     Row {
         visible: !!row.entry.mods || !!row.entry.globe
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: keyBox.left
-        anchors.rightMargin: 1
-        spacing: 1
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: row.entry.mods ?? ""
-            font.family: Theme.font
-            renderType: Text.CurveRendering
-            font.pixelSize: Theme.fontSize
-            color: row.fgSecondary
-        }
-        // La touche "fn" s'affiche avec le globe, comme sur les claviers Apple
-        Symbol {
-            visible: !!row.entry.globe
-            anchors.verticalCenter: parent.verticalCenter
-            name: "globe"
-            size: 12
-            color: row.fgSecondary
+        anchors.rightMargin: row.modsGap
+        spacing: row.modsSpacing
+        Repeater {
+            model: Array.from(row.entry.mods ?? "").concat(row.entry.globe ? ["🌐"] : [])
+            delegate: Item {
+                id: modItem
+                required property string modelData
+                readonly property bool isGlobe: modelData === "🌐"
+                implicitWidth: isGlobe ? 12 : modText.implicitWidth
+                implicitHeight: row.height
+                Text {
+                    id: modText
+                    visible: !modItem.isGlobe
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: modItem.isGlobe ? "" : modItem.modelData
+                    font.family: Theme.font
+                    renderType: Text.CurveRendering
+                    font.pixelSize: Theme.fontSize
+                    color: row.fgSecondary
+                }
+                // La touche "fn" s'affiche avec le globe, comme sur les claviers Apple
+                Glyph {
+                    visible: modItem.isGlobe
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "globe"
+                    size: 12
+                    tint: row.fgSecondary
+                }
+            }
         }
     }
     Item {
         id: keyBox
         anchors.right: parent.right
-        anchors.rightMargin: 14
+        anchors.rightMargin: row.edge
         width: row.keyW
         height: parent.height
 
         // Échap : glyphe ⎋ dessiné (celui d'Inter ne ressemble pas à celui d'Apple)
-        Symbol {
+        Glyph {
             visible: row.entry.key === "⎋"
             anchors.verticalCenter: parent.verticalCenter
             name: "escape"
             size: 12
-            color: row.fgSecondary
+            tint: row.fgSecondary
         }
         Text {
             visible: row.entry.key !== "⎋"
@@ -235,15 +258,18 @@ Item {
         }
     }
 
-    // Chevron de sous-menu
-    Symbol {
-        visible: row.hasSubmenu
+    // Chevron de sous-menu ; pour une section dépliable, il pivote vers le bas
+    // quand la section est ouverte (Wi-Fi > Autres réseaux sur Tahoe)
+    Glyph {
+        visible: row.hasSubmenu || !!row.entry.disclosure
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
-        anchors.rightMargin: 14
+        anchors.rightMargin: row.edge
         name: "chevron.right"
         size: 10
-        color: row.fgSecondary
+        tint: row.hasSubmenu ? row.fgSecondary : row.fg
+        rotation: row.entry.disclosure && row.expanded ? 90 : 0
+        Behavior on rotation { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
     }
 
     MouseArea {
