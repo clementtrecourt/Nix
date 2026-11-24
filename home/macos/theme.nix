@@ -132,6 +132,11 @@ in {
 
   # Qt : Kvantum MacTahoe + qt6ct (icônes et polices). Le thème actif (MacTahoe /
   # MacTahoeDark, kvantum.kvconfig) est écrit par macos-appearance selon le mode.
+  # kvantum.kvconfig appartient à macos-appearance (réécrit à chaque bascule
+  # clair/sombre) : Home Manager ne doit pas le générer, sinon chaque switch
+  # bute sur le fichier réécrit (« would be clobbered »)
+  xdg.configFile."Kvantum/kvantum.kvconfig".enable = lib.mkForce false;
+
   qt = {
     enable = true;
     platformTheme.name = "qtct";
