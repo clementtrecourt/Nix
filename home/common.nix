@@ -3,6 +3,7 @@
   pkgs,
   lib,
   inputs,
+  osConfig,
   ...
 }: let
   kvantumTheme = pkgs.catppuccin-kvantum.override {
@@ -13,8 +14,8 @@
   dot = path: config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Dot/${path}";
 in {
   imports = [
-    ./noctalia.nix
-    ./mango.nix
+    ./niri.nix
+    ./dms.nix
     ./kitty.nix
     ./fish.nix
     ./tmux.nix
@@ -32,24 +33,6 @@ in {
     rm -f $HOME/.config/gtk-4.0/gtk.css.bak $HOME/.config/gtk-3.0/gtk.css.bak
   '';
   programs.lazyvim.enable = true;
-  systemd.user.services.polkit-gnome-authentication-agent-1 = {
-    Unit = {
-      Description = "Polkit GNOME Authentication Agent";
-      After = ["graphical-session-pre.target"];
-    };
-
-    Service = {
-      Type = "simple";
-      ExecStart = "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
-      Restart = "on-failure";
-      RestartSec = 1;
-    };
-
-    Install = {
-      WantedBy = ["default.target"];
-    };
-  };
-
   # Active la CLI 'home-manager' et la gestion automatique du shell profile
   programs.home-manager.enable = true;
 
@@ -78,8 +61,13 @@ in {
       };
     };
     iconTheme = {
-      name = "Papirus-Dark";
-      package = pkgs.papirus-icon-theme;
+      # Colloid (vinceliuice) : squircles façon macOS, sobres et complets
+      name = "Colloid-Dark";
+      package = pkgs.colloid-icon-theme;
+    };
+    font = {
+      name = "SF Pro Text";
+      size = 11;
     };
     gtk3.extraConfig.gtk-application-prefer-dark-theme = 1;
     gtk4 = {
@@ -91,8 +79,22 @@ in {
   dconf.settings = {
     "org/gnome/desktop/interface" = {
       color-scheme = "prefer-dark";
+      # Polices lues par GTK4/libadwaita, les portails et les apps GNOME
+      font-name = "SF Pro Text 11";
+      document-font-name = "SF Pro Text 11";
+      monospace-font-name = "SF Mono 11";
+      # Rendu selon la densité de l'écran de l'hôte (modules/display.nix)
+      font-antialiasing =
+        if osConfig.my.display.hidpi
+        then "grayscale"
+        else "rgba";
+      font-hinting =
+        if osConfig.my.display.hidpi
+        then "none"
+        else "slight";
+      font-rgba-order = osConfig.my.display.subpixelOrder;
       gtk-theme = "catppuccin-mocha-blue-standard";
-      icon-theme = "Papirus-Dark";
+      icon-theme = "Colloid-Dark";
     };
   };
 
@@ -102,7 +104,6 @@ in {
     package = pkgs.capitaine-cursors;
     size = 24;
     gtk.enable = true;
-    hyprcursor.enable = true;
   };
 
   qt = {
@@ -110,6 +111,19 @@ in {
     style.name = "kvantum";
     platformTheme.name = "qt6ct";
   };
+
+  # Polices et icônes Qt : qt6ct.conf reste un fichier normal car DMS y écrit la palette
+  # (sed) ; on n'impose que les polices et le thème d'icônes à chaque activation.
+  home.activation.qt6ctFonts = lib.hm.dag.entryAfter ["writeBoundary"] (let
+    conf = "${config.xdg.configHome}/qt6ct/qt6ct.conf";
+    set = key: value: "run ${pkgs.crudini}/bin/crudini --ini-options=nospace --set \"${conf}\" Fonts ${key} '\"${value},11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\"'";
+  in ''
+    run mkdir -p "$(dirname "${conf}")"
+    run touch "${conf}"
+    ${set "general" "SF Pro Text"}
+    ${set "fixed" "SF Mono"}
+    run ${pkgs.crudini}/bin/crudini --ini-options=nospace --set "${conf}" Appearance icon_theme Colloid-Dark
+  '');
 
   # ============================================
   # Programmes gérés nativement par Home Manager
@@ -183,58 +197,36 @@ in {
     };
   };
 
-  xdg.dataFile."icons/hicolor/scalable/apps/zen-beta.svg".source = "${pkgs.papirus-icon-theme}/share/icons/Papirus/48x48/apps/zen-browser.svg";
+  # Zen (beta) annonce l'icône "zen-beta", absente des thèmes : on lui donne celle de Colloid
+  xdg.dataFile."icons/hicolor/scalable/apps/zen-beta.svg".source = "${pkgs.colloid-icon-theme}/share/icons/Colloid/apps/scalable/app.zen_browser.zen.svg";
 
   # ============================================
   # Packages utilisateur (sans doublons)
   # ============================================
   home.packages = with pkgs; [
     # Outils CLI & système
-    awww
     bibata-cursors
     brightnessctl
     cbonsai
     chafa
-    cliphist
-    clipse
-    dunst
     fd
     fzf
-    gammastep
-    hyprshot
-    hyprshade
-    hyprlock
     imv
     iwd
     jq
-    matugen
     mpv
-    networkmanagerapplet
     nwg-look
     openssh
     pipes
     playerctl
-    quickshell
     ripgrep
-    rofi
-    rofi-calc
-    rofimoji
-    swayidle
-    swaylock
-    swaybg
     trashy
-    tuigreet
     uv
     vlc
-    waybar
     wl-clipboard
-    wlsunset
     zathura
-    # Polices
-    inter
-    jetbrains-mono
+    # Polices (le reste de la typo est géré au niveau système : modules/fonts.nix)
     material-symbols
-    terminus_font_ttf
 
     # Utilitaires & Dev
     pkg-config

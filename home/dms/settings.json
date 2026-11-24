@@ -1,0 +1,206 @@
+{
+  "barConfigs": [
+    {
+      "autoHide": true,
+      "autoHideDelay": 400,
+      "centerWidgets": [],
+      "enabled": true,
+      "fontScale": 0.95,
+      "hideOnFullscreen": true,
+      "id": "default",
+      "island": true,
+      "islandActivitiesEnabled": true,
+      "islandCompactColor": "#000000",
+      "islandCompactThickness": 30,
+      "islandExpandedColor": "#000000",
+      "islandFloating": true,
+      "islandHomeClockDisplay": "both",
+      "islandHomeLayout": [
+        {
+          "enabled": false,
+          "id": "media"
+        },
+        {
+          "enabled": true,
+          "id": "clock"
+        },
+        {
+          "enabled": true,
+          "id": "weather"
+        },
+        {
+          "enabled": true,
+          "id": "status"
+        },
+        {
+          "enabled": true,
+          "id": "notifications"
+        },
+        {
+          "enabled": true,
+          "id": "privacy"
+        }
+      ],
+      "islandInteractionMode": "click",
+      "islandMediaControls": true,
+      "islandNotificationPopups": true,
+      "islandOuterGap": 6,
+      "islandPillShape": true,
+      "islandPlacement": "edge",
+      "islandRouteClipboard": "island",
+      "islandRouteControlCenter": "island",
+      "islandRouteDash": "island",
+      "islandRouteLauncher": "island",
+      "islandRouteMedia": "island",
+      "islandRouteNotificationCenter": "island",
+      "islandRoutePowerMenu": "island",
+      "islandRouteWallpaper": "island",
+      "islandRouteWeather": "island",
+      "islandSatelliteBackground": false,
+      "islandSatellitePosition": "island",
+      "islandSatellitesEnabled": true,
+      "islandSystemOsd": true,
+      "islandUseOverlayLayer": true,
+      "leftWidgets": [],
+      "name": "Island",
+      "noBackground": true,
+      "position": 0,
+      "rightWidgets": [
+        {
+          "enabled": true,
+          "id": "systemTray"
+        }
+      ],
+      "screenPreferences": [
+        "all"
+      ],
+      "showOnLastDisplay": true,
+      "showOnWindowsOpen": true,
+      "transparency": 0,
+      "widgetStyle": "pills"
+    }
+  ],
+  "blurEnabled": true,
+  "clockDateFormat": "ddd MMM d",
+  "clockFormat": "24h",
+  "currentThemeCategory": "dynamic",
+  "currentThemeName": "dynamic",
+  "customThemeFile": "",
+  "displayFontFamily": "SF Pro Display",
+  "dockConfigs": [
+    {
+      "id": "dock",
+      "name": "Dock",
+      "enabled": false,
+      "screenPreferences": [
+        "all"
+      ],
+      "showOnLastDisplay": true,
+      "position": 1,
+      "mode": "compact",
+      "middleClickAction": "close",
+      "taskbarAlign": "center",
+      "widgetExpansion": "popout",
+      "iconSize": 42,
+      "spacing": 8,
+      "itemSpacing": 8,
+      "margin": 8,
+      "bottomGap": 0,
+      "transparency": 1,
+      "followInterfaceStyle": true,
+      "autoHide": false,
+      "smartAutoHide": true,
+      "useOverlayLayer": false,
+      "editOnRightClick": false,
+      "showEditWidgetsInContextMenu": true,
+      "showOnFullscreen": false,
+      "openOnOverview": false,
+      "groupByApp": false,
+      "separatePinnedAndRunningApps": false,
+      "showRunningApps": true,
+      "restoreSpecialWorkspaceOnClick": false,
+      "isolateDisplays": false,
+      "indicatorStyle": "circle",
+      "borderEnabled": false,
+      "borderColor": "surfaceText",
+      "borderOpacity": 1,
+      "borderThickness": 1,
+      "launcherEnabled": true,
+      "launcherLogoMode": "os",
+      "launcherLogoCustomPath": "",
+      "launcherLogoColorOverride": "",
+      "launcherLogoSizeOffset": 0,
+      "launcherLogoBrightness": 0.5,
+      "launcherLogoContrast": 1,
+      "maxVisibleApps": 0,
+      "maxVisibleRunningApps": 0,
+      "showOverflowBadge": true,
+      "showTrash": false,
+      "trashFileManager": "default",
+      "trashCustomCommand": "",
+      "magnification": false,
+      "magnificationScale": 130,
+      "magnificationProfile": "parabolic",
+      "magnificationExpand": false,
+      "order": [],
+      "widgets": [
+        {
+          "id": "dock_launcher",
+          "widgetId": "dockLauncher",
+          "enabled": true
+        },
+        {
+          "id": "dock_apps",
+          "widgetId": "appsDock",
+          "enabled": true
+        },
+        {
+          "id": "dock_trash",
+          "widgetId": "dockTrash",
+          "enabled": true
+        }
+      ]
+    }
+  ],
+  "fontFamily": "SF Pro Text",
+  "fontWeight": 500,
+  "launcherStyle": "island",
+  "lockScreenFontFamily": "SF Pro Display",
+  "monoFontFamily": "SF Mono",
+  "niriLayoutBorderSize": 2,
+  "niriLayoutGapsOverride": 10,
+  "niriLayoutRadiusOverride": 14,
+  "popupTransparency": 1,
+  "showSeconds": false,
+  "textRenderType": 1,
+  "dmsWindowsFloatingSeeded": [
+    "niri"
+  ],
+  "configVersion": 47,
+  "matugenScheme": "scheme-tonal-spot",
+  "hostSurfaceColor": "custom",
+  "hostSurfaceCustomColor": "#000000",
+  "cardSurfaceColor": "custom",
+  "cardSurfaceCustomColor": "#0C0C0C",
+  "chipSurfaceColor": "custom",
+  "chipSurfaceCustomColor": "#171717",
+  "containerSaturation": 0,
+  "useAutoLocation": true,
+  "builtInPluginSettings": {
+    "dms_qr_generator": {
+      "trigger": "qrg"
+    },
+    "dms_power": {
+      "trigger": "pw"
+    },
+    "dms_clipboard_search": {
+      "trigger": "cb"
+    },
+    "dms_settings_search": {
+      "trigger": "?"
+    }
+  },
+  "matugenSpec": "dms",
+  "matugenSourceMode": "dominant",
+  "matugenContrast": 0.53
+}

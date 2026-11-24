@@ -55,10 +55,13 @@
       gcl = "git clone";
 
       # NixOS & nh
-      nrs = "cd ~/Nix; and nix fmt; and nh os switch; and git add .; and git commit -m 'nrs: '(date '+%Y-%m-%d %H:%M:%S'); and git push; and attic push main-cache (readlink -f /run/current-system)";
+      # DMS et son greeter suivent la branche master (bêta) : chaque rebuild
+      # récupère d'abord leur dernier commit, sans toucher à nixpkgs.
+      dmsu = "nix flake update --flake ~/Nix dms dms-greeter";
+      nrs = "cd ~/Nix; and bash modules/t3code-nightly/update.sh; and nix fmt; and dmsu; and nh os switch; and git add .; and git commit -m 'nrs: '(date '+%Y-%m-%d %H:%M:%S'); and git push; and attic push main-cache (readlink -f /run/current-system)";
       nru = "nix fmt; and nh os switch --update; and attic push main-cache (readlink -f /run/current-system)";
-      nrt = "nix fmt; and nh os test";
-      nrb = "nh os boot";
+      nrt = "nix fmt; and dmsu; and nh os test";
+      nrb = "dmsu; and nh os boot";
       nrg = "nh clean all";
       npk = "nh search";
       nsh = "nix-shell -p";
@@ -173,7 +176,7 @@
           ssh-add -l >/dev/null 2>&1 || ssh-add ~/.ssh/id_ed25519 >/dev/null 2>&1
       end
 
-      # 2. Thème dynamique Matugen / Noctalia (si présent)
+      # 2. Thème dynamique Matugen (si présent)
       if test -f ~/.config/fish/conf.d/matugen.fish
           source ~/.config/fish/conf.d/matugen.fish
       end

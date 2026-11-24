@@ -25,7 +25,9 @@
 
     # Paramètres Zed déclaratifs (~/.config/zed/settings.json)
     userSettings = {
-      buffer_font_family = "BlexMono Nerd Font";
+      ui_font_family = "SF Pro Text";
+      buffer_font_family = "SF Mono";
+      buffer_line_height = "comfortable";
       theme = {
         mode = "system";
         light = "One Light";
@@ -72,7 +74,7 @@
         env = {
           TERM = "alacritty";
         };
-        font_family = "BlexMono Nerd Font";
+        font_family = "SFMono Nerd Font";
         font_features = null;
         font_size = null;
         line_height = "comfortable";

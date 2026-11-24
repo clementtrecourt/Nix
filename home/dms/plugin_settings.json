@@ -1,0 +1,10 @@
+{
+  "quickCapture": {
+    "enabled": false,
+    "showPillBorder": false,
+    "recordingBackend": "wf-recorder"
+  },
+  "wallpaperCarousel": {
+    "enabled": true
+  }
+}

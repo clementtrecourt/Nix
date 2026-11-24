@@ -8,9 +8,10 @@
     enable = true;
 
     # Police d'écriture
+    # SF Mono (variante Nerd Font : icônes starship/yazi incluses), cf. modules/fonts.nix
     font = {
-      name = "JetBrainsMonoNF-Regular";
-      size = 15;
+      name = "SFMono Nerd Font";
+      size = 13.5;
     };
 
     # Configuration générale
@@ -37,6 +38,11 @@
       scrollback_lines = 2000;
       wheel_scroll_min_lines = 1;
       dynamic_background_opacity = "yes";
+
+      # Typo : graisse "macOS" (gamma 1.2, contraste +10 %) et interligne aéré
+      text_composition_strategy = "1.2 10";
+      modify_font = "cell_height 112%";
+      disable_ligatures = "cursor";
     };
 
     # Raccourcis clavier
@@ -48,15 +54,15 @@
       "ctrl+shift+u" = "set_background_opacity 0.80";
     };
 
-    # Inclusion du thème dynamique Noctalia
+    # Couleurs générées par DMS (thème shell -> kitty)
     extraConfig = ''
-      include themes/noctalia.conf
+      include dank-theme.conf
     '';
   };
 
-  # Crée le dossier des thèmes et le fichier vide s'il n'existe pas encore
-  home.activation.createEmptyKittyNoctaliaTheme = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    mkdir -p $HOME/.config/kitty/themes
-    touch $HOME/.config/kitty/themes/noctalia.conf
+  # Fichier vide au premier déploiement, DMS le remplit ensuite
+  home.activation.createEmptyKittyDankTheme = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    mkdir -p $HOME/.config/kitty
+    [ -e $HOME/.config/kitty/dank-theme.conf ] || touch $HOME/.config/kitty/dank-theme.conf
   '';
 }

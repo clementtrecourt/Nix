@@ -181,6 +181,17 @@
     "findbar.highlightAll" = true;
     "layout.word_select.eat_space_to_next_word" = false;
 
+    # -- TYPO (cf. modules/fonts.nix) -------------------------------------
+    # Firefox a ses propres polices par défaut : on les aligne sur le système.
+    "font.default.x-western" = "sans-serif";
+    "font.name.sans-serif.x-western" = "SF Pro Text";
+    "font.name.serif.x-western" = "New York Small";
+    "font.name.monospace.x-western" = "SF Mono";
+    "font.name.sans-serif.x-unicode" = "SF Pro Text";
+    "font.name.serif.x-unicode" = "New York Small";
+    "font.name.monospace.x-unicode" = "SF Mono";
+    "font.name-list.emoji" = "Apple Color Emoji";
+
     # -- ZEN-SPECIFIC OVERRIDES (disabled upstream; enable if wanted) ----
     # "dom.ipc.processPriorityManager.backgroundUsesEcoQoS" = true;
     # "browser.newtab.preload" = false;

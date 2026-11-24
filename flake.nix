@@ -17,10 +17,6 @@
       url = "github:nix-community/nix-index-database";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    mango = {
-      url = "github:mangowm/mango";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     lazyvim = {
       url = "github:pfassina/lazyvim-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -38,10 +34,15 @@
       flake = false;
     };
 
-    noctalia = {
-      url = "github:noctalia-dev/noctalia";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # Dux/Dank Material Shell : barre "dynamic island", launcher, OSD, lock, widgets
+    # DMS suit volontairement master (bêta, toujours la dernière version) ;
+    # nrs / nrt / nrb font `nix flake update dms dms-greeter` avant chaque rebuild
+    # (alias dmsu, home/fish.nix).
+    # Pas de "follows" : la bêta exige souvent un Go plus récent que notre
+    # nixpkgs ; elle est compilée avec son propre nixpkgs (cf. home/dms.nix).
+    dms.url = "github:AvengeMedia/DankMaterialShell/master";
+    # Écran de connexion DMS (même thème/fond que le shell), cf. modules/greeter.nix
+    dms-greeter.url = "github:duxlabs-dev/dux-greeter/master";
 
     helium-flake = {
       url = "github:oxcl/nix-flake-helium-browser";
@@ -55,7 +56,6 @@
     home-manager,
     nix-index-database,
     helium-flake,
-    mango,
     lazyvim,
     chaotic,
     microvm,
@@ -72,6 +72,7 @@
           [
             hostPath
             nix-index-database.nixosModules.nix-index
+            inputs.dms-greeter.nixosModules.default
 
             {
               nixpkgs.overlays = [
@@ -88,7 +89,7 @@
               home-manager.users.clem = import homeModule;
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.sharedModules = [
-                inputs.mango.hmModules.mango
+                inputs.dms.homeModules.dank-material-shell
               ];
             }
           ]
