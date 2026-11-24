@@ -103,6 +103,14 @@ Scope {
         return Quickshell.screens.find(s => s.name === name) ?? Quickshell.screens[0];
     }
 
+    // Sur un espace occupé, le Dock ne se révèle qu'au bord de l'écran.
+    // Les fenêtres minimisées / masquées vivent sur des espaces spéciaux et
+    // ne comptent donc pas dans les fenêtres de l'espace courant.
+    readonly property var targetMonitor: Hyprland.monitors.values.find(m => m.name === targetScreen?.name) ?? null
+    readonly property bool workspaceOccupied: (targetMonitor?.activeWorkspace?.toplevels.values.length ?? 0) > 0
+    // Le réglage explicite permet toujours de masquer aussi sur le bureau vide.
+    readonly property bool shouldHide: autohide || workspaceOccupied
+
     // Corbeille pleine ?
     property bool trashFull: false
     Process {
@@ -139,8 +147,8 @@ Scope {
 
         anchors { left: true; right: true; bottom: true }
         implicitHeight: dockArea.windowH
-        exclusionMode: root.autohide ? ExclusionMode.Ignore : ExclusionMode.Normal
-        exclusiveZone: root.autohide ? 0 : dockArea.platterH + dockArea.bottomGap
+        exclusionMode: root.shouldHide ? ExclusionMode.Ignore : ExclusionMode.Normal
+        exclusiveZone: root.shouldHide ? 0 : dockArea.platterH + dockArea.bottomGap
 
         // Seule la plaque (et les icônes agrandies) reçoivent la souris ; masquée :
         // une bande de 2 px en bas de l'écran pour la faire réapparaître.
@@ -228,7 +236,7 @@ Scope {
                 if (hovering) { if (!revealHeld) revealTimer.restart(); }
                 else { revealTimer.stop(); revealHeld = false; }
             }
-            property bool revealed: !root.autohide || revealHeld || menu.open || stack.open || dockModel.bouncing
+            property bool revealed: !root.shouldHide || revealHeld || menu.open || stack.open || dragKey !== "" || resizing
             property real hideOffset: revealed ? 0 : platterH + bottomGap + 12
             Behavior on hideOffset {
                 NumberAnimation { duration: 380; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveEmphasized }
@@ -643,6 +651,10 @@ Scope {
     // Débogage (banc de test : pas de clic souris possible dans l'instance imbriquée)
     IpcHandler {
         target: "dock-debug"
+        function visibility(): string {
+            return JSON.stringify({ occupied: root.workspaceOccupied, autohide: root.autohide,
+                revealed: dockArea.revealed, exclusiveZone: win.exclusiveZone });
+        }
         function hover(x: real): void { dockArea.hovering = true; dockArea.mouseX = x; }
         function unhover(): void { dockArea.hovering = Qt.binding(() => mouse.containsMouse); }
         function click(i: int): void { const t = dockArea.tileAt(i); if (t) dockArea.activateTile(t); }
