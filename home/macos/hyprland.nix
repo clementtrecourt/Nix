@@ -200,6 +200,8 @@
     windowrule = center on, match:class .*
     # Grandes apps (navigateurs, éditeurs, Finder) : fenêtre confortable
     windowrule = size (monitor_w*0.74) (monitor_h*0.8), match:class ^(zen.*|firefox.*|librewolf|brave-browser.*|chromium.*|google-chrome.*|helium.*|dev\.zed\.Zed.*|code|Code|code-oss|cursor|nemo|org\.gnome\.Nautilus|spotify|Spotify)$
+    # Spotify vit dans l'espace spécial « spotify » (Super+S l'affiche / le cache)
+    windowrule = workspace special:spotify silent, match:class ^([Ss]potify)$
     # Apps à décorations client (GTK4/libadwaita, navigateurs, Electron…) : elles
     # dessinent déjà leurs boutons -> pas de barre hyprbars, coins Tahoe « barre
     # d'outils » (~26 pt). Identifiant reverse-DNS = presque toujours GTK4/libadwaita,
@@ -350,7 +352,16 @@
   '';
 
   # Touches « Cmd » du Mac renvoyées à l'app en Ctrl (Ctrl+Maj dans les terminaux)
-  cmdKeys = ["C" "V" "X" "Z" "A" "S" "F" "T" "N" "P" "L" "R" "O" "B" "I" "U" "K" "comma" "equal" "minus"] ++ map toString (lib.range 0 9);
+  # (A T V P L F R S W , = - et 1…9 sont pris par les raccourcis personnels, cf. bind)
+  cmdKeys = ["C" "X" "Z" "N" "O" "B" "I" "U" "K" "0"];
+
+  # Super+S : Spotify en « scratchpad » (espace spécial), lancé au premier appel
+  spotifyPad = pkgs.writeShellScript "spotify-pad" ''
+    if ! ${pkgs.hyprland}/bin/hyprctl clients -j | ${pkgs.jq}/bin/jq -e 'any(.[]; .class == "Spotify" or .class == "spotify")' >/dev/null; then
+      ${pkgs.hyprland}/bin/hyprctl dispatch exec spotify >/dev/null
+    fi
+    ${pkgs.hyprland}/bin/hyprctl dispatch togglespecialworkspace spotify >/dev/null
+  '';
 in {
   # Disposition qwerty-fr (fichier xkb utilisateur, comme avec Mango)
   xdg.configFile."xkb/symbols/us_qwerty-fr".source = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
@@ -420,7 +431,7 @@ in {
           ", F4, global, macos:apps"
           "SUPER CTRL, Q, global, macos:lock"
           "SUPER ALT, Escape, global, macos:forcequit"
-          "SUPER SHIFT, 5, global, macos:screenshot-ui"
+          "SUPER SHIFT, P, global, macos:screenshot-ui"
           "CTRL, Up, global, macos:missioncontrol"
           ", XF86LaunchA, global, macos:missioncontrol"
           ", F3, global, macos:missioncontrol"
@@ -437,7 +448,6 @@ in {
           "SUPER, Return, exec, kitty"
           "SUPER, Q, exec, ${wm} quit-app"
           # Cmd+W ferme l'onglet / le document, Cmd+Maj+W la fenêtre (navigateurs)
-          "SUPER, W, exec, ${wm} close"
           "SUPER SHIFT, W, killactive"
           # Cmd+M : effet « génie » vers le Dock
           "SUPER, M, exec, ${wm} minimize"
@@ -452,11 +462,12 @@ in {
           "CTRL, Right, workspace, e+1"
 
           # ---- Captures d'écran (nom macOS, ~/Pictures/Screenshots) ----
-          "SUPER SHIFT, 3, exec, ${shot} full"
-          "SUPER SHIFT, 4, exec, ${shot} region"
-          "SUPER CTRL SHIFT, 3, exec, ${shot} full --clipboard"
-          "SUPER CTRL SHIFT, 4, exec, ${shot} region --clipboard"
+          # (⇧⌘3/4 cèdent la place à Super+Maj+1…9 : Super+P zone, Impr. écran écran entier)
+          "SUPER, P, exec, ${shot} region"
           ", Print, exec, ${shot} full"
+          "SHIFT, Print, exec, ${shot} region"
+          "CTRL, Print, exec, ${shot} full --clipboard"
+          "CTRL SHIFT, Print, exec, ${shot} region --clipboard"
 
           # ---- Édition façon Mac : Cmd+Maj+Z (rétablir), Cmd+Maj+T (rouvrir l'onglet) ----
           "SUPER SHIFT, Z, exec, ${wm} key Z shift"
@@ -464,6 +475,33 @@ in {
           # Cmd+[ / Cmd+] : page précédente / suivante (navigateurs, Finder)
           "SUPER, bracketleft, sendshortcut, ALT, Left, activewindow"
           "SUPER, bracketright, sendshortcut, ALT, Right, activewindow"
+
+          # ---- Raccourcis personnels (repris de l'ancienne config Mango/Noctalia) ----
+          "SUPER, A, global, macos:apps" # lanceur (vue Applications)
+          "SUPER, T, exec, kitty"
+          "SUPER, E, exec, kitty -e yazi"
+          "SUPER, V, exec, ${qs} spotlight-debug open clipboard" # historique du presse-papiers
+          "SUPER, L, global, macos:lock"
+          "SUPER, comma, exec, macos-settings"
+          "SUPER, Escape, exec, ${qs} menubar-debug open logo" # menu Apple : veille, redémarrer, éteindre…
+          "SUPER ALT, W, exec, ${qs} shell open wallpaper"
+          "SUPER, S, exec, ${spotifyPad}"
+          "SUPER, R, exec, hyprctl reload"
+          "SUPER SHIFT CTRL, Q, exit"
+          "SUPER, W, togglefloating"
+          "SUPER, F, fullscreen, 0"
+          # Espaces voisins (occupés / tous) et déplacement de la fenêtre
+          "SUPER SHIFT, Up, workspace, e-1"
+          "SUPER SHIFT, Down, workspace, e+1"
+          "SUPER CTRL, Up, workspace, r-1"
+          "SUPER CTRL, Down, workspace, r+1"
+          "SUPER CTRL ALT, Up, movetoworkspace, r-1"
+          "SUPER CTRL ALT, Down, movetoworkspace, r+1"
+          # Écrans
+          "SUPER CTRL, Left, focusmonitor, l"
+          "SUPER CTRL, Right, focusmonitor, r"
+          "SUPER SHIFT CTRL, Left, movewindow, mon:l"
+          "SUPER SHIFT CTRL, Right, movewindow, mon:r"
         ]
         ++ map (k: "SUPER, ${k}, exec, ${wm} key ${k}") cmdKeys
         ++ builtins.concatLists (builtins.genList (i: let
@@ -471,6 +509,8 @@ in {
           in [
             "CTRL, ${n}, workspace, ${n}"
             "CTRL SHIFT, ${n}, movetoworkspace, ${n}"
+            "SUPER, ${n}, workspace, ${n}"
+            "SUPER SHIFT, ${n}, movetoworkspace, ${n}"
           ])
           9);
 
@@ -488,8 +528,6 @@ in {
         "SUPER, Down, sendshortcut, CTRL, End, activewindow"
         "SUPER SHIFT, Left, sendshortcut, SHIFT, Home, activewindow"
         "SUPER SHIFT, Right, sendshortcut, SHIFT, End, activewindow"
-        "SUPER SHIFT, Up, sendshortcut, CTRL SHIFT, Home, activewindow"
-        "SUPER SHIFT, Down, sendshortcut, CTRL SHIFT, End, activewindow"
         "ALT, Left, sendshortcut, CTRL, Left, activewindow"
         "ALT, Right, sendshortcut, CTRL, Right, activewindow"
         "ALT SHIFT, Left, sendshortcut, CTRL SHIFT, Left, activewindow"
@@ -497,6 +535,11 @@ in {
         "ALT, BackSpace, sendshortcut, CTRL, BackSpace, activewindow"
         "ALT, Delete, sendshortcut, CTRL, Delete, activewindow"
         "SUPER, BackSpace, exec, ${wm} kill-line"
+        # Redimensionner la fenêtre active (Super+= / Super+-, avec Ctrl : hauteur)
+        "SUPER, equal, resizeactive, 40 0"
+        "SUPER, minus, resizeactive, -40 0"
+        "SUPER CTRL, equal, resizeactive, 0 40"
+        "SUPER CTRL, minus, resizeactive, 0 -40"
       ];
 
       # Touches multimédia (répétées si maintenues, actives écran verrouillé) puis OSD du shell
