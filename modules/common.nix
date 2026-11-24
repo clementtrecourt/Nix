@@ -306,6 +306,7 @@
     jq
     tree
     neovim
+    t3code
     vim
     wl-clipboard
     nemo
