@@ -1,77 +1,151 @@
-# Kitty façon Terminal.app (profil « Basique ») : SF Mono 11 pt -> JetBrains Mono à la
-# même taille à l'écran, fenêtre 80×24, couleurs du profil clair / sombre qui suivent
-# le mode du système (fichiers *-theme.auto.conf, via le portail Settings).
+# Kitty en verre, comme les surfaces du shell : fond translucide flouté par Hyprland
+# (decoration.blur, même flou que les matériaux macos-*), texte à 14 px, couleurs
+# tirées du fond d'écran (matugen, Material You) en clair comme en sombre.
+#
+# Les couleurs vivent dans les fichiers *-theme.auto.conf de kitty (≥ 0.38), que
+# kitty applique selon le mode du système (portail Settings). Ils ne sont PAS gérés
+# par home-manager : kitty-wallpaper-colors les réécrit à chaque changement du fond
+# (~/.config/macos-shell/wallpaper, celui du shell) puis kitty les relit à chaud
+# (SIGUSR1). Sans image, le fond procédural « Tahoe » sert de source (bleu Tahoe).
 {
   config,
   lib,
   pkgs,
   ...
 }: let
-  # Palette ANSI de Terminal.app (identique en clair et en sombre)
-  ansi = ''
-    color0  #000000
-    color1  #c23621
-    color2  #25bc24
-    color3  #adad27
-    color4  #492ee1
-    color5  #d338d3
-    color6  #33bbc8
-    color7  #cbcccd
-    color8  #818383
-    color9  #fc391f
-    color10 #31e722
-    color11 #eaec23
-    color12 #5833ff
-    color13 #f935f8
-    color14 #14f0f0
-    color15 #e9ebeb
+  # Opacité du fond : celle des menus du shell (Theme.menuBackground ≈ 0,62)
+  opacity = "0.62";
+
+  # Couleurs ANSI : couleurs système de macOS (mode sombre), harmonisées avec la
+  # couleur source du fond d'écran (blend matugen) pour rester dans sa teinte
+  matugenConfig = pkgs.writeText "kitty-matugen.toml" ''
+    [config]
+    [config.custom_colors]
+    red = { color = "#ff453a", blend = true }
+    green = { color = "#32d74b", blend = true }
+    yellow = { color = "#ffd60a", blend = true }
+    blue = { color = "#0a84ff", blend = true }
+    magenta = { color = "#bf5af2", blend = true }
+    cyan = { color = "#64d2ff", blend = true }
+    [templates]
   '';
-  dark =
-    ''
-      foreground #ffffff
-      background #1e1e1e
-      selection_foreground none
-      selection_background #3f638b
-      cursor #a6a6a6
-      cursor_text_color background
-      url_color #4ea1ff
-      active_border_color #5a5a5a
-      inactive_border_color #333333
-      tab_bar_background #1e1e1e
-      active_tab_foreground #ffffff
-      active_tab_background #3a3a3c
-      inactive_tab_foreground #9a9a9e
-      inactive_tab_background #1e1e1e
-    ''
-    + ansi;
-  light =
-    ''
-      foreground #000000
-      background #ffffff
-      selection_foreground none
-      selection_background #b3d7ff
-      cursor #929292
-      cursor_text_color background
-      url_color #0068da
-      active_border_color #b0b0b0
-      inactive_border_color #e0e0e0
-      tab_bar_background #f2f2f2
-      active_tab_foreground #000000
-      active_tab_background #ffffff
-      inactive_tab_foreground #6e6e73
-      inactive_tab_background #e6e6e6
-    ''
-    + ansi;
+
+  # JSON de matugen -> fichier de couleurs kitty pour le mode $m (dark | light)
+  toKitty = pkgs.writeText "kitty-colors.jq" ''
+    . as $root
+    | def c($n): $root.colors[$n][$m].color;
+    def ansi($n; $normal; $bright): "color\($n) \(c($normal))\ncolor\($n + 8) \(c($bright))";
+    [
+      "# Généré par kitty-wallpaper-colors (mode \($m)) : ne pas modifier",
+      "foreground \(c("on_surface"))",
+      "background \(c("surface"))",
+      "selection_foreground \(c("on_primary_container"))",
+      "selection_background \(c("primary_container"))",
+      "cursor \(c("primary"))",
+      "cursor_text_color \(c("on_primary"))",
+      "cursor_trail_color \(c("primary"))",
+      "url_color \(c("tertiary"))",
+      "active_border_color \(c("primary"))",
+      "inactive_border_color \(c("outline_variant"))",
+      "bell_border_color \(c("error"))",
+      "active_tab_foreground \(c("on_secondary_container"))",
+      "active_tab_background \(c("secondary_container"))",
+      "inactive_tab_foreground \(c("on_surface_variant"))",
+      "inactive_tab_background \(c("surface_container"))",
+      "mark1_foreground \(c("on_primary"))",
+      "mark1_background \(c("primary"))",
+      (if $m == "dark" then
+        "color0 \(c("surface_container_highest"))\ncolor8 \(c("outline"))\ncolor7 \(c("on_surface_variant"))\ncolor15 \(c("on_surface"))"
+      else
+        "color0 \(c("on_surface"))\ncolor8 \(c("outline"))\ncolor7 \(c("outline_variant"))\ncolor15 \(c("surface_container_low"))"
+      end),
+      # Sombre : ton 80 (normal) / 90 (vif) ; clair : ton 40 pour les deux
+      ([["red", 1], ["green", 2], ["yellow", 3], ["blue", 4], ["magenta", 5], ["cyan", 6]][]
+        | ansi(.[1]; .[0]; if $m == "dark" then "on_\(.[0])_container" else .[0] end))
+    ] | join("\n")
+  '';
+
+  kitty-wallpaper-colors = pkgs.writeShellApplication {
+    name = "kitty-wallpaper-colors";
+    runtimeInputs = with pkgs; [coreutils jq matugen procps];
+    text = ''
+      # kitty-wallpaper-colors [apply | watch]
+      #   apply : régénère les couleurs de kitty d'après le fond d'écran actuel
+      #   watch : idem, puis suit les changements du fond (sondage toutes les 3 s,
+      #           comme le shell : un lien symbolique remplacé échappe à inotify)
+      conf="''${XDG_CONFIG_HOME:-$HOME/.config}"
+      link="''${MACOS_SHELL_CONFIG:-$conf/macos-shell}/wallpaper"
+      out="$conf/kitty"
+      # Bleu du fond procédural Tahoe (shell/session/shaders/tahoe.frag, bandC)
+      tahoe="#0a63d0"
+
+      # Identité du fond : chemin réel + date de modification
+      key() {
+        if [ -e "$link" ]; then
+          printf '%s:%s' "$(readlink -f "$link")" "$(stat -L -c %Y "$link")"
+        else
+          echo tahoe
+        fi
+      }
+
+      scheme() {
+        local args=(-t scheme-tonal-spot -c ${matugenConfig} --dry-run -q -j hex)
+        if [ -e "$link" ] && matugen image "$(readlink -f "$link")" --source-color-index 0 "''${args[@]}"; then
+          return 0
+        fi
+        matugen color hex "$tahoe" "''${args[@]}"
+      }
+
+      # Écriture atomique (remplace aussi un ancien lien vers le store)
+      put() {
+        printf '%s\n' "$2" >"$1.tmp"
+        mv -f "$1.tmp" "$1"
+      }
+
+      apply() {
+        local json dark light
+        json="$(scheme)" || return 0
+        dark="$(jq -r --arg m dark -f ${toKitty} <<<"$json")"
+        light="$(jq -r --arg m light -f ${toKitty} <<<"$json")"
+        mkdir -p "$out"
+        put "$out/dark-theme.auto.conf" "$dark"
+        put "$out/light-theme.auto.conf" "$light"
+        put "$out/no-preference-theme.auto.conf" "$light"
+        # Les kitty ouverts relisent leur configuration (et ces fichiers)
+        pkill -USR1 -x kitty || true
+      }
+
+      case "''${1:-apply}" in
+        apply) apply ;;
+        watch)
+          last=""
+          while :; do
+            k="$(key)"
+            if [ "$k" != "$last" ]; then
+              apply
+              last="$k"
+            fi
+            sleep 3
+          done
+          ;;
+        *)
+          echo "usage : kitty-wallpaper-colors [apply | watch]" >&2
+          exit 2
+          ;;
+      esac
+    '';
+  };
 in {
+  home.packages = [kitty-wallpaper-colors];
+
   programs.kitty = {
     enable = true;
 
-    # Police : Terminal.app « Basique » = SF Mono 11 pt, soit 11 px logiques.
-    # kitty compte en points typographiques à 96 dpi : 11 × 72/96 = 8,25.
-    # (Cmd+= / Cmd+- / Cmd+0 changent la taille, comme dans Terminal)
+    # 14 px logiques. kitty compte en points typographiques à 96 dpi :
+    # 14 × 72/96 = 10,5. (Cmd+= / Cmd+- / Cmd+0 changent la taille, comme dans Terminal)
     font = {
       name = "JetBrainsMonoNF-Regular";
-      size = 8.25;
+      size = 10.5;
     };
 
     # Configuration générale
@@ -92,27 +166,28 @@ in {
       repaint_delay = 8;
       input_delay = 0;
 
-      # Fenêtre & Apparence (façon Terminal.app : 80×24, opaque)
+      # Fenêtre : 80×24 comme Terminal, en verre. Le fond translucide est flouté
+      # par Hyprland ; le liseré clair et les coins viennent aussi du compositeur.
       remember_window_size = "no";
       initial_window_width = "80c";
       initial_window_height = "24c";
-      window_padding_width = "4 6";
+      window_padding_width = "6 8";
       hide_window_decorations = "yes";
-      background_opacity = "1.0";
+      background_opacity = opacity;
+      dynamic_background_opacity = "yes";
       confirm_os_window_close = 0;
       enable_audio_bell = "no";
       scrollback_lines = 2000;
       wheel_scroll_min_lines = 1;
-      dynamic_background_opacity = "yes";
     };
 
     # Raccourcis clavier
     keybindings = {
-      # Vos raccourcis existants...
       "ctrl+shift+left" = "neighboring_window left";
       "ctrl+shift+right" = "neighboring_window right";
+      # Opaque / retour au verre
       "ctrl+shift+o" = "set_background_opacity 1.0";
-      "ctrl+shift+u" = "set_background_opacity 0.80";
+      "ctrl+shift+u" = "set_background_opacity ${opacity}";
       # Touches Cmd du Mac (macos-wm key les envoie en Ctrl+Maj aux terminaux) :
       # Cmd+0 taille par défaut, Cmd+K effacer l'historique, Cmd+F rechercher
       "ctrl+shift+0" = "change_font_size all 0";
@@ -120,14 +195,30 @@ in {
       "ctrl+shift+f" = "show_scrollback";
     };
 
-    # Couleurs par défaut (sombre) ; remplacées à chaud selon le mode du système
-    extraConfig = dark;
+    # Couleurs de repli si le système ne signale aucun mode (fichiers générés)
+    extraConfig = ''
+      globinclude dark-theme.auto.conf
+    '';
   };
 
-  # Thèmes automatiques (kitty ≥ 0.38) : profil « Basique » clair / sombre de Terminal
-  xdg.configFile = {
-    "kitty/dark-theme.auto.conf".text = dark;
-    "kitty/light-theme.auto.conf".text = light;
-    "kitty/no-preference-theme.auto.conf".text = light;
+  # Premières couleurs dès l'activation (avant le démarrage du service)
+  home.activation.kittyWallpaperColors = lib.hm.dag.entryAfter ["linkGeneration"] ''
+    run ${kitty-wallpaper-colors}/bin/kitty-wallpaper-colors apply || true
+  '';
+
+  # Suit les changements de fond d'écran pendant la session
+  systemd.user.services.kitty-wallpaper-colors = {
+    Unit = {
+      Description = "Couleurs de kitty d'après le fond d'écran";
+      PartOf = ["hyprland-session.target"];
+      After = ["hyprland-session.target"];
+    };
+    Service = {
+      Type = "exec";
+      ExecStart = "${kitty-wallpaper-colors}/bin/kitty-wallpaper-colors watch";
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+    Install.WantedBy = ["hyprland-session.target"];
   };
 }

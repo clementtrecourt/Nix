@@ -306,7 +306,6 @@
     jq
     tree
     neovim
-    t3code
     vim
     wl-clipboard
     nemo
@@ -321,6 +320,7 @@
     brave
     attic-client
     (callPackage ./waveflow.nix {})
+    (callPackage ./t3code-nightly {}) # T3 Code, canal Nightly
     inputs.helium-flake.packages.${pkgs.stdenv.hostPlatform.system}.default
     mpvpaper
   ];
