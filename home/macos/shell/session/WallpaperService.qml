@@ -69,10 +69,11 @@ Singleton {
             // Dossiers de fonds d'écran uniquement (pas toute la photothèque).
             // Formats décodés par Qt sans qtimageformats (WebP/HEIC/AVIF : erreurs
             // de décodage dans le journal)
-            'for d in "$HOME/Pictures/Wallpapers" "$HOME/Pictures/wallpapers" "$HOME/Pictures/walls" "$HOME/Images/Fonds d’écran" ' +
+            // ~/Pictures/MacOS : collection des fonds d'écran officiels de macOS (dépôt git)
+            'for d in "$HOME/Pictures/MacOS" "$HOME/Pictures/Wallpapers" "$HOME/Pictures/wallpapers" "$HOME/Pictures/walls" "$HOME/Images/Fonds d’écran" ' +
             '"$HOME/Images/Wallpapers" "$HOME/.config/macos-shell/wallpapers" "$HOME/.local/share/backgrounds" /run/current-system/sw/share/backgrounds; do ' +
-            '[ -d "$d" ] && find -L "$d" -maxdepth 3 -type f \\( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \\) 2>/dev/null; ' +
-            'done | sort -u | head -n 120']
+            '[ -d "$d" ] && find -L "$d" -maxdepth 3 -name .git -prune -o -type f \\( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \\) -print 2>/dev/null; ' +
+            'done | sort -u | head -n 300']
         stdout: StdioCollector {
             onStreamFinished: root.images = text.split("\n").filter(l => l.length > 0)
         }
