@@ -150,7 +150,9 @@ PanelWindow {
             // liaison `running` intacte (Timer.restart() la casserait).
             onRevChanged: elapsed = 0
             property int elapsed: 0
-            readonly property bool isAlert: items.some(e => e.urgency >= 2)
+            // Alerte (critique) ou style « Persistent » de l'app (System
+            // Settings > Notifications) : reste jusqu'à ce qu'on la ferme
+            readonly property bool isAlert: items.some(e => e.urgency >= 2 || NotifStore.isPersistent(e))
 
             // Minuteur d'affichage (pause au survol / pendant un glissement)
             Timer {

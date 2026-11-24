@@ -4,12 +4,12 @@ import Quickshell.Io
 import qs.common
 import qs.services
 
-// Session : fond d'écran (+ menu du bureau, sélecteur), écran de verrouillage,
+// Session : fond d'écran (+ menu du bureau), écran de verrouillage,
 // alertes Éteindre / Redémarrer / Fermer la session, Forcer à quitter,
 // À propos de ce Mac, agent Polkit.
 //
 // Panneaux ShellState gérés ici : lock, shutdown, restart, logout, forcequit,
-// about, wallpaper. Raccourcis globaux : macos:lock, macos:forcequit.
+// about ; "wallpaper" ouvre System Settings ▸ Wallpaper. Raccourcis globaux : macos:lock, macos:forcequit.
 Scope {
     id: root
 
@@ -18,9 +18,29 @@ Scope {
     }
     DesktopMenu {
         id: desktopMenu
-        onChangeWallpaper: ShellState.open("wallpaper")
+        onChangeWallpaper: root.openWallpaperSettings()
     }
-    WallpaperPicker {}
+
+    // « Change Wallpaper… » : comme macOS, ouvre System Settings ▸ Wallpaper
+    // (app Réglages du shell, IPC « settings »). L'appel IPC vise CETTE
+    // instance par son pid (marche en prod comme au banc de test, quel que soit
+    // le nom de la config) ; binaire quickshell du PATH, sinon celui du processus.
+    function openWallpaperSettings() {
+        const pid = String(Quickshell.processId);
+        Quickshell.execDetached(["sh", "-c",
+            'q=$(command -v quickshell || echo "/proc/$1/exe"); ' +
+            'exec "$q" ipc --pid "$1" call settings open wallpaper', "sh", pid]);
+    }
+    // Ancien panneau ShellState "wallpaper" : redirigé vers Réglages
+    Connections {
+        target: ShellState
+        function onOpenPanelChanged() {
+            if (ShellState.openPanel === "wallpaper") {
+                ShellState.close();
+                root.openWallpaperSettings();
+            }
+        }
+    }
 
     LockScreen {}
     SessionAlert {}

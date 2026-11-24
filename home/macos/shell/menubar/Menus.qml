@@ -236,13 +236,19 @@ Item {
     property var recentApps: []
     onClsChanged: {
         if (!cls) return;
-        recentApps = [cls].concat(recentApps.filter(c => c.toLowerCase() !== cls.toLowerCase())).slice(0, 10);
+        // (50 : le plus grand choix de System Settings > Menu Bar)
+        recentApps = [cls].concat(recentApps.filter(c => c.toLowerCase() !== cls.toLowerCase())).slice(0, 50);
     }
 
+    // System Settings > Menu Bar > « Recent documents, applications, and
+    // servers » : nombre d'éléments par section (None = sections vides)
     function recentMenu() {
+        const limit = SystemPrefs.recentItems;
+        // None : rien à lister, seul « Clear Menu » (inactif) reste
+        if (limit <= 0) return [it("Clear Menu", { enabled: false })];
         const out = [hdr("Applications")];
         // (apps ouvertes en tête de session : complétées par celles qui tournent)
-        const apps = recentApps.concat(Windows.runningClasses.filter(c => !recentApps.some(r => r.toLowerCase() === c.toLowerCase()))).slice(0, 10);
+        const apps = recentApps.concat(Windows.runningClasses.filter(c => !recentApps.some(r => r.toLowerCase() === c.toLowerCase()))).slice(0, limit);
         for (const c of apps) {
             const cc = c;
             out.push(it(Apps.displayName(c), { iconSource: Apps.icon(c), action: () => Apps.launch(cc) }));
@@ -266,7 +272,7 @@ Item {
         const seen = {};
         let n = 0;
         for (const d of fresh) {
-            if (n >= 10) break;
+            if (n >= limit) break;
             if (seen[d.href]) continue;
             seen[d.href] = true;
             let name = d.href.replace(/\/$/, "").split("/").pop();
@@ -349,11 +355,15 @@ Item {
         const c = cls;
         return [
             // (pictos du menu de l'app : capture du menu Safari de macOS 26)
-            it("About " + appName, { icon: "info.circle", action: () => root.showAbout(c) }),
+            // (Finder de Tahoe : About / Hide / Hide Others / Show All SANS picto,
+            // Settings… actif ; menu Finder de 512pixels, macOS 26.0)
+            it("About " + appName, { icon: isFinder ? "" : "info.circle", action: () => root.showAbout(c) }),
             sep(),
             it("Settings…", {
-                icon: "gear", shortcut: ["⌘", ","], enabled: !isFinder,
-                action: () => send("CTRL", "comma")
+                icon: "gear", shortcut: ["⌘", ","],
+                // (pas de fenêtre de réglages du Finder ici : Desktop & Dock, qui
+                // porte les réglages du bureau)
+                action: () => isFinder ? root.openSettings("desktop-dock") : send("CTRL", "comma")
             }),
             ...(isFinder ? [
                 sep(),
@@ -363,18 +373,23 @@ Item {
                 })
             ] : []),
             sep(),
-            it("Services", { icon: "gearshape.2", submenu: [it("No Services Apply", { enabled: false }), it("Services Settings…", { enabled: false })] }),
+            it("Services", { icon: "gearshape.2", submenu: [
+                it("No Services Apply", { enabled: false }),
+                sep(),
+                // (ouvre Keyboard Shortcuts > Services, comme macOS)
+                it("Services Settings…", { action: () => root.openSettings("keyboard") })
+            ] }),
             sep(),
             it("Hide " + appName, {
-                icon: "macwindow.dashed", shortcut: ["⌘", "H"], enabled: mine.length > 0,
+                icon: isFinder ? "" : "macwindow.dashed", shortcut: ["⌘", "H"], enabled: mine.length > 0,
                 action: () => { for (const t of mine) Windows.minimize(t); }
             }),
             it("Hide Others", {
-                icon: "macwindow.on.rectangle.dashed", shortcut: ["⌥⌘", "H"], enabled: others.length > 0,
+                icon: isFinder ? "" : "macwindow.on.rectangle.dashed", shortcut: ["⌥⌘", "H"], enabled: others.length > 0,
                 action: () => { for (const t of others) Windows.minimize(t); }
             }),
             it("Show All", {
-                icon: "macwindow.on.rectangle.solid", enabled: hidden.length > 0,
+                icon: isFinder ? "" : "macwindow.on.rectangle.solid", enabled: hidden.length > 0,
                 action: () => { for (const t of hidden) Windows.restore(t); }
             }),
             ...(isFinder ? [] : [
@@ -396,9 +411,9 @@ Item {
                 it("New Finder Window", { icon: "macwindow.badge.plus", shortcut: ["⌘", "N"], action: () => Quickshell.execDetached(["quickshell", "-p", Quickshell.shellDir, "ipc", "call", "finder", "newWindow"]) }),
                 it("New Folder", Object.assign({ icon: "folder.badge.plus", shortcut: ["⇧⌘", "N"] }, off)),
                 it("New Folder with Selection", Object.assign({ shortcut: ["⌃⌘", "N"] }, off)),
-                it("New Smart Folder", off),
+                it("New Smart Folder", Object.assign({ icon: "folder.badge.gearshape" }, off)),
                 it("New Tab", Object.assign({ icon: "plus.square.on.square", shortcut: ["⌘", "T"] }, off)),
-                it("Open", Object.assign({ shortcut: ["⌘", "O"] }, off)),
+                it("Open", Object.assign({ icon: "arrow.up.forward.square", shortcut: ["⌘", "O"] }, off)),
                 it("Open With", Object.assign({ submenu: [] }, off)),
                 it("Close Window", Object.assign({ icon: "xmark", shortcut: ["⌘", "W"] }, off)),
                 sep(),
@@ -406,14 +421,14 @@ Item {
                 it("Rename", Object.assign({ icon: "pencil" }, off)),
                 it("Compress", Object.assign({ icon: "doc.zipper" }, off)),
                 it("Duplicate", Object.assign({ icon: "plus.square.on.square", shortcut: ["⌘", "D"] }, off)),
-                it("Make Alias", Object.assign({ shortcut: ["⌃⌘", "A"] }, off)),
+                it("Make Alias", Object.assign({ icon: "square.dashed.arrow.up.forward", shortcut: ["⌃⌘", "A"] }, off)),
                 it("Quick Look", Object.assign({ icon: "eye", shortcut: ["⌘", "Y"] }, off)),
                 it("Print", Object.assign({ icon: "printer", shortcut: ["⌘", "P"] }, off)),
                 sep(),
                 it("Share…", Object.assign({ icon: "square.and.arrow.up" }, off)),
                 sep(),
-                it("Show Original", Object.assign({ shortcut: ["⌘", "R"] }, off)),
-                it("Add to Dock", Object.assign({ shortcut: ["⌃⇧⌘", "T"] }, off)),
+                it("Show Original", Object.assign({ icon: "arrow.backward.square.dashed", shortcut: ["⌘", "R"] }, off)),
+                it("Add to Dock", Object.assign({ icon: "dock.arrow.down.rectangle", shortcut: ["⌃⇧⌘", "T"] }, off)),
                 sep(),
                 it("Move to Trash", Object.assign({ icon: "trash", shortcut: ["⌘", "⌫"] }, off)),
                 it("Eject", Object.assign({ icon: "eject.fill", shortcut: ["⌘", "E"] }, off)),
@@ -427,8 +442,11 @@ Item {
             it("New Window", { icon: "macwindow.badge.plus", shortcut: ["⌘", "N"], action: () => Apps.launch(c) }),
             it("Open…", { icon: "folder", shortcut: ["⌘", "O"], action: () => send("CTRL", "O") }),
             sep(),
-            it("Close Window", { icon: "xmark", shortcut: ["⌘", "W"], enabled: !!w, action: () => Windows.close(w) }),
+            // Close All : élément ALTERNÉ de Close Window, visible seulement
+            // pendant l'appui sur ⌥ (comme tout élément alterné d'AppKit)
+            it("Close Window", { icon: "xmark", shortcut: ["⌘", "W"], enabled: !!w, hasAlternate: true, action: () => Windows.close(w) }),
             it("Close All", {
+                icon: "xmark", alternate: true,
                 shortcut: ["⌥⌘", "W"], enabled: mine.length > 1,
                 action: () => { for (const t of mine) Windows.close(t); }
             }),
@@ -459,7 +477,42 @@ Item {
                 ]
             })]),
             sep(),
-            it("AutoFill", { enabled: false }),
+            // Sous-menus d'édition de texte standard d'AppKit (apps, pas le Finder)
+            ...(isFinder ? [] : [
+                it("Spelling and Grammar", { enabled: on, submenu: [
+                    it("Show Spelling and Grammar", { shortcut: ["⌘", ":"], enabled: false }),
+                    it("Check Document Now", { shortcut: ["⌘", ";"], enabled: false }),
+                    sep(),
+                    it("Check Spelling While Typing", { enabled: false }),
+                    it("Check Grammar With Spelling", { enabled: false }),
+                    it("Correct Spelling Automatically", { enabled: false })
+                ] }),
+                it("Substitutions", { enabled: on, submenu: [
+                    it("Show Substitutions", { enabled: false }),
+                    sep(),
+                    it("Smart Copy/Paste", { enabled: false }),
+                    it("Smart Quotes", { enabled: false }),
+                    it("Smart Dashes", { enabled: false }),
+                    it("Smart Links", { enabled: false }),
+                    it("Data Detectors", { enabled: false }),
+                    it("Text Replacement", { enabled: false })
+                ] }),
+                it("Transformations", { enabled: on, submenu: [
+                    it("Make Upper Case", { enabled: false }),
+                    it("Make Lower Case", { enabled: false }),
+                    it("Capitalize", { enabled: false })
+                ] }),
+                it("Speech", { enabled: on, submenu: [
+                    it("Start Speaking", { enabled: false }),
+                    it("Stop Speaking", { enabled: false })
+                ] }),
+                sep()
+            ]),
+            // AutoFill : sous-menu sur Tahoe (chevron), grisé hors champ de saisie
+            it("AutoFill", { enabled: on, submenu: [
+                it("Contact…", { enabled: false }),
+                it("Passwords…", { enabled: false })
+            ] }),
             it("Start Dictation…", { enabled: false }),
             it("Emoji & Symbols", { icon: "globe", shortcut: ["", "🌐E"], enabled: false })
         ];
@@ -506,7 +559,7 @@ Item {
             it("Show All Tabs", { shortcut: ["⇧⌘", "\\"], enabled: false }),
             sep(),
             it("Zoom In", { icon: "plus.magnifyingglass", shortcut: ["⌘", "+"], enabled: on, action: () => send(isTerminal ? "CTRL SHIFT" : "CTRL", "equal") }),
-            it("Zoom Out", { icon: "minus.magnifyingglass", shortcut: ["⌘", "-"], enabled: on, action: () => send(isTerminal ? "CTRL SHIFT" : "CTRL", "minus") }),
+            it("Zoom Out", { icon: "minus.magnifyingglass", shortcut: ["⌘", "−"], enabled: on, action: () => send(isTerminal ? "CTRL SHIFT" : "CTRL", "minus") }),
             it("Actual Size", { shortcut: ["⌘", "0"], enabled: on, action: () => send(isTerminal ? "CTRL SHIFT" : "CTRL", "0") }),
             sep(),
             it(fs ? "Exit Full Screen" : "Enter Full Screen", {
@@ -789,4 +842,8 @@ Item {
         onTriggered: root.refreshTrash()
     }
     function showAbout(c) { root.aboutRequested(c); }
+    // Ouvre System Settings sur un panneau (IPC du composant settings)
+    function openSettings(pane) {
+        Quickshell.execDetached(["quickshell", "-p", Quickshell.shellDir, "ipc", "call", "settings", "open", pane]);
+    }
 }

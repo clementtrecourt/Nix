@@ -30,6 +30,17 @@ Item {
         smooth: true
         mipmap: true
     }
+    // Ombre douce sous les vignettes (aperçus de Tahoe, Cult of Mac « Spotlight-Files »)
+    Rectangle {
+        visible: thumb.visible
+        x: Math.round((parent.width - thumb.paintedWidth) / 2) - 1
+        y: Math.round((parent.height - thumb.paintedHeight) / 2)
+        width: Math.round(thumb.paintedWidth) + 2
+        height: Math.round(thumb.paintedHeight) + 2
+        radius: 3
+        color: Qt.rgba(0, 0, 0, Theme.dark ? 0.30 : 0.12)
+        z: -1
+    }
     // Liseré fin autour des vignettes (comme les aperçus Finder)
     Rectangle {
         visible: thumb.visible
@@ -40,7 +51,7 @@ Item {
         color: "transparent"
         radius: 2
         border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.18)
+        border.color: Theme.dark ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(0, 0, 0, 0.10)
     }
 
     // Icône du thème (apps, fichiers)
@@ -56,7 +67,8 @@ Item {
     // Tuile colorée + symbole
     Rectangle {
         anchors.fill: parent
-        anchors.margins: root.size * 0.04
+        // Même dessin visible que les icônes du thème (≈ 0,88 x cadre)
+        anchors.margins: Math.round(root.size * 0.06)
         visible: root.useTile
         radius: width * 0.26
         gradient: Gradient {

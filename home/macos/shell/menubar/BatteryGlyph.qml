@@ -13,47 +13,51 @@ Item {
     property bool pluggedFull: false  // secteur, batterie pleine
     property bool lowPower: false
 
+    // Géométrie ENTIÈRE (écran 1x) : corps 23 x 12 px, contour d'1 px bien
+    // visible (Tahoe : contour net à ~60 %, About-This-Mac.png de 512pixels et
+    // ars-tahoe-light.jpg), borne de 2 x 4 px, niveau en retrait de 2 px.
     implicitWidth: 26
-    implicitHeight: 12.5
+    implicitHeight: 12
 
     readonly property color fillColor: level <= 0.10 && !charging ? "#FF3B30"
         : lowPower ? "#FFCC00" : root.color
+    readonly property color strokeColor: Qt.rgba(root.color.r, root.color.g, root.color.b, 0.6)
 
     // Corps
     Rectangle {
         id: body
         x: 0
-        anchors.verticalCenter: parent.verticalCenter
-        width: parent.width - 2.6
-        height: parent.height
-        radius: 3.8
+        y: Math.round((parent.height - height) / 2)
+        width: 23
+        height: 12
+        radius: 3.5
         color: "transparent"
-        border.width: 1.1
-        border.color: Qt.rgba(root.color.r, root.color.g, root.color.b, 0.45)
+        border.width: 1
+        border.color: root.strokeColor
         antialiasing: true
     }
     // Borne
     Rectangle {
-        anchors.verticalCenter: parent.verticalCenter
-        x: body.width + 0.6
-        width: 1.9
-        height: 4.4
+        x: body.width + 1
+        y: body.y + 4
+        width: 2
+        height: 4
         radius: 1
-        color: Qt.rgba(root.color.r, root.color.g, root.color.b, 0.45)
+        color: root.strokeColor
     }
     // Niveau
     Item {
         id: fillClip
-        x: 2.2
-        anchors.verticalCenter: parent.verticalCenter
-        width: (body.width - 4.4) * Math.max(0.06, Math.min(1, root.level))
-        height: body.height - 4.4
+        x: 2
+        y: body.y + 2
+        width: Math.max(1, Math.round((body.width - 4) * Math.max(0.06, Math.min(1, root.level))))
+        height: body.height - 4
         clip: true
 
         Rectangle {
-            width: body.width - 4.4
+            width: body.width - 4
             height: parent.height
-            radius: 2
+            radius: 1.5
             color: root.fillColor
         }
     }

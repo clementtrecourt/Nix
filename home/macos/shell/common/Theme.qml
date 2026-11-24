@@ -50,7 +50,9 @@ Singleton {
     readonly property color menuHighlightText: "#FFFFFF"
 
     // ---- Géométrie ----
-    readonly property int menuBarHeight: 24       // Tahoe sans encoche : 24 pt, sans fond
+    // Tahoe sans encoche : 30 pt, sans fond (512pixels, macOS 26.0 sur MacBook
+    // Air M1 : pastille du titre ouvert de y=3 à 26,5 pt, menu à y=31 pt)
+    readonly property int menuBarHeight: 30
     readonly property int radiusMenu: 12
     readonly property int radiusMenuItem: 7
     readonly property int radiusPanel: 26         // Control Center, Notification Center
@@ -84,4 +86,26 @@ Singleton {
 
     // Bande sombre interne du Liquid Glass (Glass.qml : réfraction près des bords)
     readonly property color glassShade: dark ? Qt.rgba(0, 0, 0, 0.10) : Qt.rgba(0.2, 0.18, 0.16, 0.05)
+
+    // ---- Boutons de fenêtre (feux tricolores) Tahoe 26 ----
+    // Relevés à 2x sur les captures Tahoe 26 de 512pixels (Force Quit, System
+    // Settings ▸ Wallpaper) : disque de 14 pt plein + anneau d'un demi-point
+    // plus sombre. Couleurs identiques en clair et en sombre.
+    readonly property color trafficRed: "#EC6765"
+    readonly property color trafficRedRing: "#E73935"
+    readonly property color trafficYellow: "#F2CA44"
+    readonly property color trafficYellowRing: "#EEBA0B"
+    readonly property color trafficGreen: "#65C466"
+    readonly property color trafficGreenRing: "#35B338"
+    // Bouton désactivé / fenêtre inactive : voile translucide qui prend la
+    // teinte du fond (220 + anneau 210 sur blanc ; bleu-gris #BCD3DA sur le
+    // verre teinté d'About This Mac)
+    readonly property color trafficInactive: dark ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(0, 0, 0, 0.137)
+    readonly property color trafficInactiveRing: dark ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0, 0, 0, 0.176)
+    readonly property real trafficRingWidth: 0.5
+
+    // ---- Barre des menus : surbrillance des éléments de menu ----
+    // Tahoe ne prend pas l'accent brut (#007AFF) : bleu plus clair, « vitré »
+    // (#4E8AF0..#5691F4 sur le menu Finder de 512pixels, macOS 26.0)
+    readonly property color menuSelection: dark ? "#3A82F2" : "#4E8AF0"
 }

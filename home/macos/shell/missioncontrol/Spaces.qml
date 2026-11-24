@@ -37,7 +37,7 @@ Singleton {
         const ws = Hyprland.workspaces.values.find(w => w.id === id);
         if (ws?.hasFullscreen) {
             const t = Hyprland.toplevels.values.find(t => t.workspace?.id === id && (t.lastIpcObject?.fullscreen ?? 0) > 0);
-            if (t) return Apps.displayName(t.lastIpcObject?.class ?? "");
+            if (t) return Apps.displayName(Windows.classOf(t));
         }
         return "Desktop " + id;
     }

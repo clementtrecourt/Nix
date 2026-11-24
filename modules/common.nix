@@ -270,9 +270,13 @@
   };
   users.users.clem = {
     isNormalUser = true;
-    extraGroups = ["wheel" "corectrl"];
+    extraGroups = ["wheel" "corectrl" "i2c"];
     shell = pkgs.fish;
   };
+
+  # Luminosité des écrans externes par DDC/CI (curseur Display du Control Center,
+  # touches de luminosité) : accès /dev/i2c-* pour le groupe i2c + ddcutil
+  hardware.i2c.enable = true;
 
   # Hyprland (config utilisateur : home/macos/hyprland.nix) + portails
   programs.hyprland = {
@@ -293,6 +297,7 @@
     flake = "/home/clem/Nix";
   };
   environment.systemPackages = with pkgs; [
+    ddcutil # luminosité des écrans externes (DDC/CI)
     xwayland-satellite
     fzf
     ripgrep

@@ -339,6 +339,68 @@ Singleton {
         const d = new Date(secs * 1000);
         return _monthsLong[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear() + " at " + formatTime(d);
     }
+    // Volet d'aperçu (Galerie, Colonnes) : « Today, at 9:41 AM »,
+    // « February 28, 2025 at 2:09 PM » (capture Apple mchldaafb302)
+    function formatDatePane(secs) {
+        if (!secs) return "--";
+        const d = new Date(secs * 1000);
+        const today = new Date(root.now);
+        today.setHours(0, 0, 0, 0);
+        const day = new Date(d);
+        day.setHours(0, 0, 0, 0);
+        const diff = Math.round((today - day) / 86400000);
+        if (diff === 0) return "Today, at " + formatTime(d);
+        if (diff === 1) return "Yesterday, at " + formatTime(d);
+        return formatDateMedium(secs);
+    }
+    // Grouper par… : [{ title, items }] dans l'ordre du Finder. Dates :
+    // « Today », « Yesterday », « Previous 7 Days », « Previous 30 Days », puis
+    // le mois (année en cours) ou l'année.
+    function groupEntries(list, key) {
+        const order = [], map = {};
+        const add = (t, e, rank) => {
+            if (!map[t]) { map[t] = { title: t, items: [], rank: rank }; order.push(map[t]); }
+            map[t].items.push(e);
+        };
+        const today = new Date(root.now);
+        today.setHours(0, 0, 0, 0);
+        const dateGroup = secs => {
+            if (!secs) return ["Older", 1e9];
+            const d = new Date(secs * 1000);
+            const day = new Date(d);
+            day.setHours(0, 0, 0, 0);
+            const diff = Math.round((today - day) / 86400000);
+            if (diff <= 0) return ["Today", 0];
+            if (diff === 1) return ["Yesterday", 1];
+            if (diff < 7) return ["Previous 7 Days", 2];
+            if (diff < 30) return ["Previous 30 Days", 3];
+            if (d.getFullYear() === today.getFullYear()) return [_monthsLong[d.getMonth()], 100 - d.getMonth()];
+            return [String(d.getFullYear()), 10000 - d.getFullYear()];
+        };
+        const sizeGroup = e => {
+            if (e.isDir) return ["Folders", 9];
+            const n = e.size;
+            if (n >= 1e9) return ["More than 1 GB", 0];
+            if (n >= 1e8) return ["100 MB to 1 GB", 1];
+            if (n >= 1e6) return ["1 MB to 100 MB", 2];
+            if (n >= 1e5) return ["100 KB to 1 MB", 3];
+            if (n > 0) return ["Less than 100 KB", 4];
+            return ["Zero KB", 5];
+        };
+        for (const e of list) {
+            let g;
+            if (key === "opened") g = dateGroup(e.atime || e.mtime);
+            else if (key === "date") g = dateGroup(e.mtime);
+            else if (key === "size") g = sizeGroup(e);
+            else if (key === "kind") { const k = kindOf(e); g = [k, k]; }
+            else { const c = (e.name[0] ?? "#").toUpperCase(); g = /[A-Z]/.test(c) ? [c, c] : ["#", " "]; }
+            add(g[0], e, g[1]);
+        }
+        order.sort((a, b) => a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0);
+        if (key === "opened" || key === "date")
+            for (const g of order) g.items.sort((a, b) => (key === "opened" ? (b.atime || b.mtime) - (a.atime || a.mtime) : b.mtime - a.mtime));
+        return order;
+    }
     function itemsLabel(n) { return n === 1 ? "1 item" : n + " items"; }
 
     // ---------------------------------------------------------------- tags

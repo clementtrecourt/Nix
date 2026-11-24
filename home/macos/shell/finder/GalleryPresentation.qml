@@ -9,7 +9,7 @@ Item {
 
     required property var fw
     readonly property var entries: fw.items
-    readonly property real paneW: width > 700 ? 300 : 0
+    readonly property real paneW: fw.inspectorWidth
     readonly property real stripH: 78
     readonly property var current: fw.selection.length ? fw.selection[fw.selection.length - 1] : null
 
@@ -132,11 +132,12 @@ Item {
         x: parent.width - root.paneW
         width: root.paneW
         height: parent.height
+        // Séparateur pleine hauteur (le volet monte jusqu'en haut de la fenêtre)
         Rectangle {
             x: 0
-            y: fw.chromeHeight
+            y: 0
             width: 1
-            height: parent.height - y
+            height: parent.height
             color: FStyle.gridLine
         }
         PreviewPane {

@@ -4,7 +4,8 @@ import Quickshell.Io
 import Quickshell.Services.Polkit
 import qs.common
 
-// Agent Polkit au style macOS Tahoe : alerte alignée à gauche, icône cadenas,
+// Agent Polkit au style macOS Tahoe : alerte alignée à gauche, icône de l'app
+// demandeuse avec un badge cadenas (comme les demandes d'autorisation macOS),
 // « <App> wants to make changes. », « Enter your password to allow this. »,
 // champs User Name / Password, Cancel / OK (métriques des alertes Tahoe : voir
 // SessionAlert.qml). Mauvais mot de passe : la fenêtre secoue et le champ est
@@ -50,11 +51,27 @@ Scope {
         return p.charAt(0).toUpperCase() + p.slice(1);
     }
 
+    // Icône de l'app demandeuse (thème d'icônes), déduite de son nom
+    function appIcon(name) {
+        const map = {
+            "Terminal": "utilities-terminal",
+            "Disk Utility": "gnome-disks",
+            "Software Update": "system-software-update",
+            "Network": "preferences-system-network",
+            "Bluetooth": "bluetooth",
+            "Users & Groups": "system-users",
+            "Date & Time": "preferences-system-time",
+            "Language & Region": "preferences-desktop-locale"
+        };
+        const p = Quickshell.iconPath(map[name] ?? "", true);
+        return p !== "" ? p : Quickshell.iconPath("preferences-system", true);
+    }
+
     readonly property var identities: flow?.identities ?? []
     readonly property string userLabel: flow?.selectedIdentity?.displayName ?? (identities[0]?.displayName ?? Quickshell.env("USER"))
 
     function submit() {
-        if (!flow || pass.text.length === 0) return;
+        if (!flow) return;
         flow.submit(pass.text);
         pass.text = "";
     }
@@ -98,27 +115,32 @@ Scope {
                 y: 20
                 width: parent.width - 32
 
-                // Cadenas façon icône système (disque gris + cadenas)
+                // Icône de l'app demandeuse + badge cadenas en bas à droite
                 Item {
                     x: 4
                     width: 64
                     height: 64
-                    Rectangle {
+                    Image {
                         anchors.fill: parent
-                        anchors.margins: 2
-                        radius: 14
-                        gradient: Gradient {
-                            GradientStop { position: 0; color: Theme.dark ? "#5b5e66" : "#f2f2f4" }
-                            GradientStop { position: 1; color: Theme.dark ? "#3a3c42" : "#d6d7dc" }
-                        }
-                        border.width: 0.5
-                        border.color: Qt.rgba(0, 0, 0, 0.15)
+                        source: root.appIcon(root.appName(root.flow?.actionId))
+                        sourceSize: Qt.size(64, 64)
+                        smooth: true
                     }
-                    Symbol {
-                        anchors.centerIn: parent
-                        name: "lock.fill"
-                        size: 34
-                        color: Theme.dark ? "#e8e8ec" : "#5a5c63"
+                    Rectangle {
+                        x: 36
+                        y: 36
+                        width: 30
+                        height: 30
+                        radius: 15
+                        color: Theme.dark ? "#3A3A3C" : "#FFFFFF"
+                        border.width: 0.5
+                        border.color: Qt.rgba(0, 0, 0, 0.18)
+                        Symbol {
+                            anchors.centerIn: parent
+                            name: "lock.fill"
+                            size: 16
+                            color: Theme.dark ? "#E5E5EA" : "#3C3C43"
+                        }
                     }
                 }
                 Item { width: 1; height: 14 }
@@ -141,18 +163,6 @@ Scope {
                     font.family: Theme.font
                     font.pixelSize: 13
                     color: Theme.label
-                }
-                // Détail Polkit (ce qui est réellement demandé)
-                Item { width: 1; height: (root.flow?.message ?? "") ? 6 : 0 }
-                Text {
-                    x: 4
-                    width: parent.width - 8
-                    visible: text.length > 0
-                    wrapMode: Text.Wrap
-                    text: root.flow?.message ?? ""
-                    font.family: Theme.font
-                    font.pixelSize: 10
-                    color: Theme.labelSecondary
                 }
                 Item { width: 1; height: 14 }
                 TahoeTextField {
@@ -201,8 +211,8 @@ Scope {
                     TahoeButton {
                         width: (parent.width - 8) / 2
                         text: "OK"
+                        // Toujours actif, comme les alertes d'autorisation macOS
                         isDefault: true
-                        enabled: pass.text.length > 0
                         onClicked: root.submit()
                     }
                 }

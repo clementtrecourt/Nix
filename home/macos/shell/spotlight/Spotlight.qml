@@ -32,7 +32,9 @@ Scope {
     property bool buttonsShown: false
     property bool cmdHeld: false
     property bool appsAsList: false     // options de la vue Applications : grille / liste
-    property bool menuOpen: false       // menu « … » de la vue Applications ouvert
+    property bool filesAsList: false    // options de la vue Fichiers : grille / liste
+    property bool menuOpen: false       // menu « ⋯ » ouvert
+    property bool openedAsApps: false   // ouvert directement en vue Applications (F4)
     property int historyPos: -1
     property real slow: 1               // ralentissement des animations (débogage)
     property int forceHoverButton: -1   // débogage : survol forcé d'un bouton de mode
@@ -57,7 +59,6 @@ Scope {
         active: root.shown
         query: root.query
         mode: root.mode
-        withSuggestions: !root.appsAsList
     }
 
     onWantedChanged: wanted ? show() : hide()
@@ -77,6 +78,9 @@ Scope {
         const mon = ShellState.panelScreen || Hyprland.focusedMonitor?.name;
         targetScreen = Quickshell.screens.find(s => s.name === mon) ?? Quickshell.screens[0];
         mode = ShellState.openPanel === "apps" ? "apps" : "";
+        openedAsApps = mode === "apps";
+        search.fileScope = "";
+        search.fileScopeName = "";
         query = "";
         historyPos = -1;
         buttonsShown = false;
@@ -111,6 +115,9 @@ Scope {
         menuOpen = false;
         search.appCategory = "";
         search.fileKind = "";
+        search.fileScope = "";
+        search.fileScopeName = "";
+        if (m !== "apps") openedAsApps = false;
         if (m !== "") buttonsShown = false;
         if (!fromState) {
             switching = true;
@@ -315,7 +322,9 @@ Scope {
                             text: root.modeInfo ? root.modeInfo.label
                                  : (root.hoverInfo ? root.hoverInfo.label : "Spotlight Search")
                             font: field.font
-                            color: Theme.dark ? Qt.rgba(1, 1, 1, 0.60) : Qt.rgba(0, 0, 0, 0.52)
+                            // ≈ 72 % en sombre (MacRumors « apps-app-macos »), ≈ 68 % en
+                            // clair (Cult of Mac « Spotlight-Applications »)
+                            color: Theme.dark ? Qt.rgba(1, 1, 1, 0.72) : Qt.rgba(0, 0, 0, 0.68)
                             elide: Text.ElideRight
                         }
 
@@ -325,28 +334,40 @@ Scope {
                             id: token
                             readonly property string label: root.filterLabel
                             visible: label !== ""
-                            x: Metrics.textX - 2
+                            x: Metrics.textX - 6
                             anchors.verticalCenter: parent.verticalCenter
-                            // Jeton gris neutre au texte de la taille du champ
-                            // (MacRumors « search-spotlight-location » : « iCloud Drive »)
-                            width: visible ? tokenText.implicitWidth + 24 : 0
-                            height: 38
-                            radius: 12
+                            // Jeton gris neutre de 30 pt, texte de la taille du champ,
+                            // précédé de l'icône de la source (MacRumors
+                            // « search-spotlight-location » : « iCloud Drive »)
+                            width: visible ? tokenRow.implicitWidth + 14 : 0
+                            height: 30
+                            radius: 9
                             color: Theme.dark ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(0, 0, 0, 0.07)
-                            Text {
-                                id: tokenText
-                                anchors.centerIn: parent
-                                text: token.label
-                                font.family: Theme.fontDisplay
-                                font.pixelSize: Metrics.fieldFontSize - 4
-                                color: Theme.label
+                            Row {
+                                id: tokenRow
+                                x: 7
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 5
+                                ItemIcon {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: !!root.filterIcon
+                                    size: 24
+                                    item: root.filterIcon
+                                }
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: token.label
+                                    font.family: Theme.fontDisplay
+                                    font.pixelSize: Metrics.fieldFontSize
+                                    color: Theme.label
+                                }
                             }
                         }
 
                         TextInput {
                             id: field
                             x: token.visible ? token.x + token.width + 8 : Metrics.textX
-                            width: parent.width - x - (optionsButton.visible ? 52 : (keyHint.visible ? keyHint.width + 30 : 22))
+                            width: parent.width - x - (optionsButton.visible || fieldIcon.visible ? 56 : (keyHint.visible ? keyHint.width + 30 : 22))
                             height: parent.height
                             verticalAlignment: TextInput.AlignVCenter
                             font.family: Theme.fontDisplay
@@ -385,6 +406,55 @@ Scope {
                                 if (event.key === Qt.Key_Meta || event.key === Qt.Key_Super_L || event.key === Qt.Key_Super_R)
                                     root.cmdHeld = false;
                             }
+                        }
+
+                        // Complétion du résultat choisi : « — The Edinburgh Minute » dans
+                        // une capsule grise discrète, juste après le texte saisi
+                        // (MacRumors « spotlight-categories », « search-spotlight-location »)
+                        Rectangle {
+                            id: completion
+                            readonly property string text: root.completionText
+                            readonly property real room: field.x + field.width - x
+                            visible: text !== "" && field.text.length > 0 && room > 60
+                            x: Math.round(field.x + Math.min(field.contentWidth, field.width) + 3)
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Math.min(room, complRow.implicitWidth + 22)
+                            height: Metrics.completionHeight
+                            radius: 9
+                            color: Theme.dark ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(0, 0, 0, 0.045)
+                            Row {
+                                id: complRow
+                                x: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 12
+                                Text {
+                                    text: "\u2013"
+                                    font.family: Theme.font
+                                    font.pixelSize: Metrics.completionFontSize
+                                    color: root.completionColor
+                                }
+                                Text {
+                                    width: Math.min(implicitWidth, completion.room - 22 - 12 - 12 - 10)
+                                    text: completion.text
+                                    elide: Text.ElideRight
+                                    textFormat: Text.PlainText
+                                    font.family: Theme.font
+                                    font.pixelSize: Metrics.completionFontSize
+                                    color: root.completionColor
+                                }
+                            }
+                        }
+
+                        // Icône du résultat choisi, à l'extrémité droite du champ
+                        // (symétrique de la loupe : centre à 32 pt du bord)
+                        ItemIcon {
+                            id: fieldIcon
+                            // (ne dépend pas de la capsule : sinon boucle avec la largeur du champ)
+                            visible: root.completionText !== "" && field.text.length > 0 && !optionsButton.visible
+                            x: parent.width - Metrics.leadCenter - width / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            size: Metrics.fieldIcon
+                            item: root.currentListItem
                         }
 
                         // Survol d'un bouton de mode : touches du raccourci (« ⌘ » « 1 »)
@@ -427,10 +497,11 @@ Scope {
                             }
                         }
 
-                        // Bouton « ⋯ » (vue Applications) : menu Grille / Liste
+                        // Bouton « ⋯ » (Applications, Fichiers, Presse-papiers ; pas en
+                        // Actions : Cult of Mac « Spotlight-Files / Clipboard / Actions »)
                         Item {
                             id: optionsButton
-                            visible: root.mode === "apps"
+                            visible: root.mode === "apps" || root.mode === "files" || root.mode === "clipboard"
                             anchors.right: parent.right
                             anchors.rightMargin: 17
                             anchors.verticalCenter: parent.verticalCenter
@@ -500,6 +571,8 @@ Scope {
                             }
                             delegate: Chip {
                                 required property var modelData
+                                required property int index
+                                width: root.chipWidths[index] ?? implicitWidth
                                 text: modelData.name
                                 checked: root.chipChecked(modelData.id)
                                 onClicked: root.pickChip(modelData.id)
@@ -521,11 +594,22 @@ Scope {
                             }
                         }
 
+                        // Vue Liste (Applications, Fichiers) : trait sous les pastilles
+                        // (MacMagazine « lista »)
+                        Rectangle {
+                            visible: root.chipsShown && root.bodyKind === "list" && root.listView
+                            x: Metrics.sidePad
+                            y: root.chipsArea
+                            width: parent.width - 2 * Metrics.sidePad
+                            height: 1
+                            color: Theme.separator
+                        }
+
                         // Liste (recherche générale, Actions, Presse-papiers, Applications en liste)
                         ListView {
                             id: list
                             visible: root.bodyKind === "list"
-                            y: root.chipsArea
+                            y: root.chipsArea + (root.chipsShown && root.listView ? 1 : 0)
                             width: parent.width
                             // La marge basse reste hors de la vue : aucune ligne
                             // suivante n'y dépasse au repos
@@ -535,16 +619,21 @@ Scope {
                             boundsBehavior: Flickable.StopAtBounds
                             model: root.listModel
                             property int sel: 0
+                            highlightFollowsCurrentItem: false
                             delegate: ResultRow {
                                 selected: index === list.sel
                                 cmdHeld: root.cmdHeld
                                 onClicked: { list.sel = index; root.activate(false); }
                                 onSecondaryAction: { search.copyClip(modelData.clipId); root.close(); }
-                                onPointed: (sx, sy) => { if (root.pointerMovedTo(sx, sy) && !modelData.header) list.sel = index; }
+                                onPointed: (sx, sy) => { if (root.pointerMovedTo(sx, sy) && !modelData.header && !modelData.separator) list.sel = index; }
                             }
-                            // Première ligne sélectionnable (saute un en-tête)
-                            onModelChanged: { sel = root.firstSelectable(); positionViewAtBeginning(); }
+                            // Première ligne sélectionnable (saute un en-tête) ; au repos
+                            // (sans saisie) en Actions, Presse-papiers et vues Liste :
+                            // aucune ligne surlignée (Cult of Mac « Spotlight-Actions »,
+                            // « Spotlight-Clipboard »)
+                            onModelChanged: { sel = root.restSelection(); positionViewAtBeginning(); }
                         }
+                        ScrollHint { flick: list }
 
                         // Message vide (presse-papiers vide, aucun résultat…)
                         Text {
@@ -571,11 +660,14 @@ Scope {
                             bottomMargin: 8
                             items: root.gridItems
                             columns: Metrics.gridColumns
+                            labelLines: root.mode === "files" ? 2 : 1
+                            cellHeight: root.mode === "files" ? Metrics.fileCellHeight : Metrics.gridCellHeight
                             showSelection: root.query.length > 0 || root.gridNavigated
                             hoverActive: root.pointerMoved
                             onPointed: (sx, sy) => root.pointerMovedTo(sx, sy)
                             onActivated: item => root.activateItem(item, false)
                         }
+                        ScrollHint { flick: grid }
                         Text {
                             visible: root.bodyKind === "grid" && grid.flat.length === 0
                             anchors.centerIn: grid
@@ -594,14 +686,25 @@ Scope {
                     visible: root.menuOpen
                     onClicked: root.menuOpen = false
                 }
+                // Haut du menu à ≈ 30 pt du haut du panneau, sur le bas du bouton
+                // (MacMagazine « lista », MacRumors « apps-app-macos »)
                 OptionsMenu {
                     id: optionsMenu
                     x: panel.width - width - 10
-                    y: Metrics.barHeight - 6
+                    y: 30
                     z: 10
                     open: root.menuOpen
-                    asList: root.appsAsList
-                    onPicked: asList => { root.appsAsList = asList; root.menuOpen = false; }
+                    entries: root.mode === "clipboard"
+                        ? [{ text: "Clear History", id: "clear" }]
+                        : [{ title: "View content as" },
+                           { text: "Grid", id: "grid", checked: !root.listView },
+                           { text: "List", id: "list", checked: root.listView }]
+                    onPicked: id => {
+                        if (id === "clear") { search.runAction("clearclip"); }
+                        else if (root.mode === "files") root.filesAsList = id === "list";
+                        else root.appsAsList = id === "list";
+                        root.menuOpen = false;
+                    }
                 }
             }
         }
@@ -643,7 +746,7 @@ Scope {
     // ---- Corps ----
     readonly property string bodyKind: {
         if (mode === "apps") return appsAsList ? (listModel.length ? "list" : "empty") : "grid";
-        if (mode === "files") return "grid";
+        if (mode === "files") return filesAsList ? (listModel.length ? "list" : "empty") : "grid";
         if (mode === "actions" || mode === "clipboard") return listModel.length ? "list" : "empty";
         if (query.trim().length) return listModel.length ? "list" : "empty";
         return "none";
@@ -661,6 +764,37 @@ Scope {
         return [];
     }
     readonly property bool chipsShown: bodyShown && chipModel.length > 0
+    // Largeurs des pastilles : quand toutes tiennent, elles s'élargissent pour
+    // occuper la rangée ; les courtes prennent une largeur commune, les longues
+    // gardent la leur (Cult of Mac « Spotlight-Files » : IINA / Preview / PDF
+    // égales, Pixelmator Pro et Xcode plus larges ; MacRumors « search-spotlight-
+    // location » : trois tiers). Sinon, largeur naturelle et défilement.
+    // (calculé hors liaison : TextMetrics n'est pas réentrant)
+    property var chipWidths: []
+    onChipModelChanged: chipWidths = computeChipWidths()
+    function computeChipWidths() {
+        const nat = chipModel.map(c => { chipMetrics.text = c.name; return Math.ceil(chipMetrics.advanceWidth) + 18; });
+        const avail = Metrics.groupWidth - 2 * Metrics.sidePad - Math.max(0, nat.length - 1) * Metrics.chipSpacing;
+        const sum = nat.reduce((a, b) => a + b, 0);
+        if (!nat.length || sum > avail) return nat;
+        // w tel que somme(max(nat, w)) = avail
+        let w = avail / nat.length;
+        for (let it = 0; it < 8; it++) {
+            let big = 0, n = 0;
+            for (const x of nat) { if (x > w) big += x; else n++; }
+            if (!n) break;
+            const nw = (avail - big) / n;
+            if (Math.abs(nw - w) < 0.01) break;
+            w = nw;
+        }
+        // Pixels entiers ; le reste va à la dernière pastille
+        const out = nat.map(x => Math.floor(Math.max(x, w)));
+        out[out.length - 1] += avail - out.reduce((a, b) => a + b, 0);
+        return out;
+    }
+    TextMetrics { id: chipMetrics; font.family: Theme.font; font.pixelSize: Metrics.chipFontSize }
+    // Vue Applications / Fichiers présentée en liste
+    readonly property bool listView: (mode === "apps" && appsAsList) || (mode === "files" && filesAsList)
     readonly property int chipsArea: chipsShown ? Metrics.chipsTop + Metrics.chipHeight + Metrics.chipsBottom : 0
     function chipChecked(id) {
         if (mode === "apps") return search.appCategory === id;
@@ -687,26 +821,35 @@ Scope {
     readonly property string filterLabel: {
         if (mode === "apps" && search.appCategory)
             return (search.appCategoriesPresent.find(c => c.id === search.appCategory) ?? { name: "" }).name;
+        if (mode === "files" && search.fileScope)
+            return search.fileScopeName;
         if (mode === "files" && search.fileKind)
             return (chipModel.find(c => c.id === search.fileKind) ?? { name: "" }).name;
         if (mode === "" && search.resultFilter)
             return search.groupNames[search.resultFilter] ?? "";
         return "";
     }
+    // Icône du jeton (dossier où l'on cherche)
+    readonly property var filterIcon: mode === "files" && search.fileScope
+        ? { icon: Quickshell.iconPath("folder", "folder") } : null
     readonly property string emptyText: mode === "clipboard" && !query.length ? "No Clipboard History" : "No Results"
 
     readonly property var listModel: {
-        if (mode === "apps") {
-            // Applications en liste : mêmes éléments que la grille, sans le trait
-            return search.appGrid.filter(i => !i.separator && !i.header);
-        }
+        // Applications en liste : suggestions, trait, puis A à Z ; une ligne
+        // par app, sans détail (MacMagazine « lista »)
+        if (mode === "apps")
+            return search.appGrid.map(i => i.separator || i.header ? i : Object.assign({}, i, { subtitle: "" }));
+        if (mode === "files")
+            return search.fileGrid.filter(i => !i.header && !i.separator);
         return search.results;
     }
     readonly property var gridItems: {
         if (mode === "apps") return search.appGrid;
         if (mode === "files") {
             const items = search.fileGrid;
-            return (!query.trim() && items.length) ? [{ header: true, title: "Recents" }].concat(items) : items;
+            // Sans section « Suggestions » : un seul en-tête « Recents »
+            return (!query.trim() && !search.fileScope && items.length && !items[0].header)
+                ? [{ header: true, title: "Recents" }].concat(items) : items;
         }
         return [];
     }
@@ -721,16 +864,31 @@ Scope {
         const avail = maxBody - chipsArea - pad;
         let h = 0;
         for (const it of listModel) {
-            const rh = it.header ? Metrics.headerHeight : Metrics.rowHeight;
+            const rh = it.header ? Metrics.headerHeight : it.separator ? 26 : Metrics.rowHeight;
             if (h + rh > avail) break;
             h += rh;
         }
         return pad + Math.max(h, Math.min(listModel.length, 1) * Metrics.rowHeight);
     }
     function firstSelectable() {
-        for (let i = 0; i < listModel.length; i++) if (!listModel[i].header) return i;
+        for (let i = 0; i < listModel.length; i++) if (!listModel[i].header && !listModel[i].separator) return i;
         return 0;
     }
+    // Sélection au repos : le meilleur résultat en recherche ; rien sans saisie
+    function restSelection() {
+        if (!query.length && mode !== "") return -1;
+        return firstSelectable();
+    }
+
+    // Élément choisi de la liste (complétion du champ, icône à droite)
+    readonly property var currentListItem: bodyKind === "list" && list.sel >= 0 ? (listModel[list.sel] ?? null) : null
+    readonly property string completionText: {
+        const it = currentListItem;
+        if (mode !== "" || !it || it.header || it.separator) return "";
+        if (it.kind === "web") return "Search the Web";
+        return it.title ?? "";
+    }
+    readonly property color completionColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(0, 0, 0, 0.40)
 
     // ---- Matériau (Liquid Glass recalibré sur les captures Tahoe) ----
     // Teinte = cible de luminance du fond réfracté. Clair (Cult of Mac
@@ -753,7 +911,9 @@ Scope {
     // =====================================================================
     function moveList(d) {
         let i = list.sel;
-        do { i += d; } while (i >= 0 && i < listModel.length && listModel[i].header);
+        // Sans sélection (repos) : ↓ prend la première ligne
+        if (i < 0) { if (d < 0) return; i = -1; }
+        do { i += d; } while (i >= 0 && i < listModel.length && (listModel[i].header || listModel[i].separator));
         if (i < 0 || i >= listModel.length) return;
         list.sel = i;
         list.positionViewAtIndex(i, ListView.Contain);
@@ -776,6 +936,8 @@ Scope {
         case Qt.Key_Escape:
             if (menuOpen) menuOpen = false;
             else if (filterLabel !== "" && query.length === 0) clearFilter();
+            // Vue Applications ouverte par F4 / Launchpad : Échap ferme
+            else if (mode === "apps" && openedAsApps && query.length === 0) close();
             else if (mode !== "") setMode("");
             else if (query.length) query = "";
             else close();
@@ -812,22 +974,32 @@ Scope {
             }
             return;
         case Qt.Key_Tab:
-            if (bodyKind === "grid") moveGrid(1, 0);
-            else moveList(1);
+            // Tahoe : Tab lance l'action de la ligne choisie (« Search <dossier> »),
+            // il ne déplace pas la sélection
+            tabAction();
             event.accepted = true;
             return;
         case Qt.Key_Backtab:
-            if (bodyKind === "grid") moveGrid(-1, 0);
-            else moveList(-1);
             event.accepted = true;
             return;
         }
         if (k === Qt.Key_Backspace && query.length === 0 && (mode !== "" || filterLabel !== "")) {
             // Retire d'abord le jeton de filtre, puis sort du mode
-            if (filterLabel !== "") clearFilter();
+            if (search.fileScope) { search.fileScope = ""; search.fileScopeName = ""; setMode(""); }
+            else if (filterLabel !== "") clearFilter();
             else setMode("");
             event.accepted = true;
         }
+    }
+
+    // Tab sur un dossier : y chercher (vue Fichiers, jeton du dossier dans le champ)
+    function tabAction() {
+        const it = currentItem();
+        if (!it || it.kind !== "file" || !it.isDir) return;
+        const rel = it.rel, name = it.title;
+        setMode("files");
+        search.fileScope = rel;
+        search.fileScopeName = name;
     }
 
     function moveGrid(dx, dy) {
@@ -861,6 +1033,7 @@ Scope {
         function open(m: string): void {
             ShellState.open(m === "apps" ? "apps" : "spotlight");
             if (m !== "apps") root.setMode(m === "main" ? "" : m);
+            else root.openedAsApps = true;
         }
         function type(text: string): void { root.query = text; }
         function buttons(on: bool): void { if (on) root.revealButtons(); else root.buttonsShown = false; }
@@ -872,11 +1045,13 @@ Scope {
             root.handleKey(ev);
         }
         function slowdown(f: real): void { root.slow = f; }
+        function select(i: int): void { list.sel = i; }
         function category(id: string): void { search.appCategory = id; }
         function chip(id: string): void { root.pickChip(id); }
         function filekind(id: string): void { search.fileKind = id; }
         function cmd(on: bool): void { root.cmdHeld = on; }
         function applist(on: bool): void { root.appsAsList = on; }
+        function filelist(on: bool): void { root.filesAsList = on; }
         function menu(on: bool): void { root.menuOpen = on; }
         function dark(on: bool): void { Theme.dark = on; }
         function state(): string {

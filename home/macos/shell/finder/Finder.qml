@@ -24,11 +24,40 @@ Scope {
     property var lastWindow: null
 
     function newWindow(path, reveal) {
+        cascade.arm();
         const id = _nextId++;
         const s = Object.assign({}, _starts);
         s[id] = { path: path || Fs.home, reveal: reveal || "" };
         _starts = s;
         windowIds = windowIds.concat([id]);
+    }
+    // Nouvelle fenêtre décalée de 22 pt vers le bas et la droite de la
+    // fenêtre du Finder au premier plan (cascade du Mac). Hyprland centre
+    // toute nouvelle fenêtre : on la déplace dès qu'elle prend le focus.
+    QtObject {
+        id: cascade
+        property var from: null       // { x, y } de la fenêtre précédente
+        property string prevAddr: ""
+        property real armedAt: 0
+        function arm() {
+            const t = Hyprland.activeToplevel;
+            const o = t?.lastIpcObject;
+            const ours = root.windowIds.length > 0 && o && o.class === "org.quickshell" && o.at
+                         && root.lastWindow && o.title === root.lastWindow.title;
+            from = ours ? { x: o.at[0], y: o.at[1] } : null;
+            prevAddr = t?.address ?? "";
+            armedAt = Date.now();
+        }
+    }
+    Connections {
+        target: Hyprland
+        function onActiveToplevelChanged() {
+            const t = Hyprland.activeToplevel;
+            if (!cascade.from || !t || t.address === cascade.prevAddr || Date.now() - cascade.armedAt > 3000) return;
+            const x = cascade.from.x + 22, y = cascade.from.y + 22;
+            cascade.from = null;
+            Qt.callLater(() => Hyprland.dispatch("movewindowpixel exact " + x + " " + y + ",address:0x" + t.address));
+        }
     }
     function closeWindow(id) {
         windowIds = windowIds.filter(x => x !== id);
@@ -93,6 +122,8 @@ Scope {
             else if (kind === "action") root.actionMenu(w, p, true);
             else if (kind === "group") root.groupMenu(w, p, true);
             else if (kind === "tag") root.tagMenu(w, p, true);
+            else if (kind === "overflow") w.debugOverflow();
+            else if (kind === "close") { menu.close(); return; }
             menu.grab = false;
         }
         function debugQuickLook(): void { if (root.lastWindow) root.toggleQuickLook(root.lastWindow); }
@@ -108,6 +139,8 @@ Scope {
             else if (what === "search") w.searching = !w.searching;
             else if (what === "dark") Theme.dark = !Theme.dark;
         }
+        function debugSearch(text: string, scope: string): void { const w = root.lastWindow; if (w) { w.searchScope = scope || "mac"; w.searching = true; w.searchText = text; } }
+        function debugCount(): string { const w = root.lastWindow; return w ? String(w.items.length) : "none"; }
         function debugKey(key: string): void { root.lastWindow?.debugKey(key); }
         function debugRename(): void { root.lastWindow?.startRename(); }
         function debugExpand(name: string): void { root.lastWindow?.debugExpand(name); }
@@ -152,6 +185,7 @@ Scope {
             return l;
         }
         l.push({ text: "Open", icon: "arrow.up.forward.app", action: () => w.openSelection(false) });
+        if (one && one.isDir && !one.app) l.push({ text: "Open in New Tab", icon: "plus.square.on.square", action: () => w.newTab(one.path) });
         if (one && !one.isDir && !one.app) l.push({ text: "Open With", icon: "", submenu: openWith.itemsFor(one), enabled: true });
         if (files.length) {
             l.push({ separator: true });
@@ -178,6 +212,17 @@ Scope {
             l.push({ separator: true });
             if (one) l.push({ text: "Show in Enclosing Folder", icon: "folder", action: () => w.navigate(Fs.dirname(one.path), one.name) });
         }
+        // Actions rapides et services (fin du menu de Tahoe)
+        l.push({ separator: true });
+        const qa = [];
+        if (files.length && files.every(e => Fs.isImage(e))) qa.push({ text: "Rotate Left", icon: "rotate.left", enabled: false });
+        qa.push({ text: "Customize…", enabled: false });
+        l.push({ text: "Quick Actions", icon: "bolt.fill", submenu: qa });
+        if (one && one.isDir && !one.app && !Fs.isVirtual(one.path)) {
+            l.push({ text: "Folder Actions Setup…", enabled: false });
+            l.push({ text: "New Terminal at Folder", action: () => Fs.revealInTerminal(one.path) });
+            l.push({ text: "New Terminal Tab at Folder", action: () => Fs.revealInTerminal(one.path) });
+        }
         return l;
     }
     function backgroundMenu(w) {
@@ -189,7 +234,8 @@ Scope {
             l.push({ text: Fs.clipboard.length === 1 ? "Paste Item" : "Paste " + Fs.clipboard.length + " Items", icon: "doc.on.clipboard", action: () => w.paste(false) });
         if (w.path === "trash://") l.push({ text: "Empty Trash", icon: "trash", action: () => Fs.emptyTrash() });
         l.push({ separator: true });
-        l.push({ text: "Use Groups", icon: "finder.group", action: () => {} , enabled: false });
+        l.push({ text: "Use Groups", icon: "finder.group.rows", checked: w.effectiveGroup !== "" ? true : undefined,
+                 action: () => { const v = w.effectiveGroup ? "" : "kind"; if (w.path === "recents://") w.recentsGroupBy = v ? "opened" : ""; else w.groupBy = v; } });
         l.push({ text: "Sort By", icon: "arrow.up.arrow.down", submenu: sortItems(w) });
         if (w.viewMode === "icon") {
             l.push({ text: "Clean Up", icon: "square.grid.3x3", enabled: false });
@@ -217,14 +263,18 @@ Scope {
                       { text: w.showStatusBar ? "Hide Status Bar" : "Show Status Bar", icon: "", shortcut: sc("cmd/"), action: () => w.showStatusBar = !w.showStatusBar }]);
         menu.show(w, Qt.point(pos.x - 10, pos.y), l, noGrab);
     }
-    function groupMenu(w, pos, noGrab) {
-        const keys = [["Name", "name"], ["Kind", "kind"], ["Application", ""], ["Date Last Opened", ""], ["Date Added", ""],
+    function groupItems(w) {
+        const keys = [["Name", "name"], ["Kind", "kind"], ["Application", ""], ["Date Last Opened", "opened"], ["Date Added", ""],
                       ["Date Modified", "date"], ["Date Created", ""], ["Size", "size"], ["Tags", ""]];
-        const l = [{ text: "None", checked: w.groupBy === "", action: () => w.groupBy = "" }, { separator: true }]
-            .concat(keys.map(k => ({ text: k[0], checked: w.groupBy !== "" && w.groupBy === k[1], enabled: k[1] !== "",
-                                     action: () => { w.groupBy = k[1]; w.sortKey = k[1]; w.sortAsc = k[1] === "name" || k[1] === "kind"; } })));
-        menu.show(w, Qt.point(pos.x - 10, pos.y), l, noGrab);
+        const set = v => { if (w.path === "recents://") w.recentsGroupBy = v; else w.groupBy = v; };
+        return [{ text: "None", checked: w.effectiveGroup === "", action: () => set("") }, { separator: true }]
+            .concat(keys.map(k => ({ text: k[0], checked: w.effectiveGroup !== "" && w.effectiveGroup === k[1], enabled: k[1] !== "",
+                                     action: () => { set(k[1]); if (k[1] !== "opened") { w.sortKey = k[1]; w.sortAsc = k[1] === "name" || k[1] === "kind"; } } })));
     }
+    function groupMenu(w, pos, noGrab) {
+        menu.show(w, Qt.point(pos.x - 10, pos.y), groupItems(w), noGrab);
+    }
+    function showMenu(w, pos, list, noGrab) { menu.show(w, pos, list, noGrab); }
     function viewMenu(w, pos, noGrab) {
         const v = [["as Icons", "icon", "square.grid.2x2", "cmd1"], ["as List", "list", "list.bullet", "cmd2"],
                    ["as Columns", "column", "rectangle.split.3x1", "cmd3"], ["as Gallery", "gallery", "finder.gallery", "cmd4"]];
@@ -349,6 +399,8 @@ Scope {
         });
         pr.running = true;
     }
+    // Dernier chemin saisi dans « Go to Folder » (pré-remplissage)
+    property string lastGoTo: ""
     function goToFolder(w) { w.showGoTo = true; }
     function alert(w, text) { w.alertText = text; }
 }

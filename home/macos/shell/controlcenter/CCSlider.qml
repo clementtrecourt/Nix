@@ -10,6 +10,8 @@ Item {
     property bool showTicks: false
     property int steps: 16
     property bool interactive: true
+    property color emptyColor: CCStyle.trackEmpty
+    property color tickColor: CCStyle.tick
     readonly property bool dragging: ma.pressed
     signal moved(real v)
 
@@ -24,7 +26,7 @@ Item {
         width: parent.width
         height: CCStyle.trackHeight
         radius: height / 2
-        color: CCStyle.trackEmpty
+        color: s.emptyColor
     }
 
     Rectangle {
@@ -32,7 +34,7 @@ Item {
         anchors.verticalCenter: track.verticalCenter
         height: track.height
         radius: height / 2
-        width: Math.max(s.value > 0 ? height : 0, track.width * Math.max(0, Math.min(1, s.value)))
+        width: Math.round(Math.max(s.value > 0 ? height : 0, track.width * Math.max(0, Math.min(1, s.value))))
         color: CCStyle.trackFill
         Behavior on width {
             enabled: !ma.pressed
@@ -48,9 +50,10 @@ Item {
             width: 2
             height: 2
             radius: 1
-            color: CCStyle.tick
-            // 17 points de 2 pt, de 4 à width - 4, centrés 6 pt sous la piste
-            x: 3 + index * (s.width - 8) / s.steps
+            color: s.tickColor
+            // 17 points de 2 pt, centrés de 4,75 pt à width - 4,75 pt (HUD Tahoe),
+            // ~6 pt sous la piste ; arrondis au pixel (écran 1x)
+            x: Math.round(3.75 + index * (s.width - 9.5) / s.steps)
             y: track.y + track.height / 2 + 5
         }
     }

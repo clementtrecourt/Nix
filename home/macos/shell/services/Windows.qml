@@ -12,9 +12,20 @@ Singleton {
     readonly property var toplevels: Hyprland.toplevels.values
     readonly property var activeToplevel: Hyprland.activeToplevel
     // Classe de l'app au premier plan ("" = bureau / Finder)
-    readonly property string activeClass: activeToplevel?.lastIpcObject?.class ?? ""
+    readonly property string activeClass: classOf(activeToplevel)
 
-    function classOf(t) { return t?.lastIpcObject?.class ?? ""; }
+    // Classe « d'application » d'une fenêtre. Les fenêtres du shell ont toutes la
+    // classe Wayland de Quickshell (org.quickshell, rattachée au Finder) : la
+    // fenêtre de System Settings (settings/) est rattachée à son app, comme sur
+    // macOS (Dock, barre des menus, ⌘Tab, Mission Control).
+    readonly property string shellClass: "org.quickshell"
+    readonly property string settingsClass: "org.gnome.Settings"
+    function classOf(t) {
+        const o = t?.lastIpcObject;
+        const c = o?.class ?? "";
+        if (c === shellClass && (o?.title ?? "") === "System Settings") return settingsClass;
+        return c;
+    }
     function addressOf(t) { return "0x" + t.address; }
     function isMinimized(t) { return t?.workspace?.name === "special:minimized"; }
 

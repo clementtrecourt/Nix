@@ -1,15 +1,17 @@
 import QtQuick
 import qs.common
 
-// Module curseur 4x1 du Control Center ("Écran", "Son") ; sert aussi de HUD
+// Module curseur 4x1 du Control Center ("Display", "Sound") ; sert aussi de HUD
 // (Osd.qml : variante `hud` avec graduations). Cotes relevées sur la capture
-// Apple de Tahoe 26 (module 291 x 63 pt) : titre 13 pt (haut des capitales à
-// 13,4 pt du bord, idem sur le HUD), piste et pictos centrés à 41,5 pt du haut.
-// Display : soleil à 22,5 pt du bord gauche, piste de 37 à 253 pt, soleil à
-// 23,5 pt du bord droit. Sound : haut-parleur à 21 pt, piste de 34,5 à 212,5 pt,
-// haut-parleur à 61 pt du bord droit, bouton AirPlay (26 pt) à 27 pt.
-// HUD : 19,5 pt, piste de 31 à 261 pt, haut-parleur à 16 pt du bord droit,
-// 17 points de graduation 6 pt sous la piste.
+// Apple de Tahoe 26 (support.apple.com, 1,96 px/pt, module 291 x 63 pt ;
+// MacStories concordant) : titre 13 pt semibold (haut des capitales à 13,4 pt du
+// bord, idem sur le HUD), piste et pictos centrés à ~41,8 pt du haut (42 ici :
+// piste de 4 px sur pixels entiers).
+// Display : soleil à 20,2 pt du bord gauche, piste de 31,6 pt à ~34 pt du bord
+// droit, soleil à 21,7 pt du bord droit. Sound : haut-parleur à 19 pt, piste de
+// 29,6 pt à ~71,5 pt du bord droit, haut-parleur à 57,5 pt du bord droit, bouton
+// AirPlay (26 pt) centré à 26 pt du bord droit.
+// Écran 1x : toutes les positions sont arrondies au pixel (net, sans flou).
 CCTile {
     id: m
 
@@ -37,12 +39,12 @@ CCTile {
     interactive: expandable && !hud
     onClicked: m.titleClicked()
 
-    readonly property real rowY: 41.5
+    property real rowY: 42
     // Géométrie de la ligne (valeurs par défaut : module Display)
-    property real leftCenterX: 22.5
-    property real trackLeft: 37
-    property real trackRightInset: 38       // fin de la piste, depuis le bord droit
-    property real rightInset: 23.5          // centre du picto droit, depuis le bord droit
+    property real leftCenterX: 20
+    property real trackLeft: 32
+    property real trackRightInset: 34       // fin de la piste, depuis le bord droit
+    property real rightInset: 22            // centre du picto droit, depuis le bord droit
     readonly property real rightCenterX: width - rightInset
 
     Text {
@@ -56,8 +58,8 @@ CCTile {
         font.family: Theme.font
         font.letterSpacing: CCStyle.tracking
         font.pixelSize: CCStyle.sliderTitleSize
-        // HUD : titre plus léger que « Display » / « Sound » (capture Tahoe)
-        font.weight: m.hud ? Font.Medium : Font.DemiBold
+        // HUD : même graisse que « Sound » (MacStories, « Studio Display Speakers »)
+        font.weight: Font.DemiBold
         elide: Text.ElideRight
         MouseArea {
             anchors.fill: parent
@@ -71,17 +73,20 @@ CCTile {
         name: m.leftSymbol
         size: m.leftSize
         color: CCStyle.text
-        x: m.leftCenterX - width / 2
-        y: m.rowY - height / 2
+        x: Math.round(m.leftCenterX - width / 2)
+        y: Math.round(m.rowY - height / 2)
     }
 
     CCSlider {
         id: slider
-        x: m.trackLeft
-        width: m.width - m.trackRightInset - x
-        y: m.rowY - height / 2 + (m.hud ? 3 : 0)
+        x: Math.round(m.trackLeft)
+        width: Math.round(m.width - m.trackRightInset) - x
+        // piste centrée sur rowY (HUD : crans dessous, piste décalée de -3 dans le curseur)
+        y: Math.round(m.rowY - height / 2 + (m.hud ? 3 : 0))
         value: m.value
         showTicks: m.hud
+        emptyColor: m.hud ? CCStyle.hudTrackEmpty : CCStyle.trackEmpty
+        tickColor: m.hud ? CCStyle.hudTick : CCStyle.tick
         interactive: m.sliderEnabled && !m.hud
         opacity: m.sliderEnabled ? 1 : CCStyle.disabledOpacity
         onMoved: v => m.moved(v)
@@ -92,15 +97,15 @@ CCTile {
         name: m.rightSymbol
         size: m.rightSize
         color: CCStyle.text
-        x: m.rightCenterX - width / 2
-        y: m.rowY - height / 2
+        x: Math.round(m.rightCenterX - width / 2)
+        y: Math.round(m.rowY - height / 2)
     }
 
     IconCircle {
         visible: m.accessory
         size: 26
-        x: m.width - 14 - size
-        y: m.rowY - size / 2
+        x: m.width - 13 - size
+        y: Math.round(m.rowY - size / 2)
         symbol: m.accessorySymbol
         glyphSize: 17
         on: m.accessoryOn

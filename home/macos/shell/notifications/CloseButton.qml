@@ -14,6 +14,9 @@ Item {
     signal triggered()
 
     property int size: 20
+    // Teinte du disque : celle de la carte (image Apple, macOS 26 : le disque
+    // reprend la teinte de la notification, avec un fin liseré clair)
+    property color tint: Theme.dark ? Qt.rgba(0.20, 0.20, 0.21, 0.80) : Qt.rgba(0.97, 0.97, 0.98, 0.85)
     width: expanded ? label.implicitWidth + 22 : size
     height: size
     Behavior on width { NumberAnimation { duration: Theme.durMed; easing.type: Easing.OutCubic } }
@@ -27,7 +30,7 @@ Item {
     NotifGlass {
         anchors.fill: parent
         radius: height / 2
-        tint: Theme.dark ? Qt.rgba(0.20, 0.20, 0.21, 0.80) : Qt.rgba(0.97, 0.97, 0.98, 0.85)
+        tint: btn.tint
         // Pas d'ombre : elle s'ajouterait à celle de la carte (halo flouté Hyprland)
         shadowEnabled: false
     }
@@ -35,13 +38,15 @@ Item {
         anchors.fill: parent
         radius: height / 2
         color: mouse.pressed ? Theme.fillHover : "transparent"
+        border.width: 1
+        border.color: Theme.dark ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.55)
     }
 
     Symbol {
         anchors.centerIn: parent
         name: "xmark"
-        // Croix de ~8 pt pour une pastille de 20 pt (image Apple, macOS 26)
-        size: Math.round(16 + (btn.size - 20) * 0.25)
+        // Croix de ~7 pt, trait fin, pour une pastille de 20 pt (image Apple, macOS 26)
+        size: Math.round(14 + (btn.size - 20) * 0.25)
         color: Theme.dark ? Qt.rgba(1, 1, 1, 0.75) : Qt.rgba(0, 0, 0, 0.62)
         opacity: btn.expanded ? 0 : 1
         Behavior on opacity { NumberAnimation { duration: Theme.durFast } }

@@ -8,12 +8,18 @@ import qs.common
 // coche centrée à 23 pt, texte à 37 pt (16 pt sans colonne de coche), filets
 // et chevron à 16 pt des bords, clignotement avant l'action.
 //
-// entries : [{ text, checked?, minimized?, enabled?, separator?, submenu?: [...], action?: fn }]
+// entries : [{ text, checked?, minimized?, enabled?, separator?, header?, submenu?: [...],
+//              action?: fn, altText?, altAction?: fn }]
+//   header  : en-tête de section (11 pt demi-gras, gris, non sélectionnable),
+//             aligné sur le texte des éléments (« Sort by », « Assign To »)
+//   altText : libellé quand Option est enfoncée (« Quit » -> « Force Quit »)
 Item {
     id: root
 
     property var entries: []
     property int highlighted: -1
+    // Option enfoncée (libellés alternatifs)
+    property bool alt: false
     // Marge transparente autour de la plaque pour laisser déborder l'ombre
     readonly property int margin: 24
     readonly property int padding: 5
@@ -21,6 +27,11 @@ Item {
     readonly property int edge: 16
     readonly property real radius: 14
     readonly property bool hasLead: entries.some(e => e.checked !== undefined || e.minimized)
+
+    // Option enfoncée / relâchée pendant que le menu a le clavier
+    focus: true
+    Keys.onPressed: (e) => { if (e.key === Qt.Key_Alt) root.alt = true; }
+    Keys.onReleased: (e) => { if (e.key === Qt.Key_Alt) root.alt = false; }
 
     signal triggered(var entry)
     signal hoveredRow(int row, var item)
@@ -38,7 +49,8 @@ Item {
         let w = 0;
         for (const e of entries) {
             if (e.separator) continue;
-            w = Math.max(w, textX + Math.min(fm.advanceWidth(e.text ?? ""), 340) + 24 + (e.submenu ? 16 : 0));
+            const t = Math.max(fm.advanceWidth(e.text ?? ""), e.altText ? fm.advanceWidth(e.altText) : 0);
+            w = Math.max(w, textX + Math.min(t, 340) + 24 + (e.submenu ? 16 : 0));
         }
         return Math.ceil(Math.max(140, w));
     }
@@ -89,9 +101,11 @@ Item {
                     required property var modelData
                     required property int index
                     readonly property bool sep: !!modelData.separator
-                    readonly property bool on: !sep && modelData.enabled !== false
+                    readonly property bool head: !!modelData.header
+                    readonly property bool on: !sep && !head && modelData.enabled !== false
+                    readonly property bool useAlt: root.alt && !!modelData.altText
                     readonly property bool lit: on && root.highlighted === index && !blink.off
-                    readonly property color fg: lit ? Theme.menuHighlightText : (on ? Theme.label : Theme.labelTertiary)
+                    readonly property color fg: head ? Theme.labelSecondary : lit ? Theme.menuHighlightText : (on ? Theme.label : Theme.labelTertiary)
                     width: col.width
                     height: sep ? 11 : root.rowH
 
@@ -134,10 +148,12 @@ Item {
                         width: Math.min(implicitWidth, parent.width - root.textX - root.edge - (row.modelData.submenu ? 16 : 0))
                         elide: Text.ElideMiddle
                         anchors.verticalCenter: parent.verticalCenter
-                        text: row.modelData.text ?? ""
+                        anchors.verticalCenterOffset: row.head ? 1.5 : 0
+                        text: row.useAlt ? row.modelData.altText : (row.modelData.text ?? "")
                         textFormat: Text.PlainText
                         font.family: Theme.font
-                        font.pixelSize: Theme.fontSize
+                        font.pixelSize: row.head ? Theme.fontSizeSmall : Theme.fontSize
+                        font.weight: row.head ? Font.DemiBold : Font.Normal
                         color: row.fg
                     }
                     Symbol {
@@ -154,6 +170,7 @@ Item {
                         hoverEnabled: true
                         enabled: row.on
                         onEntered: { root.highlighted = row.index; root.hoveredRow(row.index, row); }
+                        onPositionChanged: (m) => root.alt = !!(m.modifiers & Qt.AltModifier)
                         onClicked: if (!row.modelData.submenu) blink.restart()
                     }
                     // Validation : la ligne s'éteint 70 ms puis se rallume 70 ms
@@ -164,7 +181,7 @@ Item {
                         PauseAnimation { duration: 70 }
                         PropertyAction { target: blink; property: "off"; value: false }
                         PauseAnimation { duration: 70 }
-                        ScriptAction { script: root.triggered(row.modelData) }
+                        ScriptAction { script: root.triggered(row.useAlt ? Object.assign({}, row.modelData, { action: row.modelData.altAction }) : row.modelData) }
                     }
                     function flash() { root.highlighted = row.index; blink.restart(); }
                 }

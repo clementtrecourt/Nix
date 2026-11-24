@@ -75,6 +75,9 @@ Item {
     // d'un Rectangle peint sous le verre : avec réfraction, le verre est opaque
     // et masquerait ce Rectangle.
     property color overlay: "transparent"
+    // Part de la couleur du fond dans le liseré spéculaire (Tahoe : liseré cyan sur
+    // fond bleu, rosé sur fond rose) ; 0 = liseré blanc pur
+    property real rimTintMix: 0.35
 
     // ---- Liquid Glass ----
     property string backdrop: "none"
@@ -251,6 +254,7 @@ Item {
         property real edgeDarken: root.edgeDarken
         property real edgeSaturate: root.edgeSaturate
         property color overlay: root.overlay
+        property real rimTintMix: root.rimTintMix
     }
 
     Item {

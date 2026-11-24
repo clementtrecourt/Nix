@@ -23,6 +23,18 @@
     name = "Inter";
     size = 10;
   };
+  appearanceState = "${config.xdg.stateHome}/macos-appearance";
+  fileChooser = {
+    show-hidden = false;
+    sort-column = "name";
+    sort-order = "ascending";
+    sort-directories-first = false;
+    startup-mode = "cwd";
+    clock-format = "12h";
+    date-format = "regular";
+    show-size-column = true;
+    window-size = lib.hm.gvariant.mkTuple [820 480];
+  };
 in {
   gtk = {
     enable = true;
@@ -64,7 +76,34 @@ in {
       button-layout = "close,minimize,maximize:";
       titlebar-font = "${uiFont.name} Semi-Bold ${toString uiFont.size}";
     };
+    # Sélecteur de fichiers GTK (portail xdg-desktop-portal-gtk, dialogues GTK3/GTK4)
+    # réglé comme le panneau Open/Save du Mac : fichiers cachés masqués, tri par nom
+    # (dossiers mêlés aux fichiers, comme le Finder), ouverture dans le dossier de
+    # l'app et non dans « Recent », taille de panneau du Mac, heures en 12 h (US)
+    "org/gtk/settings/file-chooser" = fileChooser;
+    "org/gtk/gtk4/settings/file-chooser" = fileChooser;
+    # Nemo (gestionnaire GTK3 resté installé) : sans barre de menus dans la fenêtre
+    # ni fichiers cachés, comme le Finder
+    "org/nemo/window-state" = {
+      start-with-menu-bar = false;
+    };
+    "org/nemo/preferences" = {
+      show-hidden-files = false;
+    };
   };
+
+  # Fichiers suivant le mode clair / sombre, écrits par macos-appearance dans
+  # ~/.local/state/macos-appearance et liés ici (gérés par home-manager, contenu
+  # réécrit à chaud) : feux tricolores de Tahoe pour GTK3, schéma de couleurs
+  # MacTahoe des apps KDE (remplacent les restes de l'ancienne config Noctalia)
+  xdg.configFile = {
+    "gtk-3.0/gtk.css".source = config.lib.file.mkOutOfStoreSymlink "${appearanceState}/gtk3.css";
+    "kdeglobals".source = config.lib.file.mkOutOfStoreSymlink "${appearanceState}/kdeglobals";
+  };
+  # Les cibles existent dès l'activation (avant la première ouverture de session)
+  home.activation.macosAppearanceFiles = lib.hm.dag.entryAfter ["linkGeneration" "macosAppearanceDefaults"] ''
+    run ${macosPkgs.macos-appearance}/bin/macos-appearance files || true
+  '';
 
   # Mode sombre par défaut, posé seulement si l'utilisateur n'a encore rien choisi :
   # une activation home-manager ne doit pas annuler le choix fait dans le Control Center.

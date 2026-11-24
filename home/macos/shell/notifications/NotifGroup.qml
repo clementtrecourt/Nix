@@ -60,10 +60,15 @@ Item {
             height: 28
             opacity: grp.expanded ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 260 * NotifStore.slow; easing.type: Easing.OutCubic } }
+            // Nom de l'app, tronqué « … » avant les boutons (y compris quand le ×
+            // s'allonge en « Clear All » au survol)
             Text {
                 anchors.left: parent.left
                 anchors.leftMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - 4 - headerButtons.width - 10
+                elide: Text.ElideRight
+                maximumLineCount: 1
                 text: grp.head ? grp.head.appName : ""
                 color: Theme.label
                 font.family: Theme.fontDisplay
@@ -71,11 +76,13 @@ Item {
                 font.weight: Font.Bold
             }
             Row {
+                id: headerButtons
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
                 // Capsule « Show less »
                 Item {
+                    id: lessBtn
                     width: lessLabel.implicitWidth + 30
                     height: 24
                     NotifGlass {

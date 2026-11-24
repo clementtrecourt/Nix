@@ -6,5 +6,6 @@
     ./shell.nix
     ./theme.nix
     ./finder.nix
+    ./settings.nix
   ];
 }

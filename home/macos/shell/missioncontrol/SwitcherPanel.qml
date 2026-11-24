@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import Quickshell.Widgets
 import qs.common
 import qs.services
 
@@ -28,7 +27,9 @@ PanelWindow {
     readonly property real art: 103 * k                 // dessin visible de l'icône
     readonly property real pitch: 134 * k
     readonly property real pad: 36 * k
-    readonly property real iconBox: art / 0.875         // le carré arrondi MacTahoe occupe 112/128 du cadre
+    // Toile de l'icône : le squircle d'une toile Apple en occupe 80,5 % (celui
+    // de MacTahoe 87,5 %, ramené à 80,5 % comme dans le Dock)
+    readonly property real canvas: art / 0.805
     readonly property real selSize: art + 18 * k
     readonly property real panelW: count * pitch + 41 * k
     readonly property real panelH: 175 * k
@@ -38,13 +39,8 @@ PanelWindow {
     property point pointerAnchor: Qt.point(0, 0)
     onContentShownChanged: pointerAnchored = false
 
-    // Nom affiché : celui du .desktop, sinon la classe rendue lisible
-    // ("org.gnome.Calculator" -> "Calculator", "kitty" -> "Kitty")
-    function appName(cls) {
-        if (Apps.entryFor(cls)) return Apps.displayName(cls);
-        const last = String(cls).split(".").pop();
-        return last.charAt(0).toUpperCase() + last.slice(1);
-    }
+    // Nom affiché : même nom que le Dock ("kitty" -> "Terminal")
+    function appName(cls) { return Apps.displayName(cls); }
 
     implicitWidth: Math.ceil(panelW)
     implicitHeight: Math.ceil(panelH)
@@ -134,16 +130,64 @@ PanelWindow {
                 id: cell
                 required property var modelData
                 required property int index
-                x: panel.pad + index * panel.pitch + panel.art / 2 - width / 2
-                y: panel.artTop + panel.art / 2 - height / 2
-                width: panel.iconBox
-                height: panel.iconBox
+                // Icône résolue comme dans le Dock (DockIcons, voir AppSwitcher)
+                readonly property var info: panel.switcher.icons.resolved[panel.switcher.iconKey(modelData)] ?? null
+                readonly property bool boxed: !!info && !!info.foreign
+                readonly property real iconScale: info && info.apple ? 1 : 0.805 / 0.875
+                // Taille dessinée sur des pixels entiers (net à l'échelle 1)
+                readonly property real drawn: Math.round(boxed ? panel.art * 0.66 : panel.canvas * iconScale)
+                x: Math.round(panel.pad + index * panel.pitch + panel.art / 2 - width / 2)
+                y: Math.round(panel.artTop + panel.art / 2 - height / 2)
+                width: Math.round(panel.canvas)
+                height: width
 
-                IconImage {
-                    anchors.fill: parent
-                    source: Apps.icon(cell.modelData)
-                    implicitSize: panel.iconBox
+                // Squircle gris des icônes absentes du thème (comme le Dock)
+                Rectangle {
+                    visible: cell.boxed
+                    anchors.centerIn: parent
+                    width: Math.round(panel.art)
+                    height: width
+                    radius: width * 0.225
+                    gradient: Gradient {
+                        GradientStop { position: 0; color: Theme.dark ? "#4a4a4e" : "#fbfbfd" }
+                        GradientStop { position: 1; color: Theme.dark ? "#323235" : "#e4e4e8" }
+                    }
+                    border.width: 0.5
+                    border.color: Theme.dark ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(0, 0, 0, 0.08)
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: cell.drawn
+                    height: cell.drawn
+                    source: cell.info && cell.info.path ? cell.info.path : Apps.icon(cell.modelData)
+                    sourceSize: Qt.size(cell.drawn, cell.drawn)
+                    fillMode: Image.PreserveAspectFit
                     asynchronous: false
+                    smooth: true
+                }
+
+                // Pastille de notifications (rouge, coin haut-droit du squircle ;
+                // « 148 » de Mail sur Tahoe 26 : hauteur ≈ 0,40 × l'icône)
+                readonly property int badge: panel.switcher.badgeCount(modelData)
+                Rectangle {
+                    visible: cell.badge > 0
+                    readonly property real h: Math.round(panel.art * 0.40)
+                    height: h
+                    width: Math.max(h, Math.round(badgeText.implicitWidth + h * 0.6))
+                    radius: h / 2
+                    x: Math.round(cell.width / 2 + panel.art / 2 - panel.art * 0.12 - h / 2 - (width - h) / 2)
+                    y: Math.round(cell.height / 2 - panel.art / 2 + panel.art * 0.10 - h / 2)
+                    color: "#FF3B30"
+                    Text {
+                        id: badgeText
+                        anchors.centerIn: parent
+                        text: cell.badge > 999 ? "999+" : String(cell.badge)
+                        color: "white"
+                        font.family: Theme.font
+                        font.pixelSize: Math.round(parent.h * 0.6)
+                        font.weight: Font.Medium
+                        renderType: Text.NativeRendering
+                    }
                 }
 
                 MouseArea {
@@ -183,10 +227,11 @@ PanelWindow {
             font.pixelSize: Math.round(13 * panel.k)
             font.weight: Font.DemiBold
             // Ligne de base à 11 pt du bas du panneau
-            y: panel.panelH - 11 * panel.k - baselineOffset
-            x: Math.max(8, Math.min(panel.width - width - 8, cx - width / 2))
+            y: Math.round(panel.panelH - 11 * panel.k - baselineOffset)
+            x: Math.round(Math.max(8, Math.min(panel.width - width - 8, cx - width / 2)))
             width: Math.min(implicitWidth, panel.width - 16)
             elide: Text.ElideRight
+            renderType: Text.NativeRendering
         }
 
         // Clavier tant que le panneau est visible (Cmd encore enfoncé)

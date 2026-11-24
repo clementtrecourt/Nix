@@ -12,7 +12,8 @@ Item {
     property var entry: null
     // Vrai : grand aperçu en haut (colonnes) ; faux : vignette + nom (galerie)
     property bool compact: false
-    property bool more: true
+    // Repliée par défaut (« Show More »), comme Tahoe
+    property bool more: false
 
     // Dimensions d'une image (taille naturelle après chargement)
     Image {
@@ -23,18 +24,17 @@ Item {
         sourceSize: undefined
         cache: false
     }
-    readonly property string dims: probe.status === Image.Ready ? probe.implicitWidth + "×" + probe.implicitHeight : ""
+    readonly property string dims: probe.status === Image.Ready ? probe.implicitWidth + " × " + probe.implicitHeight : ""
 
     readonly property var info: {
         const e = entry;
         if (!e) return [];
         const l = [];
-        l.push(["Created", Fs.formatDateLong(e.btime || e.mtime)]);
-        l.push(["Modified", Fs.formatDateLong(e.mtime)]);
-        if (more) {
-            l.push(["Last opened", Fs.formatDateLong(e.atime || e.mtime)]);
-            if (dims) { l.push(["Dimensions", dims]); l.push(["Resolution", "72×72"]); l.push(["Color space", "RGB"]); }
-        }
+        l.push(["Created", Fs.formatDatePane(e.btime || e.mtime)]);
+        l.push(["Modified", Fs.formatDatePane(e.mtime)]);
+        l.push(["Last opened", Fs.formatDatePane(e.atime || e.mtime)]);
+        if (dims) { l.push(["Dimensions", dims]); l.push(["Resolution", "72×72"]); }
+        if (more && dims) l.push(["Color space", "RGB"]);
         return l;
     }
 
@@ -156,8 +156,6 @@ Item {
                         horizontalAlignment: Text.AlignRight
                         elide: Text.ElideRight
                         text: parent.modelData[1]
-                        fontSizeMode: Text.HorizontalFit
-                        minimumPixelSize: 9
                         font.family: Theme.font
                         font.pixelSize: 11
                         font.weight: Font.Medium
@@ -209,7 +207,15 @@ Item {
         }
     }
 
-    // Actions rapides (bas du volet)
+    // Actions rapides (bas du volet), sous un filet pleine largeur
+    Rectangle {
+        visible: !!root.entry && !root.compact
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 58
+        width: parent.width
+        height: 1
+        color: FStyle.gridLine
+    }
     Row {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
@@ -217,7 +223,7 @@ Item {
         spacing: 26
         visible: !!root.entry
         Repeater {
-            model: root.entry && Fs.isImage(root.entry) ? [["arrow.uturn.left", "Rotate Left"], ["pencil", "Markup"], ["ellipsis.circle", "More…"]]
+            model: root.entry && Fs.isImage(root.entry) ? [["rotate.left", "Rotate Left"], ["pencil.tip.crop.circle", "Markup"], ["ellipsis.circle", "More…"]]
                                                         : [["ellipsis.circle", "More…"]]
             Column {
                 required property var modelData

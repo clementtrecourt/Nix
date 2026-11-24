@@ -195,7 +195,8 @@ Scope {
                 font.family: Theme.fontDisplay
                 font.pixelSize: 24
                 font.weight: Font.Bold
-                color: Theme.label
+                // Gris très foncé (#1D1D1F mesuré sur About This Mac), pas noir
+                color: Theme.dark ? "#F5F5F7" : "#1D1D1F"
             }
             Text {
                 id: sub

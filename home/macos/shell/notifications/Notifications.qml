@@ -6,13 +6,14 @@ import qs.services
 // Composant "notifications" du shell macOS Tahoe :
 //  - serveur de notifications freedesktop (NotifStore, singleton) ;
 //  - bannières en haut à droite (Banners) ;
-//  - Centre de notifications + widgets (NotificationCenter) ;
+//  - Centre de notifications + widgets (NotificationCenter, WidgetGallery) ;
 //  - vignette flottante et barre d'outils de capture d'écran (Screenshot*).
 Scope {
     id: root
 
     Banners {}
     NotificationCenter {}
+    WidgetGallery {}
     ScreenshotThumb {}
     ScreenshotToolbar {}
 

@@ -34,6 +34,12 @@ Item {
         loading = true;
         proc.running = false;
         if (path === "recents://") proc.command = ["sh", "-c", root._recentsScript, "sh", root._fmt];
+        else if (path.startsWith("search://")) {
+            // Recherche récursive : search://["racine","texte"] (fichiers cachés exclus)
+            const a = JSON.parse(path.slice(9));
+            const pat = "*" + a[1].replace(/([*?\[\]\\])/g, "\\$1") + "*";
+            proc.command = ["sh", "-c", 'find "$2" -mindepth 1 \\( -name ".*" -prune \\) -o \\( -iname "$3" -printf "$1" \\) 2>/dev/null | head -z -n 500; exit 0', "sh", root._fmt, a[0], pat];
+        }
         else if (path === "trash://") proc.command = ["sh", "-c", 'd="$2/files"; [ -d "$d" ] || exit 0; find "$d" -mindepth 1 -maxdepth 1 -printf "$1"', "sh", root._fmt, Fs.trashDir];
         else if (path.startsWith("tag://")) {
             const tag = path.slice(6);

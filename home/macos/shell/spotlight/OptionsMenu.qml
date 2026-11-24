@@ -1,25 +1,43 @@
 import QtQuick
 import qs.common
 
-// Menu du bouton « ⋯ » (More) de la vue Applications (Tahoe) : « Grid » /
-// « List » (Apple Support mh35840 : « Click the More button, then choose Grid
-// or List »). Plaque de verre façon menu AppKit : lignes de 24 pt, colonne de
-// coche, surbrillance accent arrondie en retrait de 5 pt.
+// Menu du bouton « ⋯ » (More) de Spotlight (Tahoe). Applications / Fichiers :
+// titre grisé « View content as », puis « Grid » / « List » (MacRumors
+// « apps-app-macos », MacMagazine « lista » ; Apple Support : « Click the More
+// button, then choose Grid or List »). Presse-papiers : « Clear History »
+// (Apple Support mchl40d5b86b). « Show iPhone Apps » est omis : pas de recopie
+// d'iPhone ici.
+// Plaque de verre façon menu AppKit : lignes de 24 pt, colonne de coche,
+// surbrillance accent arrondie en retrait de 5 pt, largeur ajustée au texte.
+//
+// Entrées : { title } (titre de section), { separator: true },
+// { text, checked, id } (élément).
 Item {
     id: root
 
     property bool open: false
-    property bool asList: false
+    property var entries: []
     property int highlighted: -1
 
-    signal picked(bool asList)
+    signal picked(string id)
 
-    readonly property var entries: [
-        { text: "Grid", list: false },
-        { text: "List", list: true }
-    ]
+    // Largeur : texte le plus long + colonne de coche (26) + marge droite
+    width: Math.max(130, Math.ceil(widest) + 26 + 24)
+    property real widest: 0
+    function measure() {
+        let w = 0;
+        for (const e of entries) {
+            if (e.separator) continue;
+            metrics.font.pixelSize = e.title ? 11 : 13;
+            metrics.font.weight = e.title ? Font.DemiBold : Font.Normal;
+            metrics.text = e.title ?? e.text;
+            w = Math.max(w, metrics.advanceWidth);
+        }
+        widest = w;
+    }
+    onEntriesChanged: measure()
+    TextMetrics { id: metrics; font.family: Theme.font }
 
-    width: 150
     height: col.implicitHeight + 10
     visible: opacity > 0
     opacity: open ? 1 : 0
@@ -53,9 +71,19 @@ Item {
                 required property var modelData
                 required property int index
                 readonly property bool isTitle: !!modelData.title
-                readonly property bool lit: !isTitle && (root.highlighted === index || mouse.containsMouse)
+                readonly property bool isSep: !!modelData.separator
+                readonly property bool lit: !isTitle && !isSep && (root.highlighted === index || mouse.containsMouse)
                 width: col.width
-                height: 24
+                // Séparateur : 11 pt, trait en retrait (menus AppKit)
+                height: isSep ? 11 : 24
+                Rectangle {
+                    visible: row.isSep
+                    x: 9
+                    width: parent.width - 18
+                    y: 5
+                    height: 1
+                    color: Theme.separator
+                }
                 Rectangle {
                     anchors.fill: parent
                     radius: Theme.radiusMenuItem - 2
@@ -65,26 +93,28 @@ Item {
                 Symbol {
                     x: 9
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: !row.isTitle && root.asList === row.modelData.list
+                    visible: !row.isTitle && !row.isSep && !!row.modelData.checked
                     name: "checkmark"
                     size: 11
                     color: row.lit ? Theme.menuHighlightText : Theme.label
                 }
+                // Titre de section : 11 pt demi-gras grisé (« View content as »)
                 Text {
                     x: 26
+                    visible: !row.isSep
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.modelData.text
+                    text: row.modelData.title ?? row.modelData.text ?? ""
                     font.family: Theme.font
-                    font.pixelSize: row.isTitle ? 12 : 13
+                    font.pixelSize: row.isTitle ? 11 : 13
                     font.weight: row.isTitle ? Font.DemiBold : Font.Normal
-                    color: row.lit ? Theme.menuHighlightText : (row.isTitle ? Theme.labelSecondary : Theme.label)
+                    color: row.lit ? Theme.menuHighlightText : (row.isTitle ? (Theme.dark ? Qt.rgba(1, 1, 1, 0.40) : Qt.rgba(0, 0, 0, 0.38)) : Theme.label)
                 }
                 MouseArea {
                     id: mouse
                     anchors.fill: parent
-                    hoverEnabled: !row.isTitle
-                    enabled: !row.isTitle
-                    onClicked: root.picked(row.modelData.list)
+                    hoverEnabled: !row.isTitle && !row.isSep
+                    enabled: !row.isTitle && !row.isSep
+                    onClicked: root.picked(row.modelData.id)
                 }
             }
         }

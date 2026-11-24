@@ -31,12 +31,14 @@ Scope {
 
     // ---- Réglages (settings.json, clés "dock.*") ----
     property int tileSize: 48          // « Taille » des Réglages Dock (pt) = toile de l'icône
-    property bool magnification: true
+    // Tahoe, installation neuve : « Magnification » désactivé (Desktop & Dock)
+    property bool magnification: false
     property real largeSize: Math.round(tileSize * 1.6)
     property bool autohide: false
     property bool minimizeGenie: true   // effet génie (sinon : échelle)
 
     FileView {
+        id: settingsFile
         path: Quickshell.shellPath("settings.json")
         watchChanges: true
         printErrors: false
@@ -74,6 +76,25 @@ Scope {
     function setAutohide(on) { root.autohide = on; dockModel.setPref("autohide", on); }
     function setMagnification(on) { root.magnification = on; dockModel.setPref("magnification", on); }
     function setShowRecents(on) { dockModel.showRecents = on; dockModel.setPref("showRecents", on); }
+    // Réglages « dock.* » de settings.json (lus aussi par System Settings) :
+    // fusion dans le fichier existant
+    function writeSetting(k, v) {
+        let o = {};
+        try { o = JSON.parse(settingsFile.text() || "{}"); } catch (e) { o = {}; }
+        o["dock." + k] = v;
+        settingsFile.setText(JSON.stringify(o, null, 2));
+    }
+    function setMinimizeEffect(v) { root.minimizeGenie = v === "genie"; writeSetting("minimizeEffect", v); }
+    // Taille (glisser vertical sur le séparateur) : appliquée tout de suite,
+    // écrite à la fin du glisser
+    function setTileSize(v, persist) {
+        root.tileSize = v;
+        if (persist) writeSetting("tileSize", v);
+    }
+    // System Settings > Desktop & Dock (IPC « settings » de cette instance)
+    function openDockSettings() {
+        Quickshell.execDetached(["quickshell", "ipc", "--pid", String(Quickshell.processId), "call", "settings", "open", "desktop-dock"]);
+    }
     DockIcons { id: iconResolver; maxPixels: dockArea.iconPixels }
 
     // Écran focalisé (macOS : écran principal / celui où se trouve le pointeur)
@@ -111,29 +132,9 @@ Scope {
             want: true
         }
 
-        // Mission Control / App Exposé : sur macOS le Dock reste visible par-dessus.
-        // Dans une même couche, Hyprland empile les surfaces dans l'ordre où elles
-        // sont mappées : Mission Control (mappé à l'ouverture) passerait au-dessus.
-        // On re-mappe donc le Dock juste après son ouverture.
-        property bool remapping: false
-        visible: !remapping
-        Connections {
-            target: ShellState
-            function onOpenPanelChanged() {
-                if (ShellState.openPanel === "missioncontrol" || ShellState.openPanel === "appexpose")
-                    remapTimer.restart();
-            }
-        }
-        Timer {
-            id: remapTimer
-            interval: 40          // Mission Control est mappé dans l'intervalle
-            onTriggered: { win.remapping = true; remapBack.restart(); }
-        }
-        Timer {
-            id: remapBack
-            interval: 16          // une image : laisse le compositeur démapper
-            onTriggered: win.remapping = false
-        }
+        // Mission Control / App Exposé : la surface de Mission Control est créée
+        // avant le Dock (ordre dans shell.qml) et reste mappée : le Dock, mappé
+        // après elle sur la même couche, reste naturellement au-dessus.
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
         anchors { left: true; right: true; bottom: true }
@@ -153,6 +154,21 @@ Scope {
             readonly property bool trashFull: root.trashFull
             readonly property bool stackOpen: stack.open
 
+            // ---- Téléchargements : contenu et réglages de la pile (menu de la tuile) ----
+            //   stackSort    : name | dateAdded (défaut) | dateModified | dateCreated | kind
+            //   stackDisplay : stack (défaut, icône = derniers éléments empilés) | folder
+            //   stackView    : fan | grid | list | auto (défaut)
+            readonly property var downloads: downloadsFolder
+            readonly property string stackSort: dockModel.prefs.stackSort ?? "dateAdded"
+            readonly property string stackDisplay: dockModel.prefs.stackDisplay ?? "stack"
+            readonly property string stackView: dockModel.prefs.stackView ?? "auto"
+            DockFolder {
+                id: downloadsFolder
+                folder: dockModel.downloadsDir
+                sortBy: dockArea.stackSort
+                watching: dockArea.stackDisplay === "stack" || stack.open
+            }
+
             // ---- Géométrie ----
             // Le Dock rétrécit ses tuiles s'il ne tient plus dans la largeur de l'écran.
             readonly property real fitScale: {
@@ -165,7 +181,9 @@ Scope {
             }
             // Toile de l'icône (pt) et pas entre deux icônes
             readonly property real canvas: Math.floor(root.tileSize * fitScale)
-            readonly property real tile: canvas * 1.10
+            // Pas ≈ 1,10 toile, arrondi pour que (pas - toile) soit pair : la toile, la
+            // plaque et le point tombent alors sur des pixels entiers (écran 1x).
+            readonly property real tile: canvas + 2 * Math.round(canvas * 0.05)
             readonly property int padV: Math.round(canvas * 0.21)
             // Du bord de la plaque au bord de la première fente (la toile y est centrée)
             readonly property real padH: padV - (tile - canvas) / 2
@@ -188,8 +206,29 @@ Scope {
             // l'icône puisse suivre le pointeur hors du Dock.
             readonly property int windowH: (dragKey !== "" || poof.running) ? (win.screen?.height ?? restH) : restH
 
-            // Masquage automatique : décalage vertical de tout le Dock
-            property bool revealed: !root.autohide || hovering || menu.open || stack.open || dockModel.bouncing
+            // Réglages et actions pour les menus (séparateur)
+            readonly property bool autohide: root.autohide
+            readonly property bool magnification: root.magnification
+            readonly property bool minimizeGenie: root.minimizeGenie
+            function setAutohide(on) { root.setAutohide(on); }
+            function setMagnification(on) { root.setMagnification(on); }
+            function setMinimizeEffect(v) { root.setMinimizeEffect(v); }
+            function openDockSettings() { root.openDockSettings(); }
+
+            // Masquage automatique : décalage vertical de tout le Dock. Le pointeur
+            // doit rester un instant au bord de l'écran avant que le Dock ne
+            // réapparaisse (autohide-delay de macOS : 0,5 s par défaut).
+            property bool revealHeld: false
+            Timer {
+                id: revealTimer
+                interval: 500
+                onTriggered: dockArea.revealHeld = true
+            }
+            onHoveringChanged: {
+                if (hovering) { if (!revealHeld) revealTimer.restart(); }
+                else { revealTimer.stop(); revealHeld = false; }
+            }
+            property bool revealed: !root.autohide || revealHeld || menu.open || stack.open || dockModel.bouncing
             property real hideOffset: revealed ? 0 : platterH + bottomGap + 12
             Behavior on hideOffset {
                 NumberAnimation { duration: 380; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveEmphasized }
@@ -245,7 +284,8 @@ Scope {
                     tiles.push({ it: it, w: w });
                     W0 += w;
                 }
-                const B0 = (width - W0) / 2;
+                // Au repos, la rangée commence sur un pixel entier (icônes nettes en 1x)
+                const B0 = Math.round((width - W0) / 2);
                 const h = hoverAmount;
                 const M = maxScale;
                 const R = tile * 3;
@@ -265,18 +305,23 @@ Scope {
                 }
                 if (t < 0) magPos = t;
                 else if (t > W0) magPos = total + (t - W0);
-                const L = h > 0 ? mouseX - magPos : B0;
+                // Sans agrandissement, la rangée ne bouge pas : positions entières
+                const magnifying = h > 0 && M > 1;
+                const L = magnifying ? mouseX - magPos : B0;
                 let x = L, hov = -1;
                 for (let i = 0; i < tiles.length; i++) {
                     const e = tiles[i];
-                    e.it.px = x;
+                    e.it.px = magnifying ? x : Math.round(x);
                     e.it.pw = e.m;
                     e.it.ps = e.s;
                     if (hovering && mouseX >= x && mouseX < x + e.m) hov = e.it.index;
                     x += e.m;
                 }
-                platterX = L - padH;
-                platterW = total + 2 * padH;
+                // Bords de la plaque sur des pixels entiers (liserés nets)
+                const pl = magnifying ? L - padH : Math.round(L - padH);
+                const pr = magnifying ? L + total + padH : Math.round(L + total + padH);
+                platterX = pl;
+                platterW = pr - pl;
                 hoveredIndex = hov;
                 magnifiedTop = baseY - canvas * maxS;
             }
@@ -398,13 +443,27 @@ Scope {
                 return i >= 0 ? rep.itemAt(i) : null;
             }
 
+            // ---- Séparateur : glisser vertical = taille du Dock (curseur double flèche) ----
+            readonly property bool overSeparator: { const t = tileAt(hoveredIndex); return !!t && t.isSeparator; }
+            property bool resizing: false
+            property real resizeFrom: 0
+            property int resizeStart: 48
+
             MouseArea {
                 id: mouse
                 anchors.fill: parent
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 pressAndHoldInterval: 600
+                cursorShape: (dockArea.resizing || (dockArea.overSeparator && dockArea.dragKey === "")) ? Qt.SizeVerCursor : Qt.ArrowCursor
                 onPositionChanged: (m) => {
+                    if (dockArea.resizing) {
+                        // Distance au bas de l'écran : stable même si la surface change de hauteur
+                        const d = (dockArea.height - m.y) - dockArea.resizeFrom;
+                        const v = Math.max(16, Math.min(128, Math.round(dockArea.resizeStart + d)));
+                        if (v !== root.tileSize) root.setTileSize(v, false);
+                        return;
+                    }
                     if (dockArea.dragKey !== "") { dockArea.dragMove(m.x, m.y); return; }
                     dockArea.mouseX = m.x;
                     if (pressed && dockArea.pressTile && (Math.abs(m.x - dockArea.pressX) > 6 || Math.abs(m.y - dockArea.pressY) > 6)) {
@@ -421,6 +480,13 @@ Scope {
                 onPressed: (m) => {
                     dockArea.suppressClick = false;
                     if (m.button !== Qt.LeftButton) return;
+                    if (dockArea.overSeparator) {
+                        dockArea.resizing = true;
+                        dockArea.resizeFrom = dockArea.height - m.y;
+                        dockArea.resizeStart = root.tileSize;
+                        dockArea.suppressClick = true;
+                        return;
+                    }
                     dockArea.pressedIndex = dockArea.hoveredIndex;
                     const t = dockArea.tileAt(dockArea.hoveredIndex);
                     dockArea.pressTile = (t && t.kind === "app") ? t : null;
@@ -428,11 +494,13 @@ Scope {
                     dockArea.pressY = m.y;
                 }
                 onReleased: {
+                    if (dockArea.resizing) { dockArea.resizing = false; root.setTileSize(root.tileSize, true); }
                     dockArea.pressedIndex = -1;
                     dockArea.pressTile = null;
                     if (dockArea.dragKey !== "") dockArea.endDrag();
                 }
                 onCanceled: {
+                    if (dockArea.resizing) { dockArea.resizing = false; root.setTileSize(root.tileSize, true); }
                     dockArea.pressedIndex = -1;
                     dockArea.pressTile = null;
                     if (dockArea.dragKey !== "") dockArea.endDrag();
@@ -440,18 +508,20 @@ Scope {
                 onClicked: (m) => {
                     if (dockArea.suppressClick) return;
                     const t = dockArea.tileAt(dockArea.hoveredIndex);
-                    if (!t || t.isSeparator) return;
-                    if (m.button === Qt.RightButton) menu.openFor(t);
-                    else dockArea.activateTile(t);
+                    if (!t) return;
+                    const alt = !!(m.modifiers & Qt.AltModifier);
+                    // Séparateur : clic droit (ou Ctrl+clic) = menu des réglages du Dock
+                    if (m.button === Qt.RightButton || (m.modifiers & Qt.ControlModifier)) menu.openFor(t, alt);
+                    else if (!t.isSeparator) dockArea.activateTile(t);
                 }
                 onPressAndHold: (m) => {
                     // Appui long = menu contextuel, comme macOS
-                    if (dockArea.dragKey !== "") return;
+                    if (dockArea.dragKey !== "" || dockArea.resizing) return;
                     const t = dockArea.tileAt(dockArea.hoveredIndex);
                     dockArea.pressedIndex = -1;
                     dockArea.pressTile = null;
                     dockArea.suppressClick = true;
-                    if (t && !t.isSeparator) menu.openFor(t);
+                    if (t && !t.isSeparator) menu.openFor(t, !!(m.modifiers & Qt.AltModifier));
                 }
             }
 
@@ -506,7 +576,7 @@ Scope {
                 id: bubble
                 readonly property var t: dockArea.tileAt(dockArea.hoveredIndex)
                 instant: menu.open || stack.open
-                shown: dockArea.hovering && !menu.open && !stack.open && t !== null && !t.isSeparator && dockArea.pressedIndex < 0 && dockArea.dragKey === ""
+                shown: dockArea.hovering && dockArea.revealed && !menu.open && !stack.open && t !== null && !t.isSeparator && dockArea.pressedIndex < 0 && dockArea.dragKey === ""
                 text: t ? t.label : ""
                 tipX: t ? t.x + t.width / 2 : 0
                 tipY: t ? Math.min(dockArea.platterTop, t.vTop) - 10 : 0
@@ -563,24 +633,43 @@ Scope {
         function setShowRecents(on: bool): void { root.setShowRecents(on); }
     }
 
+    Timer {
+        id: traceTimer
+        property var tile: null
+        property var samples: []
+        interval: 80; repeat: true
+        onTriggered: { samples.push(Math.round(tile ? tile.bounce : -1)); if (samples.length >= 20) stop(); }
+    }
     // Débogage (banc de test : pas de clic souris possible dans l'instance imbriquée)
     IpcHandler {
         target: "dock-debug"
         function hover(x: real): void { dockArea.hovering = true; dockArea.mouseX = x; }
         function unhover(): void { dockArea.hovering = Qt.binding(() => mouse.containsMouse); }
         function click(i: int): void { const t = dockArea.tileAt(i); if (t) dockArea.activateTile(t); }
-        function menuFor(i: int): void { const t = dockArea.tileAt(i); if (t) menu.debugOpen(t); }
+        function menuFor(i: int): void { const t = dockArea.tileAt(i); if (t) menu.debugOpen(t, false); }
+        function menuAlt(i: int): void { const t = dockArea.tileAt(i); if (t) menu.debugOpen(t, true); }
+        function size(v: int): void { root.setTileSize(v, false); }
+        function prefs(): string { return JSON.stringify(dockModel.prefs) + " assign=" + JSON.stringify(dockModel.assign); }
         function closeMenu(): void { menu.close(); stack.close(); }
         function pinned(list: string): void { dockModel.pinned = list === "none" ? [] : list.split("|"); }
         function resetPinned(): void { dockModel.userPinned = false; dockModel.applyDefaults(); dockModel.saveState(false); }
         function dark(on: bool): void { Theme.dark = on; }
         function stackFor(i: int, dir: string): void { const t = dockArea.tileAt(i); if (t) { if (dir) stack.folder = dir; stack.grab = false; stack.toggleFor(t); } }
         function stackInfo(): string { return stack.debugInfo(); }
+        function stackNavigate(i: int): void { stack.debugNavigate(i); }
+        function stackBack(): void { stack.back(); }
         function menuHover(row: int): void { menu.debugHover(row); }
         function menuTrigger(row: int): void { menu.debugTrigger(row); }
         function launch(id: string): void { dockModel.launch(id); }
         function bounce(id: string): void { dockModel.markLaunching(id); }
         function stopBounce(id: string): void { dockModel.endLaunching(id); }
+        function attention(cls: string): void { const a = {}; a[cls] = Date.now(); dockModel.attention = a; }
+        // Rebond d'attention échantillonné toutes les 80 ms (les appels IPC sont trop lents)
+        function attentionTrace(cls: string, i: int): void {
+            attention(cls);
+            traceTimer.tile = dockArea.tileAt(i); traceTimer.samples = []; traceTimer.restart();
+        }
+        function trace(): string { return JSON.stringify(traceTimer.samples) + " bouncing=" + dockModel.bouncing; }
         function press(i: int): void { dockArea.pressedIndex = i; }
         function release(): void { dockArea.pressedIndex = -1; }
         function dragStart(i: int): void { dockArea.startDrag(dockArea.tileAt(i)); }

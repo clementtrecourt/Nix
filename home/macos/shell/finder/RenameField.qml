@@ -14,9 +14,14 @@ Rectangle {
     // Largeur maximale (présentation Icônes : le champ s'élargit avec le texte)
     property real maxWidth: 400
 
-    readonly property real textWidth: Math.min(maxWidth - 8, Math.max(40, input.contentWidth + 10))
+    // Largeur mesurée sur le texte (FontMetrics) et non sur contentWidth : en
+    // retour à la ligne, contentWidth dépend de la largeur (boucle de liaison
+    // qui écrasait le champ à 40 px, « READM / E.md »). Le nom tient sur une
+    // ligne jusqu'à maxWidth, puis passe à la ligne aux mots.
+    readonly property real textWidth: Math.ceil(Math.min(maxWidth - 8, Math.max(40, fm.advanceWidth(input.text) + 6)))
     implicitWidth: textWidth + 8
     implicitHeight: input.contentHeight + 4
+    FontMetrics { id: fm; font: input.font }
     color: FStyle.contentBg
     radius: 3
     border.width: 1
@@ -39,7 +44,7 @@ Rectangle {
         id: input
         x: 4
         y: 2
-        width: root.width - 8
+        width: root.textWidth
         text: root.entry.name
         font.family: Theme.font
         font.pixelSize: root.fontSize
@@ -47,7 +52,7 @@ Rectangle {
         selectionColor: Theme.dark ? Qt.rgba(0.25, 0.45, 0.8, 1) : Qt.rgba(0.70, 0.83, 1, 1)
         selectedTextColor: Theme.label
         horizontalAlignment: root.centered ? TextInput.AlignHCenter : TextInput.AlignLeft
-        wrapMode: root.centered ? TextInput.WrapAnywhere : TextInput.NoWrap
+        wrapMode: root.centered ? TextInput.WrapAtWordBoundaryOrAnywhere : TextInput.NoWrap
         clip: !root.centered
         selectByMouse: true
         Component.onCompleted: {

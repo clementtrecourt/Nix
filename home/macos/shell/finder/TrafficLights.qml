@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import qs.common
 
 // Feux tricolores de Tahoe (fermer / réduire / plein écran) : pastilles de
@@ -16,8 +17,9 @@ Row {
     spacing: FStyle.lightGap
 
     readonly property bool groupHovered: closeBtn.hovered || minBtn.hovered || zoomBtn.hovered
-    readonly property color off: Theme.dark ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0, 0, 0, 0.13)
-    readonly property color offStroke: Theme.dark ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.06)
+    // Couleurs canoniques de Tahoe (common/Theme : mêmes feux que toutes les fenêtres)
+    readonly property color off: Theme.trafficInactive
+    readonly property color offStroke: Theme.trafficInactiveRing
 
     component Light: Rectangle {
         id: light
@@ -31,7 +33,7 @@ Row {
         radius: root.size / 2
         readonly property bool lit: root.active || root.groupHovered
         color: lit ? fill : root.off
-        border.width: 0.5
+        border.width: Theme.trafficRingWidth
         border.color: lit ? stroke : root.offStroke
         Rectangle {
             anchors.fill: parent
@@ -54,52 +56,66 @@ Row {
 
     Light {
         id: closeBtn
-        fill: "#FF5F57"
-        stroke: "#E2463F"
+        fill: Theme.trafficRed
+        stroke: Theme.trafficRedRing
         onClicked: root.closeClicked()
-        Canvas {
-            anchors.fill: parent
-            onPaint: {
-                const c = getContext("2d");
-                const s = width;
-                c.reset();
-                c.strokeStyle = "rgba(77,0,0,0.85)";
-                c.lineWidth = 1.3;
-                c.lineCap = "round";
-                c.beginPath();
-                c.moveTo(s * 0.32, s * 0.32); c.lineTo(s * 0.68, s * 0.68);
-                c.moveTo(s * 0.68, s * 0.32); c.lineTo(s * 0.32, s * 0.68);
-                c.stroke();
+        // × fin et net en 1x : deux traits de 1,2 px tournés (lissés par Qt)
+        Repeater {
+            model: [45, -45]
+            Rectangle {
+                required property real modelData
+                anchors.centerIn: parent
+                width: root.size * 0.5
+                height: 1.25
+                radius: 0.6
+                rotation: modelData
+                antialiasing: true
+                color: Qt.rgba(0.30, 0, 0, 0.88)
             }
         }
     }
     Light {
         id: minBtn
-        fill: "#FEBC2E"
-        stroke: "#E1A116"
+        fill: Theme.trafficYellow
+        stroke: Theme.trafficYellowRing
         onClicked: root.minimizeClicked()
         Rectangle {
-            anchors.centerIn: parent
-            width: parent.width * 0.52
-            height: 1.4
+            // Sur une rangée de pixels entière (net en 1x)
+            x: Math.round((parent.width - width) / 2)
+            y: Math.floor(parent.height / 2) - 1
+            width: Math.round(parent.width * 0.52)
+            height: 1.2
             radius: 0.7
             color: Qt.rgba(0.6, 0.34, 0, 0.9)
         }
     }
     Light {
         id: zoomBtn
-        fill: "#28C840"
-        stroke: "#14AE2B"
+        fill: Theme.trafficGreen
+        stroke: Theme.trafficGreenRing
         onClicked: root.zoomClicked()
-        Canvas {
+        // Flèches du plein écran : deux petits triangles opposés (tracé
+        // vectoriel lissé, net en 1x)
+        Shape {
+            id: zs
             anchors.fill: parent
-            onPaint: {
-                const c = getContext("2d");
-                const s = width;
-                c.reset();
-                c.fillStyle = "rgba(0,80,0,0.85)";
-                c.beginPath(); c.moveTo(s * 0.29, s * 0.29); c.lineTo(s * 0.62, s * 0.29); c.lineTo(s * 0.29, s * 0.62); c.closePath(); c.fill();
-                c.beginPath(); c.moveTo(s * 0.71, s * 0.71); c.lineTo(s * 0.38, s * 0.71); c.lineTo(s * 0.71, s * 0.38); c.closePath(); c.fill();
+            preferredRendererType: Shape.CurveRenderer
+            readonly property real k: root.size / 14
+            ShapePath {
+                strokeWidth: -1
+                fillColor: Qt.rgba(0, 0.30, 0, 0.88)
+                startX: 4.3 * zs.k; startY: 4.3 * zs.k
+                PathLine { x: 8.1 * zs.k; y: 4.3 * zs.k }
+                PathLine { x: 4.3 * zs.k; y: 8.1 * zs.k }
+                PathLine { x: 4.3 * zs.k; y: 4.3 * zs.k }
+            }
+            ShapePath {
+                strokeWidth: -1
+                fillColor: Qt.rgba(0, 0.30, 0, 0.88)
+                startX: 9.7 * zs.k; startY: 9.7 * zs.k
+                PathLine { x: 5.9 * zs.k; y: 9.7 * zs.k }
+                PathLine { x: 9.7 * zs.k; y: 5.9 * zs.k }
+                PathLine { x: 9.7 * zs.k; y: 9.7 * zs.k }
             }
         }
     }

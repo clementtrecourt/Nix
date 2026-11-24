@@ -7,8 +7,8 @@
 # (Hyprland.dispatch), le shell (services/Windows.qml) et les boutons hyprbars
 # envoient des dispatchers classiques. À migrer quand Quickshell suivra.
 #
-# Le bloc « look » (entre les marqueurs) est recopié tel quel dans
-# home/macos/dev/hyprland-dev.conf pour que le banc de test imbriqué soit fidèle.
+# Le bloc « look » vit dans hyprland-look.nix : même source pour la prod et pour le
+# banc de test imbriqué (dev/nested.sh), qui reste ainsi fidèle.
 {
   config,
   lib,
@@ -22,338 +22,13 @@
   shot = "${macosPkgs.macos-screenshot}/bin/macos-screenshot";
   appearance = "${macosPkgs.macos-appearance}/bin/macos-appearance";
   qs = "${pkgs.quickshell}/bin/quickshell -c macos ipc call";
-  # Apps à décorations client sans identifiant « reverse-DNS » (navigateurs, Electron,
-  # GTK à barre d'en-tête…) : pas de barre hyprbars, coins « barre d'outils » de Tahoe
-  csdApps = lib.concatStringsSep "|" [
-    # Sélecteur de fichiers / dialogues du portail GTK (barre d'en-tête GTK propre)
-    "xdg-desktop-portal-gtk"
-    "zen.*"
-    "firefox.*"
-    "librewolf"
-    "brave-browser.*"
-    "chromium.*"
-    "google-chrome.*"
-    "helium.*"
-    "zed"
-    "Zed"
-    "code"
-    "Code"
-    "code-oss"
-    "cursor"
-    "obsidian"
-    "discord"
-    "vesktop"
-    "teams-for-linux"
-    "steam"
-    "spotify"
-    "Spotify"
-    "motrix.*"
-    "WaveFlow"
-    "waveflow"
-    "gtk3-.*"
-    "gtk4-.*"
-    "gnome-.*"
-    "nautilus"
-    "file-roller"
-    "evince"
-    "eog"
-    "totem"
-    "baobab"
-    "seahorse"
-    "pavucontrol"
-    "nwg-look"
-    "blueman-manager"
-    "easyeffects"
-    "heroic"
-    "freetube"
-    "FreeTube"
-  ];
-  # Apps à identifiant « reverse-DNS » qui ne dessinent PAS leurs décorations :
-  # GTK3 sans barre d'en-tête, Qt (QT_WAYLAND_DISABLE_WINDOWDECORATION=1)… -> barre hyprbars
-  ssdApps = lib.concatStringsSep "|" [
-    "org\\.kde\\..*"
-    "org\\.qt-project\\..*"
-    "io\\.mpv\\.Mpv"
-    "org\\.pwmt\\.zathura"
-    "org\\.qbittorrent\\..*"
-    "org\\.keepassxc\\..*"
-    "com\\.obsproject\\..*"
-    "org\\.prismlauncher\\..*"
-    "org\\.strawberrymusicplayer\\..*"
-    "org\\.musicbrainz\\..*"
-    "org\\.inkscape\\..*"
-    "org\\.gimp\\..*"
-    "org\\.shotcut\\..*"
-    "org\\.audacityteam\\..*"
-    "org\\.kicad\\..*"
-    "org\\.wezfurlong\\.wezterm"
-    "org\\.remmina\\..*"
-    "com\\.github\\.xournalpp\\..*"
-    "net\\.sourceforge\\..*"
-    "io\\.github\\.quodlibet\\..*"
-    "org\\.fcitx\\..*"
-    "org\\.flameshot\\..*"
-  ];
   wpctl = "${pkgs.wireplumber}/bin/wpctl";
-  brightnessctl = "${pkgs.brightnessctl}/bin/brightnessctl";
   playerctl = "${pkgs.playerctl}/bin/playerctl";
 
-  # ---------------------------------------------------------------------------
-  # Rendu (partagé avec le banc de test) : uniquement des réglages visuels et
-  # des règles, aucun chemin du store.
-  # ---------------------------------------------------------------------------
-  look = ''
-    # >>> look macOS Tahoe (généré depuis home/macos/hyprland.nix)
-    general {
-      gaps_in = 0
-      gaps_out = 0
-      # Liseré d'un pixel (le « hairline » clair des fenêtres sombres de Tahoe)
-      border_size = 1
-      col.active_border = rgba(ffffff24)
-      col.inactive_border = rgba(ffffff14)
-      # Redimensionnement depuis les bords, comme sur Mac
-      resize_on_border = true
-      extend_border_grab_area = 10
-      hover_icon_on_border = true
-      layout = dwindle
-      # Aimantation des fenêtres entre elles et aux bords (macOS 15+)
-      snap {
-        enabled = true
-        window_gap = 8
-        monitor_gap = 8
-        border_overlap = false
-      }
-    }
-
-    decoration {
-      # Coins « continus » (superellipse) : fenêtres à barre de titre de Tahoe
-      rounding = 16
-      rounding_power = 2.6
-      active_opacity = 1.0
-      inactive_opacity = 1.0
-      dim_inactive = false
-      # Ombre macOS : large et diffuse (~ 0 22 70 pt) sur la fenêtre active, pour
-      # détacher nettement les fenêtres empilées ; plus courte sur les inactives
-      shadow {
-        enabled = true
-        # Ombre Tahoe : douce et diffuse, dense près de la fenêtre et vite
-        # estompée (render_power 3), noir léger ; plus discrète en arrière-plan
-        range = 48
-        render_power = 3
-        offset = 0 14
-        scale = 1.0
-        color = rgba(00000061)
-        color_inactive = rgba(00000033)
-      }
-      # Flou des matériaux (surfaces macos-* du shell)
-      blur {
-        enabled = true
-        size = 12
-        passes = 4
-        noise = 0.02
-        contrast = 1.0
-        brightness = 1.0
-        vibrancy = 0.25
-        vibrancy_darkness = 0.2
-        popups = true
-        new_optimizations = true
-        xray = false
-      }
-    }
-
-    animations {
-      enabled = true
-      # Courbes Apple : ressort amorti critique (ouverture, espaces), sortie rapide
-      bezier = tahoe, 0.22, 1, 0.36, 1
-      bezier = tahoeSpring, 0.25, 1.05, 0.4, 1
-      bezier = tahoeOut, 0.4, 0, 0.9, 0.6
-      bezier = tahoeSpace, 0.2, 0.9, 0.25, 1
-      # Fenêtres : zoom léger + fondu à l'ouverture, fermeture brève
-      animation = windowsIn, 1, 3.2, tahoeSpring, popin 90%
-      animation = windowsOut, 1, 1.8, tahoeOut, popin 94%
-      animation = windowsMove, 1, 3.5, tahoe
-      animation = fadeIn, 1, 2.4, tahoe
-      animation = fadeOut, 1, 1.6, tahoeOut
-      animation = fadeSwitch, 1, 3, tahoe
-      animation = fadeShadow, 1, 3, tahoe
-      animation = fadeDim, 1, 3, tahoe
-      animation = border, 1, 3, tahoe
-      animation = borderangle, 0
-      # Espaces : glissement horizontal plein écran (≈ 0,45 s, ressort)
-      animation = workspaces, 1, 4.5, tahoeSpace, slide
-      animation = specialWorkspace, 1, 3, tahoe, fade
-      # Couches : le shell anime lui-même ses panneaux (QML) ; fondu pour les autres
-      animation = layers, 1, 2.5, tahoe, fade
-      animation = fadeLayers, 1, 2.5, tahoe
-      animation = zoomFactor, 1, 4, tahoe
-    }
-
-    # --- Surfaces du shell (Quickshell, namespaces macos-*) ---------------------
-    layerrule = blur on, match:namespace ^(macos-.*)$
-    layerrule = ignore_alpha 0.05, match:namespace ^(macos-.*)$
-    # Verres Liquid Glass qui réfractent eux-mêmes leur fond (common/GlassBackdrop) :
-    # pas de flou du compositeur (il se verrait en double)
-    layerrule = blur off, match:namespace ^(macos-lg-.*)$
-    layerrule = no_anim on, match:namespace ^(macos-.*)$
-    # Sélecteur de captures (slurp) : pas de fondu, apparition immédiate
-    layerrule = no_anim on, match:namespace ^(selection)$
-
-    # --- Fenêtres : comportement Mac -------------------------------------------
-    # Toutes flottantes et centrées à l'ouverture
-    windowrule = float on, match:class .*
-    windowrule = center on, match:class .*
-    # Grandes apps (navigateurs, éditeurs, Finder) : fenêtre confortable
-    windowrule = size (monitor_w*0.74) (monitor_h*0.8), match:class ^(zen.*|firefox.*|librewolf|brave-browser.*|chromium.*|google-chrome.*|helium.*|dev\.zed\.Zed.*|code|Code|code-oss|cursor|nemo|org\.gnome\.Nautilus|spotify|Spotify)$
-    # Spotify vit dans l'espace spécial « spotify » (Super+S l'affiche / le cache)
-    windowrule = workspace special:spotify silent, match:class ^([Ss]potify)$
-    # Apps à décorations client (GTK4/libadwaita, navigateurs, Electron…) : elles
-    # dessinent déjà leurs boutons -> pas de barre hyprbars, coins Tahoe « barre
-    # d'outils » (~26 pt). Identifiant reverse-DNS = presque toujours GTK4/libadwaita,
-    # sauf la liste ssdApps (GTK3 sans barre d'en-tête, Qt…) qui garde la barre.
-    # (GTK3 sans identifiant reverse-DNS, ex. nemo : décorations serveur -> barre hyprbars)
-    windowrule = hyprbars:no_bar on, match:class ^(.*\..*)$
-    windowrule = hyprbars:no_bar off, match:class ^(${ssdApps})$
-    windowrule = hyprbars:no_bar on, match:class ^(${csdApps})$
-    windowrule = rounding 26, match:class ^(.*\..*|${csdApps})$
-    windowrule = rounding 16, match:class ^(${ssdApps})$
-    # Fenêtre inactive : barre au fond « backdrop » du thème (comme la barre d'outils
-    # GTK juste dessous), titre en tertiaryLabel ; les feux passent au gris (plugin)
-    windowrule = hyprbars:bar_color rgb(242424), match:focus false
-    windowrule = hyprbars:title_color rgba(ffffff4d), match:focus false
-    # Terminal : barre de titre de la couleur du fond, comme Terminal.app
-    windowrule = hyprbars:bar_color rgb(1e1e1e), match:class ^(kitty|foot|footclient|Alacritty)$
-    # Plein écran : ni coins ni ombre ni liseré
-    windowrule = rounding 0, match:fullscreen true
-    windowrule = no_shadow on, match:fullscreen true
-    windowrule = border_size 0, match:fullscreen true
-    # Dialogues GTK/portails : au-dessus de leur parent
-    windowrule = center on, match:modal true
-    # Incrustation vidéo (Picture in Picture) : épinglée en coin, sans barre
-    windowrule = pin on, match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
-    windowrule = hyprbars:no_bar on, match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
-    windowrule = keep_aspect_ratio on, match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
-    windowrule = move (monitor_w-window_w-24) (monitor_h-window_h-96), match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
-    # Finder du shell (shell/finder, fenêtres Quickshell « org.quickshell ») : il
-    # dessine ses feux tricolores dans sa barre latérale -> pas de barre hyprbars,
-    # coins « barre d'outils » de Tahoe ; « Get Info » : petite fenêtre à barre de
-    # titre seule, coins plus serrés
-    windowrule = hyprbars:no_bar on, match:class ^(org\.quickshell)$
-    windowrule = rounding 26, match:class ^(org\.quickshell)$
-    windowrule = rounding 16, match:class ^(org\.quickshell)$, match:title ^(.* Info)$
-
-    # --- Barres de titre Tahoe (plugin hyprbars) --------------------------------
-    plugin {
-      hyprbars {
-        enabled = true
-        # Barre de titre simple de Tahoe : 32 pt, couleur = barre d'en-tête MacTahoe-Dark
-        # (#333333, continue avec la barre de menus / d'outils GTK juste dessous).
-        # Mode clair : couleurs réappliquées par macos-appearance (hyprctl keyword).
-        bar_height = 32
-        bar_color = rgb(333333)
-        col.text = rgba(ffffffd9)
-        bar_title_enabled = true
-        bar_text_font = Inter
-        bar_text_size = 13
-        bar_text_weight = semibold
-        bar_text_align = center
-        bar_part_of_window = true
-        bar_precedence_over_border = true
-        bar_blur = false
-        # Feux tricolores à gauche : Ø 14 pt, 9 pt d'écart, alignés sur l'arrondi
-        bar_buttons_alignment = left
-        bar_padding = 10
-        bar_button_padding = 9
-        # Symboles × − ⤢ visibles au survol du groupe, gris quand la fenêtre est inactive
-        icon_on_hover = true
-        inactive_button_color = rgb(4f4f52)
-        # Double-clic sur la barre : « Zoom » (remplit l'écran hors barre des menus/Dock)
-        on_double_click = hyprctl dispatch fullscreen 1
-        # hyprbars-button = fond, diamètre, symbole, action, couleur du symbole (de gauche à droite)
-        # Jaune : effet « génie » vers le Dock (macos-wm minimize -> global macos:minimize)
-        # Vert : plein écran dans un nouvel espace (macos-wm fullscreen)
-        hyprbars-button = rgb(ff5f57), 14, ×, hyprctl dispatch killactive, rgb(4d0000)
-        hyprbars-button = rgb(febc2e), 14, −, macos-wm minimize, rgb(995700)
-        hyprbars-button = rgb(28c840), 14, ⤢, macos-wm fullscreen, rgb(006500)
-      }
-    }
-
-    # --- Saisie et gestes -------------------------------------------------------
-    input {
-      kb_layout = us_qwerty-fr
-      kb_variant = qwerty-fr
-      repeat_rate = 25
-      repeat_delay = 400
-      numlock_by_default = true
-      # Clic pour donner le focus clavier, défilement sous le pointeur (comme macOS)
-      follow_mouse = 2
-      float_switch_override_focus = 0
-      accel_profile = adaptive
-      touchpad {
-        natural_scroll = true
-        tap-to-click = true
-        tap-and-drag = true
-        drag_lock = false
-        disable_while_typing = true
-        # Clic secondaire à deux doigts, comme sur un MacBook
-        clickfinger_behavior = true
-        scroll_factor = 1.0
-      }
-    }
-
-    gestures {
-      workspace_swipe_distance = 500
-      workspace_swipe_cancel_ratio = 0.3
-      workspace_swipe_min_speed_to_force = 20
-      workspace_swipe_create_new = false
-      workspace_swipe_forever = false
-      workspace_swipe_direction_lock = true
-    }
-    # 3 ou 4 doigts horizontaux : espace voisin ; 4 doigts haut/bas : Mission Control / Exposé
-    gesture = 3, horizontal, workspace
-    gesture = 4, horizontal, workspace
-    gesture = 4, up, dispatcher, global, macos:missioncontrol
-    gesture = 4, down, dispatcher, global, macos:appexpose
-
-    cursor {
-      # macOS masque le pointeur pendant la frappe et ne le déplace jamais tout seul
-      hide_on_key_press = true
-      no_warps = true
-      warp_on_change_workspace = 0
-    }
-
-    binds {
-      workspace_back_and_forth = false
-      allow_workspace_cycles = false
-      hide_special_on_workspace_change = true
-    }
-
-    misc {
-      disable_hyprland_logo = true
-      disable_splash_rendering = true
-      force_default_wallpaper = 0
-      background_color = rgb(000000)
-      font_family = Inter
-      focus_on_activate = true
-      middle_click_paste = false
-      animate_manual_resizes = false
-      animate_mouse_windowdragging = false
-      close_special_on_empty = true
-      enable_swallow = false
-      allow_session_lock_restore = true
-      key_press_enables_dpms = true
-      mouse_move_enables_dpms = true
-    }
-
-    xwayland {
-      force_zero_scaling = true
-    }
-
-    ecosystem {
-      no_update_news = true
-      no_donation_nag = true
-    }
-    # <<< look
-  '';
+  # Rendu (réglages visuels, règles de fenêtres, hyprbars, animations, saisie, gestes) :
+  # source unique partagée avec le banc de test (dev/nested.sh), sans chemin du store
+  look = import ./hyprland-look.nix;
+  settingsConf = "${config.xdg.configHome}/hypr/macos-settings.conf";
 
   # Touches « Cmd » du Mac renvoyées à l'app en Ctrl (Ctrl+Maj dans les terminaux)
   # (A T V P L F R S W , = - et 1…9 sont pris par les raccourcis personnels, cf. bind)
@@ -492,8 +167,22 @@ in {
           "SUPER, S, exec, ${spotifyPad}"
           "SUPER, R, exec, hyprctl reload"
           "SUPER SHIFT CTRL, Q, exit"
-          "SUPER, W, togglefloating"
+          # Pavée <-> flottante (flottante : centrée, taille confortable)
+          "SUPER, W, exec, ${wm} toggle-float"
           "SUPER, F, fullscreen, 0"
+          # ---- Pavage (dwindle) ----
+          # Focus : Super+Alt+flèches ; déplacer / échanger : Super+Alt+Maj+flèches
+          "SUPER ALT, Left, movefocus, l"
+          "SUPER ALT, Right, movefocus, r"
+          "SUPER ALT, Up, movefocus, u"
+          "SUPER ALT, Down, movefocus, d"
+          "SUPER ALT SHIFT, Left, movewindow, l"
+          "SUPER ALT SHIFT, Right, movewindow, r"
+          "SUPER ALT SHIFT, Up, movewindow, u"
+          "SUPER ALT SHIFT, Down, movewindow, d"
+          # Sens de la découpe (horizontal / vertical) et pseudo-pavage
+          "SUPER, J, layoutmsg, togglesplit"
+          "SUPER ALT, P, pseudo"
           # Espaces voisins (occupés / tous) et déplacement de la fenêtre
           "SUPER SHIFT, Up, workspace, e-1"
           "SUPER SHIFT, Down, workspace, e+1"
@@ -550,10 +239,12 @@ in {
       bindel = [
         ", XF86AudioRaiseVolume, exec, ${wpctl} set-volume -l 1 @DEFAULT_AUDIO_SINK@ 6.25%+ && ${qs} osd volume"
         ", XF86AudioLowerVolume, exec, ${wpctl} set-volume @DEFAULT_AUDIO_SINK@ 6.25%- && ${qs} osd volume"
-        ", XF86MonBrightnessUp, exec, ${brightnessctl} -e4 -n2 set 6.25%+ && ${qs} osd brightness"
-        ", XF86MonBrightnessDown, exec, ${brightnessctl} -e4 -n2 set 6.25%- && ${qs} osd brightness"
-        ", XF86KbdBrightnessUp, exec, ${brightnessctl} -d '*::kbd_backlight' set 10%+ && ${qs} osd keyboard"
-        ", XF86KbdBrightnessDown, exec, ${brightnessctl} -d '*::kbd_backlight' set 10%- && ${qs} osd keyboard"
+        # Luminosité : le shell choisit brightnessctl (dalle interne) ou ddcutil
+        # (écrans externes, DDC/CI) et affiche le HUD
+        ", XF86MonBrightnessUp, exec, ${qs} osd brightnessUp"
+        ", XF86MonBrightnessDown, exec, ${qs} osd brightnessDown"
+        ", XF86KbdBrightnessUp, exec, ${qs} osd keyboardUp"
+        ", XF86KbdBrightnessDown, exec, ${qs} osd keyboardDown"
       ];
       bindl = [
         ", XF86AudioMute, exec, ${wpctl} set-mute @DEFAULT_AUDIO_SINK@ toggle && ${qs} osd volume"
@@ -578,8 +269,25 @@ in {
       ", escape, exec, ${pkgs.procps}/bin/pkill -x slurp"
     ];
 
-    extraConfig = look;
+    # Réglages de l'utilisateur écrits par l'app Réglages Système du shell (clavier,
+    # souris, trackpad, écrans) : chargés EN DERNIER pour l'emporter sur ce qui précède.
+    # Fichier non géré par home-manager (cf. activation ci-dessous).
+    extraConfig =
+      look
+      + ''
+
+        source = ${settingsConf}
+      '';
   };
+
+  # Le fichier sourcé doit exister dès le premier démarrage (sinon erreur de config) ;
+  # jamais réécrit : il appartient à l'app Réglages Système
+  home.activation.macosSettingsConf = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    if [ ! -e ${settingsConf} ]; then
+      run mkdir -p "$(dirname ${settingsConf})"
+      run touch ${settingsConf}
+    fi
+  '';
 
   # Presse-papiers : historique cliphist (wl-paste --watch)
   services.cliphist = {
@@ -599,17 +307,10 @@ in {
         after_sleep_cmd = "hyprctl dispatch dpms on";
         inhibit_sleep = 3;
       };
-      listener = [
-        {
-          timeout = 600;
-          on-timeout = "loginctl lock-session";
-        }
-        {
-          timeout = 900;
-          on-timeout = "hyprctl dispatch dpms off";
-          on-resume = "hyprctl dispatch dpms on";
-        }
-      ];
+      # Pas de minuteries ici : les délais (verrouillage 10 min, extinction de
+      # l'écran 15 min par défaut) sont gérés par le shell et réglables dans
+      # System Settings ▸ Lock Screen ; hypridle reste le relais de
+      # « loginctl lock-session » (lock_cmd) et du verrouillage avant la veille.
     };
   };
 }

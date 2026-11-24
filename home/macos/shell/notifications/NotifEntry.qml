@@ -31,6 +31,8 @@ QtObject {
 
     // Bannière actuellement affichée à l'écran
     property bool popup: false
+    // « Show in Notification Center » désactivé pour l'app : absente du Centre
+    property bool centerHidden: false
     // Interne (NotifStore) : mise à jour de remplacement en attente ; bannière à
     // réafficher après un rechargement à chaud
     property bool pendingUpdate: false

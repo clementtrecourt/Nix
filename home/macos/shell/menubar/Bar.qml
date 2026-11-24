@@ -7,12 +7,25 @@ import Quickshell.Widgets
 import Quickshell.Services.SystemTray
 import Quickshell.Services.UPower
 import Quickshell.Networking
+import Quickshell.Services.Mpris
 import qs.common
 import qs.services
+import qs.notifications
+import qs.controlcenter as CC
 
 // Barre de menus Tahoe d'un écran : transparente, libellés blancs (ou noirs sur
 // fond clair) avec un léger halo. À gauche : logo, app en gras, menus ; à
 // droite : barre d'état, batterie, Wi-Fi, Spotlight, Control Center, horloge.
+//
+// Réglages de System Settings > Menu Bar (services/SystemPrefs.qml, en direct) :
+//  - « Automatically hide and show the menu bar » : Always / On Desktop Only /
+//    In Full Screen Only (défaut) / Never ; masquée, la barre réapparaît au
+//    survol du bord haut, par-dessus les fenêtres, avec un fond opaque ;
+//  - « Show menu bar background » : fond translucide flouté ;
+//  - Menu Bar Controls : chaque contrôle « Always Show in Menu Bar », « Show
+//    When Active » (Bluetooth connecté, Focus actif, HUD volume / luminosité,
+//    lecture en cours, recopie d'écran) ou masqué ;
+//  - Date & Time > « 24-hour time » : horloge « 21:41 ».
 PanelWindow {
     id: bar
 
@@ -37,8 +50,18 @@ PanelWindow {
             if ((t.lastIpcObject?.fullscreen ?? 0) === 2) return true;
         return false;
     }
+    // Masquage automatique (System Settings > Menu Bar), selon l'espace affiché
+    readonly property string autohideMode: SystemPrefs.menuBarAutohide
+    readonly property bool autoHide: autohideMode === "always"
+        || (autohideMode === "desktop" && !fullscreen)
+        || (autohideMode === "fullscreen" && fullscreen)
+    // La barre passe au-dessus des fenêtres (masquage automatique, ou plein
+    // écran avec « Never ») : fond opaque, texte aux couleurs de l'apparence
+    readonly property bool overApp: autoHide || fullscreen
+    // « Show menu bar background » : fond translucide (hors barre au-dessus des fenêtres)
+    readonly property bool tinted: SystemPrefs.menuBarBackground && !overApp
     property bool revealed: false
-    readonly property bool shown: !fullscreen || revealed || menuHere
+    readonly property bool shown: !autoHide || revealed || menuHere
 
     // Hyprland ne renvoie pas toujours l'état plein écran à jour : on rafraîchit
     Connections {
@@ -74,13 +97,13 @@ PanelWindow {
         left: true
         right: true
     }
-    exclusionMode: fullscreen ? ExclusionMode.Ignore : ExclusionMode.Normal
-    exclusiveZone: fullscreen ? 0 : Theme.menuBarHeight
-    WlrLayershell.layer: fullscreen ? WlrLayer.Overlay : WlrLayer.Top
+    exclusionMode: autoHide || fullscreen ? ExclusionMode.Ignore : ExclusionMode.Normal
+    exclusiveZone: autoHide || fullscreen ? 0 : Theme.menuBarHeight
+    WlrLayershell.layer: overApp ? WlrLayer.Overlay : WlrLayer.Top
     WlrLayershell.namespace: "macos-lg-menubar"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-    // En plein écran masqué, seule une bande de 2 px reçoit la souris
+    // Masquée, seule une bande de 2 px reçoit la souris
     mask: Region {
         item: bar.shown ? content : revealStrip
     }
@@ -99,7 +122,7 @@ PanelWindow {
     BackdropTone {
         id: tone
         screen: bar.screen
-        active: !!bar.hmon && !(bar.hmon.lastIpcObject?.disabled ?? false) && !bar.fullscreen
+        active: !!bar.hmon && !(bar.hmon.lastIpcObject?.disabled ?? false) && !bar.overApp && !bar.tinted
         stripHeight: Theme.menuBarHeight
         // Zones mesurées séparément : fin des menus, début des icônes d'état
         leftEnd: left.x + left.width + 12
@@ -123,8 +146,9 @@ PanelWindow {
     property bool forceDark: false
     // En plein écran, la barre révélée a un fond opaque aux couleurs de
     // l'apparence (clair ou sombre) : texte noir en mode clair, blanc en sombre.
+    // Idem avec le fond translucide de « Show menu bar background ».
     function toneFor(measured) {
-        if (bar.fullscreen) return !Theme.dark;
+        if (bar.overApp || bar.tinted) return !Theme.dark;
         return forceLight || (!forceDark && measured);
     }
     readonly property bool light: toneFor(tone.light)
@@ -142,6 +166,58 @@ PanelWindow {
     function publishCcX() { if (focusedScreen) ShellState.controlCenterIconX = ccCenterX; }
     onCcCenterXChanged: publishCcX()
     onFocusedScreenChanged: publishCcX()
+
+    // ---- Menu Bar Controls (System Settings > Menu Bar) ----
+    // "show" : toujours ; "active" : seulement si `isActive` ; "hide" : jamais
+    function ctlShown(id, isActive) {
+        const st = SystemPrefs.control(id);
+        return st === "show" || (st === "active" && !!isActive);
+    }
+    readonly property bool btActive: (CC.Bt.adapter?.enabled ?? false)
+        && (CC.Bt.adapter?.devices?.values ?? []).some(d => d.connected)
+    readonly property bool mirroringActive: DisplayState.mirroring || DisplayState.sharing
+    readonly property bool playingActive: Mpris.players.values.some(p => p.isPlaying)
+    // Contrôles des modules, de gauche à droite (puis Wi-Fi et batterie)
+    readonly property var moduleControls: ["nowPlaying", "screenMirroring", "display", "sound", "focus", "bluetooth"]
+    function ctlSymbol(id) {
+        return { nowPlaying: "play.fill", screenMirroring: "cc.screenmirroring", display: "display",
+                 sound: "speaker.wave.2.fill", focus: Focus.modeSymbol, bluetooth: "bluetooth" }[id] ?? "";
+    }
+    // HUD associé (controlcenter/Osd.qml) : volume pour Sound, luminosité pour Display
+    function ctlOsd(id) { return id === "sound" ? "volume" : id === "display" ? "brightness" : ""; }
+    function ctlActive(id) {
+        switch (id) {
+        case "nowPlaying": return playingActive;
+        case "screenMirroring": return mirroringActive;
+        case "display":
+        case "sound": return ShellState.osdKind === ctlOsd(id);
+        case "focus": return Focus.doNotDisturb;
+        case "bluetooth": return btActive;
+        }
+        return false;
+    }
+
+    // Menu Fast User Switching
+    function openUserMenu(btn) {
+        if (controller.openId === "userSwitch" && menuHere) { controller.close(false); return; }
+        const p = btn.mapToItem(content, 0, 0);
+        const items = [
+            { text: menus.userName, enabled: false, checked: true },
+            { separator: true },
+            { text: "Login Window…", enabled: true, action: () => ShellState.open("lock") }
+        ];
+        controller.open("userSwitch", screenName, p.x - btn.pillExtra, btn.width, items, false);
+    }
+
+    // ---- Géométrie de la barre (px = pt à l'échelle 1) ----
+    // Titres : 22 pt entre deux libellés (encre à encre), pastille débordant de
+    // 16 pt de part et d'autre de l'encre (512pixels, macOS 26.0 : Finder 55-95,
+    // pastille 39-110,5). Valeurs entières : rien ne tombe entre deux pixels.
+    readonly property int logoPadding: 9
+    readonly property int titlePadding: 10
+    readonly property int titlePillExtra: 5
+    // Haut du logo Apple (15 px) : centré sur les capitales du texte
+    readonly property int logoY: 7
 
     // ---- Menus ----
     readonly property var order: ["logo", "app"].concat(menus.titles().map(t => t.id))
@@ -246,11 +322,39 @@ PanelWindow {
         y: bar.shown ? 0 : -height
         Behavior on y { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
 
-        // Fond (uniquement en plein écran, quand la barre est révélée) : opaque,
-        // comme la barre que macOS fait descendre au-dessus d'une app plein écran
+        // « Show menu bar background » : fond d'écran flouté sous un voile aux
+        // couleurs de l'apparence (barre translucide d'avant Tahoe)
+        Item {
+            anchors.fill: parent
+            visible: bar.tinted
+            ShaderEffectSource {
+                id: barUnder
+                anchors.fill: parent
+                sourceItem: bar.tinted ? backdrop : null
+                sourceRect: Qt.rect(0, 0, width, height)
+                visible: false
+            }
+            MultiEffect {
+                anchors.fill: parent
+                source: barUnder
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: 1
+                blurMax: 40
+                saturation: 0.3
+            }
+            Rectangle {
+                anchors.fill: parent
+                color: Theme.dark ? Qt.rgba(0.12, 0.12, 0.13, 0.55) : Qt.rgba(0.97, 0.97, 0.98, 0.62)
+            }
+        }
+
+        // Fond (barre au-dessus des fenêtres : plein écran, ou masquage
+        // automatique, quand la barre est révélée) : opaque, comme la barre que
+        // macOS fait descendre au-dessus d'une app plein écran
         Rectangle {
             anchors.fill: parent
-            visible: bar.fullscreen
+            visible: bar.overApp
             color: Theme.dark ? Qt.rgba(0.14, 0.14, 0.15, 1) : Qt.rgba(0.95, 0.95, 0.96, 1)
             Rectangle {
                 anchors.bottom: parent.bottom
@@ -269,7 +373,7 @@ PanelWindow {
         HoverHandler {
             id: barHover
             onHoveredChanged: {
-                if (!bar.fullscreen) return;
+                if (!bar.autoHide) return;
                 if (hovered) hideTimer.stop();
                 else hideTimer.restart();
             }
@@ -281,28 +385,29 @@ PanelWindow {
         // compris), pastille débordant de 16 pt de part et d'autre du texte.
         Row {
             id: left
-            x: 10
+            x: 11
             height: parent.height
 
             BarButton {
                 id: logoBtn
                 readonly property string menuId: "logo"
-                padding: 10
-                pillExtra: 5
+                padding: bar.logoPadding
+                pillExtra: bar.titlePillExtra
                 fg: bar.fgLeft
                 lightBackdrop: bar.lightLeft
-                halo: !bar.fullscreen
-                glassPill: !bar.fullscreen
+                halo: !bar.overApp && !bar.tinted
+                glassPill: !bar.overApp
                 active: bar.menuHere && bar.controller.openId === "logo"
                 onPressed: bar.press("logo", logoBtn)
                 onEntered: bar.hoverTitle("logo", logoBtn)
                 onDragged: p => bar.dragAt(p, false)
                 onReleased: p => bar.dragAt(p, true)
 
-                // Logo Apple (menu Apple)
+                // Logo Apple (menu Apple) : SVG rastérisé à 15 px exactement, sur
+                // pixels entiers (logo de 12,2 x 15 px, Tahoe : 12,5 x 15 pt,
+                // centré sur les capitales du texte, About-This-Mac.png de 512pixels)
                 Glyph {
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.verticalCenterOffset: -0.5
+                    y: bar.logoY
                     name: "apple.logo"
                     size: 15
                     tint: bar.fgLeft
@@ -312,12 +417,12 @@ PanelWindow {
             BarButton {
                 id: appBtn
                 readonly property string menuId: "app"
-                padding: 11
-                pillExtra: 5
+                padding: bar.titlePadding
+                pillExtra: bar.titlePillExtra
                 fg: bar.fgLeft
                 lightBackdrop: bar.lightLeft
-                halo: !bar.fullscreen
-                glassPill: !bar.fullscreen
+                halo: !bar.overApp && !bar.tinted
+                glassPill: !bar.overApp
                 active: bar.menuHere && bar.controller.openId === "app"
                 onPressed: bar.press("app", appBtn)
                 onEntered: bar.hoverTitle("app", appBtn)
@@ -338,12 +443,12 @@ PanelWindow {
                     id: tb
                     required property var modelData
                     readonly property string menuId: modelData.id
-                    padding: 11
-                    pillExtra: 5
+                    padding: bar.titlePadding
+                    pillExtra: bar.titlePillExtra
                     fg: bar.fgLeft
                     lightBackdrop: bar.lightLeft
-                    halo: !bar.fullscreen
-                    glassPill: !bar.fullscreen
+                    halo: !bar.overApp && !bar.tinted
+                    glassPill: !bar.overApp
                     active: bar.menuHere && bar.controller.openId === menuId
                     onPressed: bar.press(menuId, tb)
                     onEntered: bar.hoverTitle(menuId, tb)
@@ -366,6 +471,29 @@ PanelWindow {
             anchors.rightMargin: 8
             height: parent.height
 
+            // Enregistrement d'écran en cours (⇧⌘5) : bouton « Stop Recording » de
+            // macOS, à gauche des icônes d'état ; la pastille flottante de
+            // notifications/ se masque quand la barre l'affiche.
+            Component.onCompleted: Shots.menuBarStopButton = true
+            BarButton {
+                id: stopRecBtn
+                visible: Shots.recording
+                slotWidth: 37
+                pillExtra: 4
+                fg: bar.fgRight
+                lightBackdrop: bar.lightRight
+                halo: !bar.overApp && !bar.tinted
+                glassPill: !bar.overApp
+                onPressed: Shots.stopRecording()
+
+                Glyph {
+                    y: 7
+                    name: "stop.circle"
+                    size: 16
+                    tint: bar.fgRight
+                }
+            }
+
             // Barre d'état (StatusNotifierItem)
             Repeater {
                 id: trayRep
@@ -378,8 +506,8 @@ PanelWindow {
                     pillExtra: 5
                     fg: bar.fgRight
                     lightBackdrop: bar.lightRight
-                    halo: !bar.fullscreen
-                    glassPill: !bar.fullscreen
+                    halo: !bar.overApp && !bar.tinted
+                    glassPill: !bar.overApp
                     active: bar.menuHere && bar.controller.openId === "tray:" + modelData.id
                     onPressed: mouse => {
                         const it = tray.modelData;
@@ -421,18 +549,60 @@ PanelWindow {
                 }
             }
 
+            // Contrôles des modules du Control Center (Menu Bar Controls) :
+            // toujours affichés, ou seulement quand ils sont actifs ; un clic
+            // ouvre le Control Center
+            Repeater {
+                model: bar.moduleControls
+                delegate: BarButton {
+                    id: mc
+                    required property string modelData
+                    readonly property string osd: bar.ctlOsd(modelData)
+                    visible: bar.ctlShown(modelData, bar.ctlActive(modelData))
+                    slotWidth: 37
+                    pillExtra: 4
+                    fg: bar.fgRight
+                    lightBackdrop: bar.lightRight
+                    halo: !bar.overApp && !bar.tinted
+                    glassPill: !bar.overApp
+                    // Comme Tahoe : l'élément est en surbrillance tant que son HUD est affiché
+                    active: mc.osd !== "" && ShellState.osdKind === mc.osd
+                    onPressed: ShellState.toggle("controlcenter")
+
+                    // Le HUD volume / luminosité se centre sous son élément
+                    readonly property real centerX: (parent ? parent.x : 0) + x + width / 2
+                    readonly property bool anchorsOsd: visible && osd !== "" && ShellState.osdKind === osd
+                    function publish() { if (anchorsOsd && bar.focusedScreen) ShellState.osdAnchorX = centerX; }
+                    onAnchorsOsdChanged: {
+                        if (anchorsOsd) publish();
+                        else if (bar.focusedScreen && ShellState.osdKind === "") ShellState.osdAnchorX = -1;
+                    }
+                    onCenterXChanged: publish()
+
+                    Glyph {
+                        y: 7
+                        name: bar.ctlSymbol(mc.modelData)
+                        size: 16
+                        tint: bar.fgRight
+                    }
+                }
+            }
+
             // Wi-Fi (Tahoe : à gauche de la batterie, guide macOS 26 « The menu bar »)
             BarButton {
                 id: wifiBtn
                 readonly property var device: Networking.devices.values.find(d => d.type === DeviceType.Wifi) ?? null
                 readonly property var network: device ? (device.networks.values.find(n => n.connected) ?? null) : null
-                visible: bar.demo || device !== null
-                padding: 10
-                pillExtra: 5
+                visible: bar.ctlShown("wifi", true) && (bar.demo || device !== null)
+                // Tahoe (512pixels, 26.0) : centres des pictos espacés de 39,75
+                // (Wi-Fi -> batterie), 37 (batterie -> Spotlight) et 37,25 pt
+                // (Spotlight -> Control Center) : emplacements de largeur fixe
+                slotWidth: 42
+                pillExtra: 4
                 fg: bar.fgRight
                 lightBackdrop: bar.lightRight
-                halo: !bar.fullscreen
-                glassPill: !bar.fullscreen
+                halo: !bar.overApp && !bar.tinted
+                glassPill: !bar.overApp
                 active: bar.menuHere && bar.controller.openId === "wifi"
                 onPressed: bar.openStatus("wifi", wifiBtn)
                 onEntered: bar.hoverStatus("wifi", wifiBtn)
@@ -440,7 +610,7 @@ PanelWindow {
                 onReleased: p => bar.dragAt(p, true)
 
                 WifiGlyph {
-                    anchors.verticalCenter: parent.verticalCenter
+                    y: 9
                     color: bar.fgRight
                     off: !bar.demo && !Networking.wifiEnabled
                     level: {
@@ -456,13 +626,15 @@ PanelWindow {
             BarButton {
                 id: batteryBtn
                 readonly property var dev: UPower.displayDevice
-                visible: bar.demo || (dev && dev.isLaptopBattery && dev.isPresent)
-                padding: 10
-                pillExtra: 5
+                visible: bar.ctlShown("battery", true) && (bar.demo || (dev && dev.isLaptopBattery && dev.isPresent))
+                // (avec le pourcentage, l'emplacement s'élargit au contenu)
+                slotWidth: bar.showBatteryPercent ? 0 : 37
+                padding: 9
+                pillExtra: 4
                 fg: bar.fgRight
                 lightBackdrop: bar.lightRight
-                halo: !bar.fullscreen
-                glassPill: !bar.fullscreen
+                halo: !bar.overApp && !bar.tinted
+                glassPill: !bar.overApp
                 active: bar.menuHere && bar.controller.openId === "battery"
                 onPressed: bar.openStatus("battery", batteryBtn)
                 onEntered: bar.hoverStatus("battery", batteryBtn)
@@ -470,16 +642,17 @@ PanelWindow {
                 onReleased: p => bar.dragAt(p, true)
 
                 Row {
-                    anchors.verticalCenter: parent.verticalCenter
+                    height: parent.height
                     spacing: 5
+                    // « 82% » sans espace, même corps que l'horloge (macOS US,
+                    // ars-tahoe-light.jpg)
                     BarText {
                         visible: bar.showBatteryPercent
-                        text: (bar.demo ? 82 : Math.round((batteryBtn.dev?.percentage ?? 0) * 100)) + " %"
+                        text: (bar.demo ? 82 : Math.round((batteryBtn.dev?.percentage ?? 0) * 100)) + "%"
                         color: bar.fgRight
-                        font.pixelSize: 12
                     }
                     BatteryGlyph {
-                        anchors.verticalCenter: parent.verticalCenter
+                        y: 9
                         color: bar.fgRight
                         level: bar.demo ? 0.82 : (batteryBtn.dev?.percentage ?? 1)
                         charging: batteryBtn.dev?.state === UPowerDeviceState.Charging || batteryBtn.dev?.state === UPowerDeviceState.PendingCharge
@@ -490,19 +663,53 @@ PanelWindow {
             }
 
             // Spotlight
+            // Fast User Switching (Menu Bar Controls) : icône, nom complet ou
+            // nom du compte ; menu : utilisateur courant, Login Window…
             BarButton {
-                id: spotBtn
-                padding: 10
-                pillExtra: 5
+                id: userBtn
+                visible: SystemPrefs.control("userSwitch") !== "hide"
+                readonly property string style: SystemPrefs.userSwitchStyle
+                slotWidth: style === "icon" ? 37 : 0
+                padding: 9
+                pillExtra: 4
                 fg: bar.fgRight
                 lightBackdrop: bar.lightRight
-                halo: !bar.fullscreen
-                glassPill: !bar.fullscreen
+                halo: !bar.overApp && !bar.tinted
+                glassPill: !bar.overApp
+                active: bar.menuHere && bar.controller.openId === "userSwitch"
+                onPressed: bar.openUserMenu(userBtn)
+                onEntered: if (bar.menuHere && bar.controller.openId !== "userSwitch") bar.openUserMenu(userBtn)
+                onDragged: p => bar.dragAt(p, false)
+                onReleased: p => bar.dragAt(p, true)
+
+                Glyph {
+                    visible: userBtn.style === "icon"
+                    y: 7
+                    name: "person.crop.circle"
+                    size: 16
+                    tint: bar.fgRight
+                }
+                BarText {
+                    visible: userBtn.style !== "icon"
+                    text: userBtn.style === "name" ? bar.menus.userName : (Quickshell.env("USER") ?? "")
+                    color: bar.fgRight
+                }
+            }
+
+            BarButton {
+                id: spotBtn
+                visible: bar.ctlShown("spotlight", true)
+                slotWidth: 37
+                pillExtra: 4
+                fg: bar.fgRight
+                lightBackdrop: bar.lightRight
+                halo: !bar.overApp && !bar.tinted
+                glassPill: !bar.overApp
                 active: ShellState.openPanel === "spotlight"
                 onPressed: ShellState.toggle("spotlight")
 
                 Glyph {
-                    anchors.verticalCenter: parent.verticalCenter
+                    y: 8
                     name: "magnifyingglass"
                     size: 15
                     tint: bar.fgRight
@@ -512,17 +719,17 @@ PanelWindow {
             // Control Center
             BarButton {
                 id: ccBtn
-                padding: 10
-                pillExtra: 5
+                slotWidth: 37
+                pillExtra: 4
                 fg: bar.fgRight
                 lightBackdrop: bar.lightRight
-                halo: !bar.fullscreen
-                glassPill: !bar.fullscreen
+                halo: !bar.overApp && !bar.tinted
+                glassPill: !bar.overApp
                 active: ShellState.openPanel === "controlcenter"
                 onPressed: ShellState.toggle("controlcenter")
 
                 ControlCenterGlyph {
-                    anchors.verticalCenter: parent.verticalCenter
+                    y: 8
                     color: bar.fgRight
                 }
 
@@ -531,11 +738,14 @@ PanelWindow {
             // Date et heure au format US de macOS ("Tue Nov 24  9:12 AM")
             BarButton {
                 id: clockBtn
-                padding: 10
+                // (fin de l'horloge à 19,5 pt du bord droit ; ~19 pt entre le
+                // picto du Control Center et la date)
+                paddingLeft: 7
+                paddingRight: 10
                 fg: bar.fgRight
                 lightBackdrop: bar.lightRight
-                halo: !bar.fullscreen
-                glassPill: !bar.fullscreen
+                halo: !bar.overApp && !bar.tinted
+                glassPill: !bar.overApp
                 active: ShellState.openPanel === "notificationcenter"
                 onPressed: ShellState.toggle("notificationcenter")
 
@@ -547,14 +757,17 @@ PanelWindow {
                 // espace (« Tue Apr 1  9:41 AM » sur la capture Apple)
                 readonly property var usLocale: Qt.locale("en_US")
                 Row {
-                    anchors.verticalCenter: parent.verticalCenter
+                    height: parent.height
                     spacing: 7
                     BarText {
                         text: clockBtn.usLocale.toString(clock.date, "ddd MMM d")
                         color: bar.fgRight
                     }
                     BarText {
-                        text: clockBtn.usLocale.toString(clock.date, "h:mm AP")
+                        // Espace fine insécable (U+202F) avant AM/PM, comme macOS ;
+                        // « 24-hour time » (Date & Time) : « 21:41 »
+                        text: SystemPrefs.clock24 ? clockBtn.usLocale.toString(clock.date, "HH:mm")
+                                                  : clockBtn.usLocale.toString(clock.date, "h:mm AP").replace(" ", "\u202F")
                         color: bar.fgRight
                     }
                 }
@@ -562,10 +775,10 @@ PanelWindow {
         }
     }
 
-    // Révélation en plein écran : pointeur contre le bord haut
+    // Révélation (barre masquée) : pointeur contre le bord haut
     HoverHandler {
         id: edgeHover
-        enabled: bar.fullscreen && !bar.revealed
+        enabled: bar.autoHide && !bar.revealed
         onHoveredChanged: if (hovered) revealTimer.restart(); else revealTimer.stop()
     }
     Timer {
@@ -578,5 +791,5 @@ PanelWindow {
         interval: 450
         onTriggered: if (!bar.menuHere && !barHover.hovered) bar.revealed = false
     }
-    onFullscreenChanged: revealed = false
+    onAutoHideChanged: revealed = false
 }

@@ -15,6 +15,9 @@ import qs.services
 //
 // Déclenchement : changement du volume Pipewire par défaut, ou IPC
 //   quickshell -c macos ipc call osd volume|brightness|keyboard
+// Touches de luminosité (un cran de 1/16, écrit puis affiche le HUD) :
+//   quickshell -c macos ipc call osd brightnessUp|brightnessDown
+//   quickshell -c macos ipc call osd keyboardUp|keyboardDown
 Scope {
     id: osd
 
@@ -27,13 +30,11 @@ Scope {
 
     readonly property string title: kind === "volume" ? (Audio.sinkName || "Sound")
         : kind === "keyboard" ? "Keyboard Brightness" : displayName
-    // Comme le module "Écran" du Control Center : "Écran" ; avec plusieurs
-    // écrans, le modèle de l'écran externe concerné.
-    readonly property string displayName: {
-        const m = Hyprland.focusedMonitor;
-        if (!m || Quickshell.screens.length < 2 || (m.name ?? "").startsWith("eDP")) return "Display";
-        return m.lastIpcObject?.model || m.description || m.name;
-    }
+    // Comme le module "Display" du Control Center ; un seul écran externe
+    // piloté en DDC/CI : son modèle (EDID). Plusieurs écrans pilotés ensemble :
+    // "Display".
+    readonly property string displayName: Brightness.backend === "ddc" && Brightness.ddcDisplays.length === 1
+        && Brightness.ddcDisplays[0].model !== "" ? Brightness.ddcDisplays[0].model : "Display"
     readonly property real value: kind === "volume" ? (Audio.muted ? 0 : Audio.volume)
         : kind === "keyboard" ? Brightness.kbdValue : Brightness.value
 
@@ -88,6 +89,12 @@ Scope {
         function volume(): void { osd.show("volume"); }
         function brightness(): void { osd.pending = "brightness"; Brightness.refresh(); }
         function keyboard(): void { osd.pending = "keyboard"; Brightness.refresh(); }
+        // Touches de luminosité : un cran, puis HUD (rien si aucun moyen de
+        // régler la luminosité n'est disponible)
+        function brightnessUp(): void { if (Brightness.stepBy(1)) osd.show("brightness"); }
+        function brightnessDown(): void { if (Brightness.stepBy(-1)) osd.show("brightness"); }
+        function keyboardUp(): void { if (Brightness.stepKeyboard(1)) osd.show("keyboard"); }
+        function keyboardDown(): void { if (Brightness.stepKeyboard(-1)) osd.show("keyboard"); }
         // Débogage : maintien affiché (ms, 0 = durée normale)
         function hold(ms: int): void { hideTimer.interval = ms > 0 ? ms : 1600; }
         // Débogage : affiche le HUD sans relire la valeur (machine sans rétroéclairage)
@@ -150,11 +157,16 @@ Scope {
             radius: CCStyle.radiusHud
             tint: CCStyle.hudTint
             glassSaturation: CCStyle.hudSaturation
-            // Cotes du HUD Tahoe (pas de bouton AirPlay : picto droit au bord)
+            // Cotes du HUD Tahoe (capture à 2 px/pt, HUD de 290 pt), mesurées sur
+            // le dessin visible : haut-parleur gauche centré à 18,3 pt, piste de
+            // 29,8 pt à 38,5 pt du bord droit, haut-parleur droit (ondes comprises)
+            // centré à 23 pt du bord droit, piste à ~41,5 pt du haut (42 : pixels
+            // entiers). Valeurs nominales ci-dessous = centre de la boîte du
+            // pictogramme (le dessin du haut-parleur est décalé dans sa boîte).
             leftCenterX: 19.5
-            trackLeft: 31
-            trackRightInset: 30.5
-            rightInset: 16
+            trackLeft: 30
+            trackRightInset: 38.5
+            rightInset: 23.5
             title: osd.title
             value: osd.value
             leftSymbol: osd.kind === "volume" ? (Audio.muted ? "speaker.slash.fill" : "speaker.fill")

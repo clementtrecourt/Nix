@@ -5,7 +5,9 @@ import Quickshell.Widgets
 import Quickshell.Networking
 import Quickshell.Services.UPower
 import qs.common
+import qs.services
 import qs.menubar
+import qs.notifications
 
 // Contenu d'un écran verrouillé, mise en page macOS Tahoe 26 (proportions
 // relevées sur la capture « Fast User Lockscreen » de 512pixels, rapportées à
@@ -21,6 +23,11 @@ import qs.menubar
 //  - en bas au centre : avatar, nom et, au repos, « Enter Password ». La
 //    pilule Liquid Glass du mot de passe n'apparaît qu'à la première frappe
 //    (ou au clic), et elle seule secoue sur erreur.
+// Réglages appliqués en direct (services/SystemPrefs.qml) : « Show large
+// clock » (Never : ni date ni heure), heure 24 h (« Show 24-hour time on Lock
+// Screen »), message (« Show message when locked », en bas au centre sous le
+// champ), notifications reçues depuis le verrouillage (en haut à droite, si
+// « Allow notifications when the screen is locked »).
 Item {
     id: root
 
@@ -82,6 +89,10 @@ Item {
         id: top
         anchors.fill: parent
         opacity: 0
+        // System Settings > Lock Screen > Show large clock : Never = pas d'horloge
+        // (« On Screen Saver and Lock Screen » et « On Lock Screen » l'affichent
+        // ici ; le shell n'a pas d'économiseur d'écran)
+        visible: SystemPrefs.largeClock !== "never"
         transform: Translate { id: topShift; y: -14 }
 
         // Date « vibrante » : fond flouté + 0,41 (mesuré : 67,112,155 -> 171,224,255)
@@ -151,7 +162,9 @@ Item {
         Item {
             id: timeBox
             anchors.horizontalCenter: parent.horizontalCenter
-            readonly property real px: Math.round(root.height * 0.100 / root.capRatio)
+            // Hauteur des chiffres : 10,15 % de l'écran (512pixels et iDB :
+            // 10,1-10,2 %) ; les chiffres d’Inter Display DemiBold font 0,738 em (mesuré au banc)
+            readonly property real px: Math.round(root.height * 0.1015 / 0.738)
             y: Math.round(root.height * 0.239 - timeText.baselineOffset)
             width: timeText.implicitWidth + 40
             height: timeText.implicitHeight
@@ -160,8 +173,11 @@ Item {
             Text {
                 id: timeText
                 anchors.centerIn: parent
-                // 12 h sans AM/PM, comme Tahoe (« 8:10 »)
-                text: (clock.date.getHours() % 12 || 12) + ":" + String(clock.date.getMinutes()).padStart(2, "0")
+                // 12 h sans AM/PM, comme Tahoe (« 8:10 ») ; 24 h (« 20:10 ») si
+                // « 24-hour time » et « Show 24-hour time on Lock Screen »
+                text: SystemPrefs.lockClock24
+                      ? Qt.formatTime(clock.date, "HH:mm")
+                      : (clock.date.getHours() % 12 || 12) + ":" + String(clock.date.getMinutes()).padStart(2, "0")
                 font.family: root.clockFamily
                 font.pixelSize: timeBox.px
                 font.weight: Font.DemiBold
@@ -243,14 +259,37 @@ Item {
                     }
                 }
             }
-            // Arête du verre : contour fin et clair des chiffres
-            Text {
-                anchors.centerIn: parent
-                text: timeText.text
-                font: timeText.font
-                color: "transparent"
-                style: Text.Outline
-                styleColor: Qt.rgba(1, 1, 1, 0.30)
+            // Arête du verre : liseré spéculaire directionnel des chiffres,
+            // clair en haut (lumière venant du haut-gauche), estompé vers le bas
+            Item {
+                anchors.fill: parent
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    autoPaddingEnabled: false
+                    maskEnabled: true
+                    maskSource: rimMask
+                }
+                Text {
+                    anchors.centerIn: parent
+                    text: timeText.text
+                    font: timeText.font
+                    color: "transparent"
+                    style: Text.Outline
+                    styleColor: Qt.rgba(1, 1, 1, 0.55)
+                }
+            }
+            // Masque du liseré : opaque en haut, 35 % en bas
+            Rectangle {
+                id: rimMask
+                anchors.fill: parent
+                visible: false
+                layer.enabled: true
+                gradient: Gradient {
+                    orientation: Gradient.Vertical
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 1) }
+                    GradientStop { position: 0.55; color: Qt.rgba(1, 1, 1, 0.55) }
+                    GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0.35) }
+                }
             }
         }
     }
@@ -262,9 +301,10 @@ Item {
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.topMargin: 6
-        anchors.rightMargin: 14
+        // Tahoe (iDB, 2x) : Wi-Fi à ~22 pt du bord, ~15 pt entre groupes
+        anchors.rightMargin: 22
         height: 18
-        spacing: 12
+        spacing: 15
         opacity: top.opacity
 
         readonly property var battery: UPower.displayDevice
@@ -274,14 +314,14 @@ Item {
         // Source de saisie : nom court + pictogramme clavier
         Row {
             visible: root.lockRoot.layoutName !== ""
-            spacing: 6
+            spacing: 7
             anchors.verticalCenter: parent.verticalCenter
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.lockRoot.layoutName
                 font.family: Theme.font
                 font.pixelSize: 13
-                font.weight: Font.DemiBold
+                font.weight: Font.Medium
                 color: "white"
             }
             Symbol {
@@ -332,7 +372,13 @@ Item {
     }
 
     // ---------------- Utilisateur + mot de passe ----------------
-    // Centres mesurés sur Tahoe : avatar 87,3 %, nom 91,5 %, indice 93,7 %.
+    // Mesuré sur Tahoe 26 (iDB, 2940x1912 = 1470x956 pt) : avatar de 47 pt
+    // centré à 140 pt du bas, nom Bold ~16 pt (hauteur de capitale 11,5 pt) centré à 94 pt du bas, indice
+    // Semibold 13 pt centré à 62 pt du bas. Tailles en points (fixes, comme
+    // macOS), positions depuis le bas de l'écran.
+    readonly property real avatarCY: height - 140
+    readonly property real nameCY: height - 94
+    readonly property real hintCY: height - 62
     Item {
         id: bottom
         anchors.fill: parent
@@ -342,8 +388,8 @@ Item {
         Avatar {
             id: avatar
             anchors.horizontalCenter: parent.horizontalCenter
-            size: Math.round(52 * root.s)
-            y: Math.round(root.height * 0.873 - height / 2)
+            size: 47
+            y: Math.round(root.avatarCY - height / 2)
             source: root.lockRoot.faceSource
             name: root.lockRoot.fullName
             MouseArea {
@@ -355,11 +401,11 @@ Item {
         Text {
             id: nameText
             anchors.horizontalCenter: parent.horizontalCenter
-            y: Math.round(root.height * 0.915 - height / 2)
+            y: Math.round(root.nameCY - height / 2)
             text: root.lockRoot.fullName
             font.family: Theme.font
-            font.pixelSize: 13
-            font.weight: Font.DemiBold
+            font.pixelSize: 16
+            font.weight: Font.Bold
             color: "white"
             layer.enabled: true
             layer.effect: MultiEffect {
@@ -374,12 +420,14 @@ Item {
         Text {
             id: hint
             anchors.horizontalCenter: parent.horizontalCenter
-            y: Math.round(root.height * 0.937 - height / 2)
+            y: Math.round(root.hintCY - height / 2)
             text: "Enter Password"
             font.family: Theme.font
-            font.pixelSize: 11
-            font.weight: Font.Medium
-            color: Qt.rgba(1, 1, 1, 0.68)
+            font.pixelSize: 13
+            font.weight: Font.DemiBold
+            // Couleur « vibrante » : blanc translucide qui prend la teinte du
+            // fond (lavande sur le violet de Tahoe)
+            color: Qt.rgba(1, 1, 1, 0.72)
             opacity: root.fieldShown ? 0 : 1
             Behavior on opacity { NumberAnimation { duration: 160 } }
             MouseArea {
@@ -395,7 +443,7 @@ Item {
         Item {
             id: field
             anchors.horizontalCenter: parent.horizontalCenter
-            y: Math.round(root.height * 0.937 - height / 2 + 4)
+            y: Math.round(root.hintCY - height / 2 + 4)
             width: 180
             height: 28
             opacity: root.fieldShown ? 1 : 0
@@ -544,6 +592,62 @@ Item {
             font.weight: Font.Medium
             color: Qt.rgba(1, 1, 1, 0.85)
         }
+    }
+
+    // ---------------- Notifications ----------------
+    // Reçues depuis le verrouillage, en haut à droite comme les bannières du
+    // bureau (aperçu masqué selon « Show previews » : When Unlocked par défaut)
+    Column {
+        id: lockNotifs
+        anchors.top: status.bottom
+        anchors.right: parent.right
+        anchors.topMargin: 17
+        anchors.rightMargin: 16
+        width: 344
+        spacing: 10
+        opacity: bottom.opacity
+        Repeater {
+            // Une carte par app, la plus récente de l'app en tête de pile
+            model: {
+                const seen = [];
+                const out = [];
+                for (const e of NotifStore.lockEntries) {
+                    if (seen.includes(e.appKey)) continue;
+                    seen.push(e.appKey);
+                    out.push(e);
+                }
+                return out.slice(0, 4);
+            }
+            NotificationCard {
+                required property var modelData
+                width: lockNotifs.width
+                entry: modelData
+                stackCount: NotifStore.lockEntries.filter(x => x.appKey === modelData.appKey).length
+                closable: false
+                interactive: false
+            }
+        }
+    }
+
+    // ---------------- Message ----------------
+    // « Show message when locked » : en bas au centre, sous le champ
+    Text {
+        id: lockMessage
+        visible: SystemPrefs.lockMessage && text.length > 0
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(implicitWidth, root.width * 0.6)
+        y: Math.round(root.height - 26 - height / 2)
+        text: SystemPrefs.lockMessageText
+        horizontalAlignment: Text.AlignHCenter
+        wrapMode: Text.Wrap
+        maximumLineCount: 2
+        elide: Text.ElideRight
+        textFormat: Text.PlainText
+        font.family: Theme.font
+        font.pixelSize: 13
+        font.weight: Font.Medium
+        color: Qt.rgba(1, 1, 1, 0.85)
+        opacity: bottom.opacity
     }
 
     // ---------------- Animations ----------------

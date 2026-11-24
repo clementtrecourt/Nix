@@ -10,10 +10,14 @@ import qs.common
 // l'ouverture), pastilles rouge/jaune/vert, déplaçable par glisser, apparition
 // "pop" (échelle 0,92 -> 1 + fondu) et disparition en fondu.
 //
-// Teintes (voile dense composé sur le fond réfracté), relevées sur les captures
-// Tahoe 26 (512pixels) : fenêtre claire ≈ blanc à 85 % teinté par le fond
+// Matériau : verre DÉPOLI (SessionGlass.frost : flou de 40 px, sans lentille de
+// bord) : le fond n'y paraît que comme une teinte, jamais lisible. Teintes
+// (voile composé sur le fond flouté et saturé), relevées sur les captures
+// Tahoe 26 (512pixels) : fenêtre claire ≈ blanc à 80 % teinté par le fond
 // (About This Mac : 225,249,255 sur un ciel 86,141,193) ; alerte claire ≈
 // blanc à 60 % (Empty Trash : 192,229,255 sur 100,153,199).
+// `opaque` : fond plein (Force Quit Applications : blanc 255, liste et barre de
+// titre comprises).
 PanelWindow {
     id: win
 
@@ -29,9 +33,14 @@ PanelWindow {
     property int cardHeight: 200
     // Ligne de séparation sous la barre de titre (Force Quit Applications)
     property bool titleSeparator: false
-    property color tint: titleBar
-        ? (Theme.dark ? Qt.rgba(0.13, 0.13, 0.14, 0.86) : Qt.rgba(1, 1, 1, 0.88))
-        : (Theme.dark ? Qt.rgba(0.11, 0.11, 0.12, 0.66) : Qt.rgba(1, 1, 1, 0.68))
+    property bool opaque: false
+    property color tint: opaque
+        ? (Theme.dark ? "#2B2B2D" : "#FFFFFF")
+        : titleBar
+        ? (Theme.dark ? Qt.rgba(0.14, 0.14, 0.15, 0.80) : Qt.rgba(1, 1, 1, 0.80))
+        : (Theme.dark ? Qt.rgba(0.13, 0.13, 0.14, 0.72) : Qt.rgba(1, 1, 1, 0.60))
+    // Flou du verre dépoli (px logiques)
+    property real frost: 40
     // Barre de titre Tahoe : 31 pt (séparateur à 31 pt sur Force Quit)
     readonly property int titleBarHeight: titleBar ? 31 : 0
     readonly property int pad: 56          // marge pour l'ombre portée
@@ -100,10 +109,22 @@ PanelWindow {
         opacity: 0
         scale: 0.92
 
+        // Filet extérieur sombre (0,5 pt à 30 % relevé sur Force Quit à 2x ;
+        // 1 px à 15 % sur un écran 1x)
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -1
+            radius: win.radius + 1
+            color: "transparent"
+            border.width: 1
+            border.color: Theme.dark ? Qt.rgba(0, 0, 0, 0.55) : Qt.rgba(0, 0, 0, 0.15)
+        }
         SessionGlass {
             anchors.fill: parent
             radius: win.radius
             tint: win.tint
+            frost: win.frost
+            opaque: win.opaque
             shadowBlur: 1.0
             shadowOffset: 14
             shadowColor: Qt.rgba(0, 0, 0, Theme.dark ? 0.55 : 0.30)
@@ -144,18 +165,20 @@ PanelWindow {
             onMinimizeClicked: win.minimizeRequested()
         }
 
-        // Titre centré (décalé à droite des pastilles s'il manque de place)
+        // Titre : centré ~9 pt à gauche du milieu (Force Quit Tahoe : centre du
+        // titre à 431 contre 450 à 2x), décalé à droite des pastilles s'il
+        // manque de place. Gris 89 sur blanc (noir à 65 %).
         Text {
             visible: win.titleBar && win.title !== ""
             text: win.title
-            x: Math.max(lights.x + lights.width + 14, (parent.width - implicitWidth) / 2)
+            x: Math.round(Math.max(lights.x + lights.width + 14, (parent.width - implicitWidth) / 2 - 9))
             anchors.verticalCenter: parent.top
             anchors.verticalCenterOffset: 16
             font.family: Theme.font
             font.pixelSize: 13
             font.weight: Font.Bold
             color: Theme.label
-            opacity: Theme.dark ? 0.85 : 0.70
+            opacity: Theme.dark ? 0.85 : 0.65
         }
 
         Item {

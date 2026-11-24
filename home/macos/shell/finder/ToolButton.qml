@@ -30,8 +30,11 @@ Item {
     }
 
     Row {
-        anchors.centerIn: parent
-        spacing: 3
+        id: glyphs
+        // Centré sur des pixels entiers (pictogrammes nets en 1x)
+        x: Math.round((root.width - width) / 2)
+        y: Math.round((root.height - height) / 2)
+        spacing: 2
         Symbol {
             name: root.symbol
             size: root.symbolSize
@@ -41,8 +44,8 @@ Item {
         Symbol {
             visible: root.chevron
             name: root.chevronSymbol
-            size: root.chevronSymbol === "chevron.down" ? 9 : 11
-            anchors.verticalCenter: parent.verticalCenter
+            size: 12
+            y: Math.round((glyphs.height - height) / 2)
             color: root.enabledButton ? FStyle.toolIconColor : FStyle.toolIconDisabled
         }
     }

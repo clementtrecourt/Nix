@@ -2,9 +2,12 @@ import QtQuick
 import qs.common
 
 // Grille d'icônes de la vue Applications / Fichiers (Tahoe) : 5 colonnes,
-// icônes de 60 pt avec leur nom dessous. Lignes spéciales :
-//   { header: true, title }  en-tête de section (vue Fichiers : « Récents »)
-//   { separator: true }      trait pleine largeur (sous la rangée de suggestions)
+// icônes (dessin de 60 pt) avec leur nom dessous. Lignes spéciales :
+//   { header: true, title }  en-tête de section (vue Fichiers : « Suggestions »,
+//                            « Recents » : 15 pt gras, couleur du texte)
+//   { separator: true }      trait sous la rangée de suggestions : pleine
+//                            largeur (Applications), en retrait de 19 pt avant
+//                            un en-tête (Fichiers, Cult of Mac « Spotlight-Files »)
 // Navigation clavier : moveSelection(dx, dy). La grille occupe toute la
 // largeur du panneau (les traits vont d'un bord à l'autre) ; les cases sont
 // en retrait de `sidePad`.
@@ -16,6 +19,9 @@ ListView {
     property int selected: 0          // index dans `flat` (éléments seuls)
     property int iconSize: Metrics.gridIcon
     property int sidePad: 20
+    // Noms sur une ligne (Applications) ou deux (Fichiers, « Superguide / Template »)
+    property int labelLines: 1
+    property int cellHeight: Metrics.gridCellHeight
     // Sans saisie ni navigation clavier, aucune case n'est surlignée (Tahoe)
     property bool showSelection: true
 
@@ -36,6 +42,7 @@ ListView {
         for (const it of items) {
             if (it.header || it.separator) {
                 row = null;
+                if (it.header && out.length && out[out.length - 1].separator) out[out.length - 1].beforeHeader = true;
                 out.push(it.header ? { header: true, title: it.title } : { separator: true });
                 continue;
             }
@@ -49,7 +56,8 @@ ListView {
     }
 
     function rowHeightOf(r) {
-        return r.header ? 34 : (r.separator ? 15 : Metrics.gridCellHeight);
+        // En-tête : texte centré à 20 pt ; trait à 10 pt sous la rangée
+        return r.header ? 36 : (r.separator ? (r.beforeHeader ? 11 : 21) : cellHeight);
     }
     // Hauteur totale des `n` premières lignes (pour dimensionner le panneau)
     function heightOfRows(n) {
@@ -98,24 +106,25 @@ ListView {
         width: root.width
         height: root.rowHeightOf(modelData)
 
-        // En-tête de section
+        // En-tête de section, aligné sur les pastilles (19 pt)
         Text {
             visible: !!rowItem.modelData.header
-            x: root.sidePad + 4
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 8
+            x: Metrics.sidePad
+            y: Math.round(20 - height / 2)
             text: rowItem.modelData.title ?? ""
             font.family: Theme.font
-            font.pixelSize: 13
-            font.weight: Font.DemiBold
-            color: Theme.labelSecondary
+            font.pixelSize: 15
+            font.weight: Font.Bold
+            color: Theme.label
         }
 
-        // Trait pleine largeur
+        // Trait (pleine largeur, ou en retrait avant un en-tête)
         Rectangle {
             visible: !!rowItem.modelData.separator
-            y: 5
-            width: parent.width
+            readonly property int inset: rowItem.modelData.beforeHeader ? Metrics.sidePad : 0
+            x: inset
+            y: 10
+            width: parent.width - 2 * inset
             height: 1
             color: Theme.separator
         }
@@ -130,7 +139,7 @@ ListView {
                     required property var modelData
                     readonly property bool isSel: root.showSelection && modelData.flat === root.selected
                     width: root.cellWidth
-                    height: Metrics.gridCellHeight
+                    height: root.cellHeight
 
                     // Sélection clavier / survol : plaque arrondie derrière l'icône et le nom
                     Rectangle {
@@ -145,7 +154,7 @@ ListView {
                     ItemIcon {
                         id: ic
                         anchors.horizontalCenter: parent.horizontalCenter
-                        y: 10
+                        y: 7
                         size: root.iconSize
                         item: cell.modelData.item
                         scale: cellMouse.pressed ? 0.92 : 1
@@ -153,15 +162,18 @@ ListView {
                     }
                     Text {
                         anchors.top: ic.bottom
-                        anchors.topMargin: 6
+                        anchors.topMargin: 5
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: parent.width - 8
                         horizontalAlignment: Text.AlignHCenter
                         text: cell.modelData.item.title ?? ""
                         textFormat: Text.PlainText
-                        // Tahoe : une seule ligne, tronquée par « … »
-                        maximumLineCount: 1
+                        // Applications : une ligne ; Fichiers : deux, puis « … »
+                        maximumLineCount: root.labelLines
+                        wrapMode: root.labelLines > 1 ? Text.Wrap : Text.NoWrap
                         elide: Text.ElideRight
+                        lineHeightMode: Text.FixedHeight
+                        lineHeight: 18
                         font.family: Theme.font
                         font.pixelSize: Metrics.gridLabelSize
                         color: Theme.label

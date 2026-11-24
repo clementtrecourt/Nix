@@ -47,4 +47,11 @@ Singleton {
     // se centre alors sous l'icône du Control Center).
     property string osdKind: ""
     property real osdAnchorX: -1
+
+    // Écran verrouillé (session/LockScreen.qml) et heure du verrouillage (ms) :
+    // les notifications reçues depuis s'affichent sur l'écran de verrouillage
+    // (System Settings > Notifications > « Allow notifications when the screen
+    // is locked ») et leurs aperçus suivent « Show previews ».
+    property bool locked: false
+    property real lockedSince: 0
 }

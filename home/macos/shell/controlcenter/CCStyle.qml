@@ -63,24 +63,28 @@ Singleton {
     readonly property color vibrant: Qt.rgba(1, 1, 1, 0.85)
     readonly property color vibrantDim: Qt.rgba(1, 1, 1, 0.40)
 
-    // Verre des modules (réfraction de la capture d'écran, LiquidGlass) :
-    //  - clair : la capture Apple montre l'intérieur d'un module au même niveau
-    //    que le fond qui l'entoure (beige 114/101/95 dans l'interstice, 109-120
-    //    dedans) : verre quasi incolore, seuls le liseré, la bande d'épaisseur,
-    //    la lentille de bord et un flou léger le dessinent ;
-    //  - sombre : verre fumé (le fond est assombri, le contenu reste blanc).
-    // La teinte est une cible de luminance (cf. liquidglass.frag) : blanc à
-    // faible alpha en clair (jamais du noir à alpha nul : la teinte adaptative
-    // tirerait alors vers le noir sur un fond sombre).
-    readonly property color tile: Theme.dark ? Qt.rgba(0.07, 0.07, 0.08, 0.38) : Qt.rgba(1, 1, 1, 0.04)
-    readonly property color tileHover: Theme.dark ? Qt.rgba(0.20, 0.20, 0.21, 0.36) : Qt.rgba(1, 1, 1, 0.12)
-    // Module déplié : plus dense pour la lisibilité des listes (en clair, verre
-    // assombri comme le HUD : le contenu reste blanc sur un fond clair)
-    readonly property color card: Theme.dark ? Qt.rgba(0.08, 0.08, 0.09, 0.56) : Qt.rgba(0, 0, 0, 0.24)
+    // Verre des modules (réfraction de la capture d'écran, LiquidGlass).
+    // La teinte est une cible de LUMINANCE (cf. liquidglass.frag :
+    // L' = mix(L, lum(teinte), alpha), chrominance x saturation x (1 - alpha/2)).
+    //  - clair : relevé sur les vraies captures de Tahoe 26 (support.apple.com
+    //    « Use Control Center » /26/, MacStories), fond -> intérieur du module :
+    //    0,60 -> 0,50 (vert d'eau 120,162,158 -> 61,143,159), 0,34 -> 0,36 (bleu
+    //    32,94,175 -> 0,104,236), 0,74 -> 0,57 (gris 183,191,206 -> 138,145,162).
+    //    Soit L' = 0,54 L + 0,18 : le verre ASSOMBRIT un fond clair (~-25 %) et
+    //    garde un fond sombre, pour que le contenu blanc reste lisible ; la
+    //    chrominance est renforcée (x1,6 sur le bleu d'Apple, ~x1 sur le gris
+    //    bleuté de MacStories) : compromis x1,4.
+    //    => teinte grise de luminance 0,38 à 46 %, saturation 1,8.
+    //  - sombre : verre fumé (fond nettement assombri, couleur gardée).
+    readonly property color tile: Theme.dark ? Qt.rgba(0.07, 0.07, 0.08, 0.46) : Qt.rgba(0.38, 0.38, 0.38, 0.46)
+    readonly property color tileHover: Theme.dark ? Qt.rgba(0.20, 0.20, 0.21, 0.42) : Qt.rgba(0.47, 0.47, 0.47, 0.46)
+    // Module déplié : même matériau, un peu plus dense pour la lisibilité des
+    // listes (pas de référence Tahoe d'un module déplié : non vérifié)
+    readonly property color card: Theme.dark ? Qt.rgba(0.08, 0.08, 0.09, 0.56) : Qt.rgba(0.33, 0.33, 0.33, 0.56)
     // Réglages du verre des modules (LiquidGlass) : flou léger (fond « presque
-    // net » sur Tahoe), saturation neutre, teinte adaptative modérée.
+    // net » sur Tahoe), chrominance renforcée, teinte adaptative modérée.
     readonly property real glassBlur: 2.5
-    readonly property real glassSaturation: Theme.dark ? 1.08 : 1.05
+    readonly property real glassSaturation: Theme.dark ? 1.5 : 1.8
     readonly property real glassAdaptive: Theme.dark ? 0.45 : 0.30
     readonly property real cardBlur: 9
     // HUD volume / luminosité : verre nettement plus sombre et plus saturé que
@@ -88,8 +92,15 @@ Singleton {
     // HUD : luminance 0,58 -> 0,42, chrominance x 1,45), pour le contenu blanc.
     readonly property color hudTint: Theme.dark ? Qt.rgba(0, 0, 0, 0.40) : Qt.rgba(0, 0, 0, 0.27)
     readonly property real hudSaturation: Theme.dark ? 1.40 : 1.50
-    // Liseré des modules : flancs à 30 % (capture Apple : liseré net partout)
-    readonly property real rimBase: 0.30
+    // Liseré des modules : fin, vif sur l'arc haut-gauche et l'arc bas-droit,
+    // discret mais présent sur les flancs (captures Apple / MacStories).
+    readonly property real rimBase: 0.20
+    // Bande d'épaisseur sous le liseré : quasi absente sur Tahoe (le module ne
+    // doit pas être cerné de sombre)
+    readonly property real edgeDarken: 0.08
+    // Pas d'ombre portée : sur Tahoe le fond décroît de façon monotone jusqu'au
+    // liseré (aucun anneau sombre autour des modules).
+    readonly property bool tileShadow: false
 
     // Cercle d'icône éteint / allumé (dans les pilules)
     readonly property color circleOff: Qt.rgba(1, 1, 1, 0.20)
@@ -102,8 +113,14 @@ Singleton {
     // Curseurs
     readonly property int trackHeight: 4
     readonly property color trackFill: "#FFFFFF"
-    readonly property color trackEmpty: Qt.rgba(1, 1, 1, 0.16)
+    // Piste vide PLUS SOMBRE que le module (Tahoe : 0,104,239 -> 0,94,214, x0,9 ;
+    // MacStories 148 -> 140) : voile noir
+    readonly property color trackEmpty: Theme.dark ? Qt.rgba(0, 0, 0, 0.28) : Qt.rgba(0, 0, 0, 0.10)
     readonly property color tick: Qt.rgba(1, 1, 1, 0.40)
+    // HUD : piste vide PLUS CLAIRE que le verre (capture Tahoe du HUD volume :
+    // 126 -> 140, blanc ~10 %), crans discrets (126 -> 157)
+    readonly property color hudTrackEmpty: Qt.rgba(1, 1, 1, 0.10)
+    readonly property color hudTick: Qt.rgba(1, 1, 1, 0.26)
 
     // Lignes de liste
     readonly property color rowHover: Qt.rgba(1, 1, 1, 0.12)

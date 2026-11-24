@@ -67,7 +67,7 @@ Scope {
         function removeSpace(id: int): void { Spaces.remove(id); }
         function state(): string {
             const w = root.focusedScreen();
-            return JSON.stringify({ mode: w.shownMode, app: w.appClass, last: w.lastActiveClass, progress: w.progress, wins: w.wins.length, rects: w.rects, spaces: Spaces.ids });
+            return JSON.stringify({ mode: w.shownMode, started: w.started, app: w.appClass, last: w.lastActiveClass, progress: w.progress, wins: w.wins.length, rects: w.rects, spaces: Spaces.ids });
         }
     }
 }

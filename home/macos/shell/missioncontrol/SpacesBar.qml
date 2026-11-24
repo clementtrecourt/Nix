@@ -3,17 +3,22 @@ import QtQuick.Effects
 import Quickshell
 import qs.common
 
-// Barre des Spaces de Mission Control (macOS Tahoe).
-//  - repliée : simple rangée de libellés "Desktop 1  Desktop 2 ..." en haut ;
+// Barre des Spaces de Mission Control (macOS Tahoe 26).
+//  - repliée (39 pt) : rangée de libellés "Desktop 1  Desktop 2 ..." en haut,
+//    celui du bureau courant posé sur une pastille plus sombre, bouton "+" à
+//    droite ;
 //  - dépliée (survol, ou fenêtre glissée vers le haut) : vignettes des bureaux
-//    (1/10e de l'écran, 32 pt d'écart), bureau courant cerné de bleu (3 pt,
-//    détaché de 1 pt), libellé dessous, bouton "+" rond à droite.
-// Mesures relevées sur une capture 1440x900 de macOS 26 : vignettes 144x90 à
-// 28 pt du haut, bande de 146 pt, "+" de 32 pt centré à 34 pt du bord droit.
+//    (90 pt de haut, au ratio de l'écran : 160x90 en 16:9, 30 pt d'écart),
+//    bureau courant cerné de la couleur d'accent (3 pt, détaché de 1 pt),
+//    libellé dessous, bouton "+" rond à droite.
+// Mesures : capture 1440x900 de macOS 26 (vignettes 144x90 à 28 pt du haut,
+// bande de 146 pt, "+" de 32 pt centré à 34 pt du bord droit) ; vidéos Tahoe
+// 26.x MacMost (1280x720 pt : vignettes 160x90, barre repliée 39 pt, pastille
+// 85x23,5 pt rayon 6) et Quick Tutorials (même fond d'écran que le banc :
+// bande nettement plus claire et plus saturée que le fond).
 Item {
     id: bar
 
-    required property Item backdrop          // fond d'écran (pour le flou de la bande)
     required property Item wallpaper         // fond d'écran seul (vignettes)
     required property var monitor            // HyprlandMonitor
     property real progress: 1                // entrée/sortie de Mission Control
@@ -24,13 +29,13 @@ Item {
 
     signal spaceClicked(int id)
 
-    readonly property real thumbW: Math.round(width / 10)
-    readonly property real thumbH: Math.round(screenH / 10)
+    readonly property real thumbH: 90
+    readonly property real thumbW: Math.round(thumbH * width / Math.max(1, screenH))
     property real screenH: 982
     readonly property real thumbTop: 28
-    readonly property real gap: 32
-    readonly property real expandedH: thumbTop + thumbH + 28
-    readonly property real collapsedH: 34
+    readonly property real gap: 30
+    readonly property real expandedH: thumbTop + thumbH + 28      // 146
+    readonly property real collapsedH: 39
 
     readonly property bool hoveredBand: barHover.hovered
     readonly property bool expanded: forceExpanded || hoveredBand || (dragActive && dragPoint.y < expandedH + 120)
@@ -42,7 +47,8 @@ Item {
 
     readonly property var ids: Spaces.ids
     readonly property real rowW: ids.length * thumbW + (ids.length - 1) * gap
-    readonly property real collapsedPitch: Math.max(84, labelProbe.implicitWidth + 34)
+    // Entraxe des libellés repliés (≈ 99 pt sur Tahoe pour "Desktop N")
+    readonly property real collapsedPitch: Math.max(84, labelProbe.implicitWidth + 36)
 
     // Bureau sous un point (coordonnées de la barre) : id, -1 = "+", 0 = rien
     function spaceAt(px, py) {
@@ -63,12 +69,16 @@ Item {
     Text {
         id: labelProbe
         visible: false
-        text: Spaces.label(88)
+        text: Spaces.label(8)
         font.family: Theme.font
-        font.pixelSize: 12
+        font.pixelSize: 13
     }
 
-    // ---- Bande : fond d'écran flouté + voile, ombre dessous ----
+    // ---- Bande : verre dépoli clair (fond d'écran très flouté, éclairci et
+    // saturé), liseré clair en bas, ombre dessous ----
+    // Calibré sur Tahoe 26.2 (Quick Tutorials, même fond d'écran que le banc) :
+    // fond (14,9,110) sous la bande -> bande (58..79, 56..77, 184..210) :
+    // voile blanc ~25 % puis saturation ×1,8.
     Item {
         id: band
         width: parent.width
@@ -78,31 +88,35 @@ Item {
         ShaderEffectSource {
             id: bandSrc
             anchors.fill: parent
-            sourceItem: bar.backdrop
+            sourceItem: bar.wallpaper
             sourceRect: Qt.rect(0, 0, band.width, band.height)
             visible: false
         }
-        MultiEffect {
+        Item {
             anchors.fill: parent
-            source: bandSrc
-            blurEnabled: true
-            blur: 1.0
-            blurMax: 48
-            saturation: 0.15
-            autoPaddingEnabled: false
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                saturation: 0.8
+            }
+            MultiEffect {
+                anchors.fill: parent
+                source: bandSrc
+                blurEnabled: true
+                blur: 1.0
+                blurMax: 48
+                autoPaddingEnabled: false
+            }
+            Rectangle {
+                anchors.fill: parent
+                color: Qt.rgba(1, 1, 1, 0.25)
+            }
         }
-        Rectangle {
-            anchors.fill: parent
-            // Bande plus claire que le bureau (+20/255 environ sur la capture de
-            // référence) : verre dépoli clair, un peu moins lumineux en sombre
-            color: Theme.dark ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(1, 1, 1, 0.11)
-        }
-        // Liseré à peine plus clair en bas de la bande (mesuré : +2/255)
+        // Liseré clair en bas de la bande (arête du verre)
         Rectangle {
             anchors.bottom: parent.bottom
             width: parent.width
             height: 1
-            color: Qt.rgba(1, 1, 1, 0.04)
+            color: Qt.rgba(1, 1, 1, 0.12)
         }
     }
     Rectangle {
@@ -153,6 +167,7 @@ Item {
                     monitor: bar.monitor
                     wallpaper: bar.wallpaper
                     live: bar.ex > 0 && bar.progress > 0
+                    shown: bar.progress > 0
                     screenW: bar.width
                     screenH: bar.screenH
                 }
@@ -160,10 +175,10 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     anchors.margins: -4
-                    radius: 5
+                    radius: 6
                     color: "transparent"
                     border.width: 3
-                    border.color: "#3B99FC"
+                    border.color: Theme.accent
                     visible: space.isCurrent || space.dropTarget
                     opacity: space.dropTarget && !space.isCurrent ? 0.75 : 1
                 }
@@ -210,20 +225,34 @@ Item {
                 }
             }
 
+            // Barre repliée : pastille plus sombre sous le libellé du bureau
+            // courant (≈ 85x23,5 pt, rayon 6 ; -24/255 environ sur la bande)
+            Rectangle {
+                visible: space.isCurrent && opacity > 0
+                opacity: 1 - Math.min(1, bar.ex / 0.5)
+                width: Math.round(label.implicitWidth + 24)
+                height: 24
+                radius: 6
+                x: Math.round(space.coCenter - space.x - width / 2)
+                y: Math.round((bar.collapsedH - height) / 2 - bar.thumbTop)
+                color: Qt.rgba(0, 0, 0, 0.17)
+            }
+
             // Libellé : glisse de la rangée repliée à sa place sous la vignette
             Text {
                 id: label
                 text: Spaces.label(space.wsId)
-                color: Theme.dark ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(0, 0, 0, 0.85)
+                color: Theme.dark ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(0.11, 0.11, 0.13, 0.88)
                 font.family: Theme.font
-                font.pixelSize: 12
+                font.pixelSize: 13
                 renderType: Text.NativeRendering
                 readonly property real exLX: (space.width - implicitWidth) / 2
                 readonly property real coLX: space.coCenter - space.x - implicitWidth / 2
                 readonly property real exLY: bar.thumbH + 6
                 readonly property real coLY: (bar.collapsedH - implicitHeight) / 2 - bar.thumbTop
-                x: coLX + (exLX - coLX) * bar.ex
-                y: coLY + (exLY - coLY) * bar.ex
+                // Pixels entiers (texte net à l'échelle 1)
+                x: Math.round(coLX + (exLX - coLX) * bar.ex)
+                y: Math.round(coLY + (exLY - coLY) * bar.ex)
             }
         }
     }
@@ -235,9 +264,8 @@ Item {
         height: 32
         radius: 16
         x: bar.width - 34 - width / 2
-        y: bar.thumbTop + bar.thumbH / 2 - height / 2
-        opacity: Math.max(0, (bar.ex - 0.4) / 0.6)
-        visible: opacity > 0
+        // Visible barre repliée comme dépliée, centré verticalement dans la bande
+        y: Math.round(bar.bandH / 2 - height / 2)
         readonly property bool hot: addHover.containsMouse || (bar.dragActive && bar.spaceAt(bar.dragPoint.x, bar.dragPoint.y) === -1)
         color: Theme.dark ? Qt.rgba(1, 1, 1, hot ? 0.24 : 0.14) : Qt.rgba(1, 1, 1, hot ? 0.32 : 0.20)
         border.width: 1

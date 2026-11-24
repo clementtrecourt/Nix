@@ -15,6 +15,7 @@ Item {
     required property var monitor             // HyprlandMonitor de l'écran
     required property Item wallpaper          // fond d'écran plein écran (texture réduite ici)
     property bool live: false                 // capture continue (barre dépliée)
+    property bool shown: true                 // faux : Mission Control fermé (aucune capture)
     property real screenW: 1512
     property real screenH: 982
 
@@ -36,6 +37,7 @@ Item {
         Repeater {
             model: ScriptModel {
                 values: {
+                    if (!root.shown) return [];
                     const out = Hyprland.toplevels.values.filter(t => t.workspace && t.workspace.id === root.wsId);
                     // Ordre d'empilement réel : la fenêtre du dessus en dernier
                     return Stacking.sort(out);

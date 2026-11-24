@@ -10,6 +10,7 @@ import "decor.js" as Decor
 // Une fenêtre dans Mission Control : vignette vivante (ScreencopyView du
 // toplevel Wayland) qui glisse de sa position réelle à l'écran (progress = 0)
 // vers sa place dans la grille (progress = 1). Survol : liseré bleu + titre.
+// App Exposé : titre de la fenêtre affiché en permanence sous la vignette.
 //
 // La capture Wayland ne contient que le contenu du client : la barre de titre
 // hyprbars, le liseré et l'ombre d'Hyprland sont redessinés (decor.js) pour que
@@ -24,6 +25,8 @@ Item {
     property real progress: 0
     property bool hovered: false
     property bool active: false               // fenêtre focalisée (feux colorés, ombre forte)
+    property bool showTitle: false            // App Exposé : titre permanent sous la fenêtre
+    property real labelMaxY: 1e9              // bas autorisé du titre (au-dessus du Dock)
 
     readonly property var ipc: toplevel?.lastIpcObject ?? {}
     readonly property string cls: ipc.class ?? ""
@@ -75,7 +78,9 @@ Item {
     // fenêtre, restée dessous, au tout début (et à la toute fin) de l'animation.
     opacity: Math.min(1, progress / 0.06)
 
-    // Ombre portée (decoration:shadow d'Hyprland : 0 20 60, 0x99 active / 0x55).
+    // Ombre portée = decoration:shadow d'Hyprland (hyprland-look.nix : range 52,
+    // décalage 0 14, 0x28 active / 0x1a inactive) : aucun saut au départ ni à
+    // l'arrivée de l'animation.
     // Elle n'apparaît qu'avec le fond d'écran de Mission Control : au départ,
     // l'ombre réelle d'Hyprland est encore visible dessous (pas de double ombre).
     property real shadowOpacity: 1
@@ -83,21 +88,21 @@ Item {
         anchors.fill: shot
         opacity: tile.shadowOpacity
         radius: shot.radius
-        offset.y: 20 * tile.sc
-        blur: 60 * tile.sc
+        offset.y: 14 * tile.sc
+        blur: 52 * tile.sc
         spread: 0
-        color: Qt.rgba(0, 0, 0, tile.active ? 0.60 : 0.33)
+        color: Qt.rgba(0, 0, 0, tile.active ? 0x28 / 255 : 0x1a / 255)
         cached: false
     }
 
-    // Liseré de survol (bleu système, 3 pt, détaché de 1 pt)
+    // Liseré de survol (couleur d'accent, 3 pt, détaché de 1 pt)
     Rectangle {
         anchors.fill: shot
         anchors.margins: -4
         radius: shot.radius + 4
         color: "transparent"
         border.width: 3
-        border.color: "#3B99FC"
+        border.color: Theme.accent
         opacity: tile.hovered && !tile.dragging && tile.p > 0.98 ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 120 } }
     }
@@ -131,31 +136,36 @@ Item {
                 anchors.fill: parent
                 color: Decor.barColor(tile.cls)
             }
-            // Feux tricolores : Ø 14, marge 10, écart 9 (gris si fenêtre inactive)
+            // Feux tricolores (hyprland-look.nix : bar_padding 8, Ø 14, écart 9 ;
+            // gris #585858 si la fenêtre est inactive)
             Row {
-                x: 10
+                x: 8
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 9
                 Repeater {
-                    model: ["#ff5f57", "#febc2e", "#28c840"]
+                    model: [Theme.trafficRed, Theme.trafficYellow, Theme.trafficGreen]
                     Rectangle {
                         required property var modelData
                         width: 14
                         height: 14
                         radius: 7
-                        color: tile.active ? modelData : "#4f4f52"
+                        color: tile.active ? modelData : "#585858"
                     }
                 }
             }
+            // Titre aligné à gauche après les feux (bar_text_align = left),
+            // Inter 13 semi-gras, blanc 85 % (30 % si inactive)
             Text {
-                anchors.centerIn: parent
-                width: Math.min(implicitWidth, parent.width - 160)
+                x: 86
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, parent.width - x - 12)
                 text: tile.toplevel?.title ?? ""
-                color: Qt.rgba(1, 1, 1, 0.85)
+                color: Qt.rgba(1, 1, 1, tile.active ? 0.85 : 0.30)
                 font.family: Theme.font
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
+                renderType: Text.NativeRendering
             }
         }
     }
@@ -170,44 +180,41 @@ Item {
         visible: !tile.fullscreen
     }
 
-    // Titre sous la fenêtre survolée
+    // Titre sous la fenêtre (Tahoe : texte seul, sans icône)
+    //  - App Exposé : en permanence, texte blanc 13 pt sur le fond d'écran ;
+    //  - Mission Control : au survol seulement, dans une pastille sombre.
+    // Jamais sur le Dock : remonté au besoin au ras du bas de la vignette.
+    readonly property bool titleShown: (tile.showTitle || tile.hovered) && !tile.dragging && tile.p > 0.98
     Rectangle {
         id: titlePill
-        anchors.top: parent.bottom
-        anchors.topMargin: 10
-        anchors.horizontalCenter: parent.horizontalCenter
         readonly property real maxW: Math.max(160, tile.width + 40)
-        width: titleRow.implicitWidth + 20
-        height: 26
+        readonly property bool plain: tile.showTitle
+        width: Math.round(titleText.width + (plain ? 0 : 20))
+        height: plain ? Math.ceil(titleText.implicitHeight) : 24
+        x: Math.round((tile.width - width) / 2)
+        y: Math.round(Math.min(tile.height + (plain ? 8 : 10), tile.labelMaxY - tile.y - height) )
         radius: height / 2
-        color: Qt.rgba(0.12, 0.12, 0.13, 0.78)
-        border.width: 1
+        color: plain ? "transparent" : Qt.rgba(0.12, 0.12, 0.13, 0.78)
+        border.width: plain ? 0 : 1
         border.color: Qt.rgba(1, 1, 1, 0.10)
-        opacity: tile.hovered && !tile.dragging && tile.p > 0.98 ? 1 : 0
+        opacity: tile.titleShown ? 1 : 0
         visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: 140 } }
 
-        // Icône de l'app + titre de la fenêtre
-        Row {
-            id: titleRow
+        Text {
+            id: titleText
             anchors.centerIn: parent
-            spacing: 6
-            IconImage {
-                anchors.verticalCenter: parent.verticalCenter
-                implicitSize: 16
-                source: Apps.icon(tile.cls)
-            }
-            Text {
-                id: titleText
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.min(implicitWidth, titlePill.maxW - 20 - 22)
-                text: tile.toplevel?.title || tile.cls
-                color: "white"
-                font.family: Theme.font
-                font.pixelSize: 13
-                font.weight: Font.Medium
-                elide: Text.ElideRight
-            }
+            width: Math.min(implicitWidth, titlePill.maxW - (titlePill.plain ? 0 : 20))
+            text: tile.toplevel?.title || Apps.displayName(tile.cls)
+            color: "white"
+            font.family: Theme.font
+            font.pixelSize: 13
+            font.weight: Font.Medium
+            elide: Text.ElideRight
+            renderType: Text.NativeRendering
+            // Lisible sur un fond d'écran clair (léger halo sombre, comme macOS)
+            style: titlePill.plain ? Text.Raised : Text.Normal
+            styleColor: Qt.rgba(0, 0, 0, 0.25)
         }
     }
 

@@ -31,6 +31,10 @@ Item {
     property bool clearAllMode: false
     // Menu des actions de la fenêtre (ActionMenu), null = pas de menu
     property Item menuHost: null
+    // Aperçu masqué (System Settings > Notifications > Show previews) : nom de
+    // l'app et « Notification », sans le contenu ni l'image
+    readonly property bool previewHidden: NotifStore.previewHidden(entry)
+    readonly property string shownImage: entry && !previewHidden ? entry.image : ""
 
     signal clicked()
     signal closeClicked()
@@ -174,20 +178,20 @@ Item {
 
             IconImage {
                 anchors.fill: parent
-                visible: !card.entry || !card.entry.image
+                visible: !card.shownImage
                 source: card.entry ? card.entry.appIcon : ""
                 asynchronous: true
                 mipmap: true
             }
             ClippingRectangle {
-                visible: !!(card.entry && card.entry.image)
+                visible: !!card.shownImage
                 anchors.fill: parent
                 anchors.margins: 1
                 radius: width / 2
                 color: Theme.fill
                 Image {
                     anchors.fill: parent
-                    source: card.entry ? card.entry.image : ""
+                    source: card.shownImage
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     sourceSize: Qt.size(96, 96)
@@ -196,7 +200,7 @@ Item {
             }
             // Pastille de l'app (seulement si on connaît l'app)
             IconImage {
-                visible: !!(card.entry && card.entry.image) && !card.genericIcon
+                visible: !!card.shownImage && !card.genericIcon
                 width: 18
                 height: 18
                 x: parent.width - 14
@@ -220,6 +224,7 @@ Item {
             RowLayout {
                 visible: card.timeSensitive
                 Layout.fillWidth: true
+                Layout.topMargin: 2
                 Layout.bottomMargin: 1
                 spacing: 6
                 Text {
@@ -229,11 +234,13 @@ Item {
                     font.family: Theme.font
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
-                    font.letterSpacing: 0.5
                     elide: Text.ElideRight
                 }
+                // Au survol (capsule d'action visible), l'heure s'efface (image Apple)
                 Text {
                     text: timeLabel.text
+                    opacity: card.showButton ? 0 : 1
+                    Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
                     color: Theme.labelSecondary
                     font.family: Theme.font
                     font.pixelSize: 12
@@ -245,7 +252,7 @@ Item {
                 spacing: 6
                 Text {
                     Layout.fillWidth: true
-                    text: card.entry ? (card.entry.summary || card.entry.appName) : ""
+                    text: !card.entry ? "" : card.previewHidden ? card.entry.appName : (card.entry.summary || card.entry.appName)
                     color: Theme.label
                     font.family: Theme.font
                     font.pixelSize: 13
@@ -257,6 +264,8 @@ Item {
                 Text {
                     id: timeLabel
                     visible: !card.timeSensitive
+                    opacity: card.showButton ? 0 : 1
+                    Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
                     Layout.alignment: Qt.AlignVCenter
                     text: card.entry ? NotifStore.relTime(card.entry.time) : ""
                     color: Theme.labelSecondary
@@ -273,7 +282,7 @@ Item {
                 id: bodyText
                 Layout.preferredWidth: textCol.width - (card.showButton ? actBtn.width + 8 : 0)
                 visible: text.length > 0
-                text: card.entry ? card.entry.body : ""
+                text: !card.entry ? "" : card.previewHidden ? "Notification" : card.entry.body
                 color: Theme.label
                 opacity: 0.92
                 font.family: Theme.font
@@ -419,8 +428,10 @@ Item {
     // ---- Bouton × (à cheval sur le coin haut-gauche) ----
     CloseButton {
         id: closeBtn
-        x: -7
-        y: -7
+        // Centre à ~(4 ; 6) pt du coin de la carte (image Apple, macOS 26)
+        x: -6
+        y: -4
+        tint: card.tint
         z: 10
         visible: card.closable
         shown: card.hovered || containsMouse

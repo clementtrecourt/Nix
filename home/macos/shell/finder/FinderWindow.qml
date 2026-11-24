@@ -25,7 +25,11 @@ FloatingWindow {
     property string startReveal: ""
 
     title: Fs.displayName(path)
-    color: FStyle.contentBg
+    // Fenêtre transparente : le fond du contenu est dessiné par `stage`, avec
+    // un trou sous la barre latérale ; Hyprland floute ce qu'il y a derrière
+    // la fenêtre (bureau, autres fenêtres) et le verre de la barre latérale le
+    // teinte, comme le matériau « behind-window » du Finder de Tahoe.
+    color: "transparent"
     implicitWidth: 980
     implicitHeight: 620
     minimumSize: Qt.size(FStyle.minWidth, FStyle.minHeight)
@@ -36,6 +40,8 @@ FloatingWindow {
     property var fwdStack: []
     // "icon" | "list" | "column" | "gallery"
     property string viewMode: "icon"
+    // Taille des icônes en présentation Icônes (curseur de la barre d'état)
+    property int iconSize: FStyle.iconSize
     property string sortKey: "name"        // name | date | size | kind
     property bool sortAsc: true
     property bool showHidden: false
@@ -46,6 +52,9 @@ FloatingWindow {
     property string searchText: ""
     // Grouper par (barre d'outils) : "" = aucun
     property string groupBy: ""
+    // Récents : groupés par date de dernière ouverture par défaut (Tahoe)
+    property string recentsGroupBy: "opened"
+    readonly property string effectiveGroup: path === "recents://" ? recentsGroupBy : groupBy
     property point lastMenuPos: Qt.point(0, 0)
     property bool showGoTo: false
     property string alertText: ""
@@ -65,7 +74,27 @@ FloatingWindow {
     property bool pendingRename: false
 
     readonly property alias lister: lister
-    readonly property var items: _sorted(lister.visibleEntries, sortKey, sortAsc, searchText)
+    // Recherche : dès la saisie, barre de portée sous la barre d'outils ;
+    // « This Mac » (par défaut, comme Tahoe : ici le dossier personnel, faute
+    // d'index Spotlight) ou le dossier courant, récursivement
+    property string searchScope: "mac"
+    readonly property string searchRoot: searchScope === "mac" || isVirtual ? Fs.home : path
+    property string _searchKey: ""
+    Timer {
+        id: searchDebounce
+        interval: 250
+        onTriggered: win._searchKey = win.searchText ? JSON.stringify([win.searchRoot, win.searchText]) : ""
+    }
+    onSearchTextChanged: { if (!searchText) _searchKey = ""; else searchDebounce.restart(); }
+    onSearchRootChanged: if (searchText) searchDebounce.restart()
+    readonly property bool searchResults: searchText !== "" && _searchKey !== "" && !(isVirtual && searchScope !== "mac")
+    DirLister {
+        id: searchLister
+        watch: false
+        path: win._searchKey ? "search://" + win._searchKey : ""
+    }
+    readonly property var items: searchResults ? _sorted(searchLister.visibleEntries, sortKey, sortAsc, "")
+                                               : _sorted(lister.visibleEntries, sortKey, sortAsc, searchText)
     // Éléments sélectionnés, dans l'ordre d'affichage (toutes profondeurs en Liste)
     readonly property var selection: {
         const m = selMap;
@@ -90,7 +119,10 @@ FloatingWindow {
     readonly property int tabCount: Math.max(1, tabs.length)
     readonly property real tabBarHeight: tabs.length > 1 ? 34 : 0
     // Hauteur de la barre d'outils (+ barre d'onglets) : haut des présentations
-    readonly property real chromeHeight: FStyle.toolbarHeight + tabBarHeight
+    // Barre sous la barre d'outils : portée de la recherche, ou « Trash … Empty »
+    readonly property string subBar: searchText !== "" ? "search" : (path === "trash://" ? "trash" : "")
+    readonly property real subBarHeight: subBar ? 32 : 0
+    readonly property real chromeHeight: FStyle.toolbarHeight + tabBarHeight + subBarHeight
     function _saveTab() {
         const t = { path: path, back: backStack, fwd: fwdStack, view: viewMode, sel: selectedPaths };
         const l = tabs.length ? tabs.slice() : [t];
@@ -543,6 +575,7 @@ FloatingWindow {
         if (k === Qt.Key_Space && !cmd) { win.finder.toggleQuickLook(win); return true; }
         if ((k === Qt.Key_Return || k === Qt.Key_Enter) && !cmd) { startRename(); return true; }
         if (k === Qt.Key_Escape) {
+            if (showGoTo) { showGoTo = false; return true; }
             if (searching) { searching = false; searchText = ""; return true; }
             return false;
         }
@@ -578,6 +611,9 @@ FloatingWindow {
 
     // ------------------------------------------------------------ mise en page
     readonly property real contentX: showSidebar ? FStyle.sidebarInset + sidebarWidth : 0
+    // Volet d'informations de la Galerie (pleine hauteur, barre d'outils
+    // au-dessus) : 0 si la place manque
+    readonly property real inspectorWidth: viewMode === "gallery" && width - contentX > 700 ? 260 : 0
     readonly property real bottomBars: (showPathBar ? FStyle.pathBarHeight : 0) + (showStatusBar ? FStyle.statusBarHeight : 0)
 
     // Fond réfracté par les verres : contenu de la fenêtre seulement
@@ -590,12 +626,41 @@ FloatingWindow {
 
         Keys.onPressed: (e) => { if (win.handleKey(e)) e.accepted = true; }
 
-        Rectangle { anchors.fill: parent; color: FStyle.contentBg }
+        // Fond du contenu, troué sous la plaque de la barre latérale (coins de
+        // 18 pt : bord intérieur d'un anneau de rayon 2R et d'épaisseur R)
+        Item {
+            id: windowBg
+            anchors.fill: parent
+            readonly property bool holed: win.showSidebar
+            readonly property real hx: FStyle.sidebarInset
+            readonly property real hy: FStyle.sidebarInset
+            readonly property real hw: win.sidebarWidth - FStyle.sidebarInset
+            readonly property real hh: height - 2 * FStyle.sidebarInset
+            readonly property real r: FStyle.sidebarRadius
+            Rectangle { visible: !windowBg.holed; anchors.fill: parent; color: FStyle.contentBg }
+            Rectangle { visible: windowBg.holed; width: parent.width; height: windowBg.hy; color: FStyle.contentBg }
+            Rectangle { visible: windowBg.holed; y: windowBg.hy + windowBg.hh; width: parent.width; height: parent.height - y; color: FStyle.contentBg }
+            Rectangle { visible: windowBg.holed; y: windowBg.hy; width: windowBg.hx; height: windowBg.hh; color: FStyle.contentBg }
+            Rectangle { visible: windowBg.holed; x: windowBg.hx + windowBg.hw; y: windowBg.hy; width: parent.width - x; height: windowBg.hh; color: FStyle.contentBg }
+            Rectangle {
+                visible: windowBg.holed
+                x: windowBg.hx - windowBg.r
+                y: windowBg.hy - windowBg.r
+                width: windowBg.hw + 2 * windowBg.r
+                height: windowBg.hh + 2 * windowBg.r
+                radius: 2 * windowBg.r
+                color: "transparent"
+                border.width: windowBg.r
+                border.color: FStyle.contentBg
+                antialiasing: true
+            }
+        }
 
         Loader {
             id: view
-            // Colonnes : le contenu défile aussi sous la barre latérale (verre)
-            x: win.viewMode === "column" && win.showSidebar ? FStyle.sidebarInset : win.contentX
+            // Le contenu s'arrête au bord de la barre latérale : dessous, la
+            // fenêtre est transparente (flou du bureau par Hyprland)
+            x: win.contentX
             clip: true
             y: 0
             width: parent.width - x
@@ -629,7 +694,7 @@ FloatingWindow {
 
     Component { id: iconComp; IconView { fw: win } }
     Component { id: listComp; ListPresentation { fw: win } }
-    Component { id: columnComp; ColumnPresentation { fw: win; lead: win.contentX - view.x } }
+    Component { id: columnComp; ColumnPresentation { fw: win } }
     Component { id: galleryComp; GalleryPresentation { fw: win } }
 
     // Effet de bord de défilement (« soft edge ») sous la barre d'outils : le
@@ -702,6 +767,15 @@ FloatingWindow {
         width: parent.width - x
         height: win.tabBarHeight
         backdropItem: stage
+    }
+
+    SubBar {
+        fw: win
+        visible: win.subBar !== ""
+        x: win.contentX
+        y: FStyle.toolbarHeight + win.tabBarHeight
+        width: parent.width - x
+        height: win.subBarHeight
     }
 
     Toolbar {
@@ -777,6 +851,7 @@ FloatingWindow {
         }
         handleKey({ key: key, modifiers: mods, text: text });
     }
+    function debugOverflow() { toolbar.debugOverflow(); }
     function debugScroll(dy) { if (view.item && view.item.debugScroll) view.item.debugScroll(dy); }
     function debugExpand(name) { if (view.item && view.item.toggleExpanded) view.item.toggleExpanded(Fs.join(path, name)); }
 }

@@ -90,6 +90,8 @@ Scope {
         title: "Force Quit Applications"
         titleSeparator: true
         zoomEnabled: true
+        // Fenêtre AppKit opaque (blanc 255 en clair, liste comprise)
+        opaque: true
         cardWidth: 338
         cardHeight: 320
         onCloseRequested: root.shown = false
@@ -206,6 +208,9 @@ Scope {
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: 20
                 implicitHeight: 24
+                // Marge intérieure de 11,5 pt par côté (Relaunch : 80 pt pour
+                // un libellé de 57 pt), 80 pt au minimum
+                width: Math.max(80, Math.ceil(labelWidth + 23))
                 radius: 6
                 text: root.finderSelected ? "Relaunch" : "Force Quit"
                 isDefault: true

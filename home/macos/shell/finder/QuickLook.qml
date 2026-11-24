@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Widgets
 import qs.common
 
 // Coup d'œil (Quick Look, barre d'espace) : fenêtre d'aperçu de Tahoe. Barre
@@ -42,6 +43,8 @@ Scope {
         if (source) source.focusStage();
     }
     onEntriesChanged: if (index >= entries.length) index = 0
+    // Rotation d'affichage (Rotate Left), remise à zéro à chaque élément
+    property int rotationDeg: 0
 
     // ---- Texte ----
     FileView {
@@ -89,13 +92,19 @@ Scope {
         id: win
         visible: root.shown && root.sized
         title: root.entry ? root.entry.name : "Quick Look"
-        color: Theme.dark ? "#1E1E1E" : "#FFFFFF"
+        // Cadre gris translucide (flou Hyprland derrière), image en retrait
+        // aux coins arrondis (capture Apple mh14119 « Quick Look »)
+        color: Theme.dark ? Qt.rgba(0.17, 0.17, 0.18, 0.92) : Qt.rgba(0.74, 0.74, 0.75, 0.92)
         readonly property real maxW: 1100
         readonly property real maxH: 760
+        readonly property int bar: 40
+        readonly property int inset: 6
+        readonly property bool turned: Math.abs(root.rotationDeg % 180) === 90
+        readonly property real imgRatio: turned ? 1 / ratio : ratio
         readonly property bool fitsImage: natural.status === Image.Ready && (root.cat === "image" || root.bigThumb !== "")
         readonly property real ratio: fitsImage ? natural.implicitWidth / Math.max(1, natural.implicitHeight) : 1.35
-        implicitWidth: fitsImage ? Math.round(Math.max(420, Math.min(maxW, (maxH - 44) * ratio, natural.implicitWidth))) : 760
-        implicitHeight: fitsImage ? Math.round(Math.max(300, Math.min(maxH, implicitWidth / ratio + 44))) : 560
+        implicitWidth: fitsImage ? Math.round(Math.max(420, Math.min(maxW, (maxH - bar - inset) * imgRatio + 2 * inset, natural.implicitWidth + 2 * inset))) : 760
+        implicitHeight: fitsImage ? Math.round(Math.max(300, Math.min(maxH, (implicitWidth - 2 * inset) / imgRatio + bar + inset))) : 560
         minimumSize: Qt.size(320, 240)
         onVisibleChanged: if (!visible && root.shown) root.shown = false
 
@@ -124,21 +133,33 @@ Scope {
             // ---- Contenu ----
             Item {
                 id: content
-                x: 0
-                y: 44
-                width: parent.width
-                height: parent.height - 44
+                x: win.inset
+                y: win.bar
+                width: parent.width - 2 * win.inset
+                height: parent.height - win.bar - win.inset
 
-                // Image (ou rendu PDF / vidéo)
-                Image {
-                    anchors.fill: parent
+                // Image (ou rendu PDF / vidéo), coins arrondis, rotation (Rotate Left)
+                ClippingRectangle {
                     visible: root.cat === "image" || root.bigThumb !== ""
-                    source: root.cat === "image" && root.entry ? Fs.fileUrl(root.entry.path) : root.bigThumb
-                    sourceSize: Qt.size(2000, 2000)
-                    fillMode: Image.PreserveAspectFit
-                    asynchronous: true
-                    smooth: true
-                    mipmap: true
+                    readonly property real fitW: Math.min(parent.width, parent.height * win.imgRatio)
+                    readonly property real fitH: fitW / win.imgRatio
+                    anchors.centerIn: parent
+                    width: Math.round(fitW)
+                    height: Math.round(fitH)
+                    radius: 8
+                    color: "transparent"
+                    Image {
+                        anchors.centerIn: parent
+                        width: win.turned ? parent.height : parent.width
+                        height: win.turned ? parent.width : parent.height
+                        rotation: root.rotationDeg
+                        source: root.cat === "image" && root.entry ? Fs.fileUrl(root.entry.path) : root.bigThumb
+                        sourceSize: Qt.size(2000, 2000)
+                        fillMode: Image.PreserveAspectFit
+                        asynchronous: true
+                        smooth: true
+                        mipmap: true
+                    }
                 }
                 // Bouton lecture sur la vignette d'une vidéo
                 Rectangle {
@@ -150,6 +171,13 @@ Scope {
                     color: Qt.rgba(0, 0, 0, 0.45)
                     Symbol { anchors.centerIn: parent; anchors.horizontalCenterOffset: 3; name: "play.fill"; size: 28; color: "white" }
                     MouseArea { anchors.fill: parent; onClicked: Fs.open(root.entry.path) }
+                }
+                // Fond de page (texte, aperçu générique)
+                Rectangle {
+                    anchors.fill: parent
+                    visible: root.cat !== "image" && root.bigThumb === ""
+                    radius: 8
+                    color: Theme.dark ? "#1E1E1E" : "#FFFFFF"
                 }
                 // Texte
                 Flickable {
@@ -208,11 +236,9 @@ Scope {
             }
 
             // ---- Barre de titre (verre gris) ----
-            Rectangle {
+            Item {
                 width: parent.width
-                height: 44
-                color: Theme.dark ? "#2C2C2E" : "#ECECEC"
-                Rectangle { y: parent.height - 1; width: parent.width; height: 1; color: FStyle.gridLine }
+                height: win.bar
                 MouseArea {
                     anchors.fill: parent
                     onPressed: win.startSystemMove()
@@ -258,15 +284,24 @@ Scope {
                         font.pixelSize: 12
                         color: FStyle.secondaryText
                     }
-                    Symbol { anchors.verticalCenter: parent.verticalCenter; name: "info.circle"; size: 17; color: FStyle.toolIconColor }
-                    Symbol { visible: root.cat === "image" || root.cat === "pdf"; anchors.verticalCenter: parent.verticalCenter; name: "pencil"; size: 17; color: FStyle.toolIconColor }
-                    Symbol { anchors.verticalCenter: parent.verticalCenter; name: "square.and.arrow.up"; size: 17; color: FStyle.toolIconColor }
+                    Symbol { anchors.verticalCenter: parent.verticalCenter; name: "info.circle.badge.plus"; size: 18; color: FStyle.toolIconColor }
+                    Symbol { visible: root.cat === "image" || root.cat === "pdf"; anchors.verticalCenter: parent.verticalCenter; name: "pencil.tip.crop.circle"; size: 18; color: FStyle.toolIconColor }
+                    Symbol {
+                        visible: root.cat === "image"
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "rotate.left"
+                        size: 18
+                        color: FStyle.toolIconColor
+                        MouseArea { anchors.fill: parent; anchors.margins: -5; onClicked: root.rotationDeg = (root.rotationDeg - 90) % 360 }
+                    }
+                    Symbol { anchors.verticalCenter: parent.verticalCenter; name: "square.and.arrow.up"; size: 18; color: FStyle.toolIconColor }
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         height: 26
                         width: openText.implicitWidth + 26
                         radius: 13
-                        color: om.pressed ? (Theme.dark ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0, 0, 0, 0.14)) : (Theme.dark ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(0, 0, 0, 0.07))
+                        // Capsule plus claire que le cadre (capture Apple)
+                        color: om.pressed ? (Theme.dark ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(1, 1, 1, 0.45)) : (Theme.dark ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.30))
                         Text {
                             id: openText
                             anchors.centerIn: parent
@@ -292,7 +327,7 @@ Scope {
             root.defaultApp = de ? de.name : "";
         }
     }
-    onEntryChanged: { _renderBig(); _queryDefault(); }
+    onEntryChanged: { rotationDeg = 0; _renderBig(); _queryDefault(); }
     function _queryDefault() {
         defaultApp = "";
         if (!entry || entry.isDir) return;

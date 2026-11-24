@@ -22,7 +22,7 @@ Item {
 
         Glyph {
             id: glass
-            anchors.verticalCenter: parent.verticalCenter
+            y: Math.round((parent.height - height) / 2)
             x: 8
             name: "magnifyingglass"
             size: 13

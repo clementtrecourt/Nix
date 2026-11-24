@@ -1,8 +1,11 @@
 # Thème d'icônes « MacTahoe-Apple-dark / -light » : les vraies icônes d'apps de
 # macOS 26 Tahoe (PNG 1024 de l'input de flake `macos-icons`, jamais copiées dans le
 # dépôt) renommées vers les noms d'icônes Linux équivalents, redimensionnées en
-# plusieurs tailles fixes pour la netteté. Tout le reste (dossiers, mimes, symboliques,
-# apps tierces) est hérité de MacTahoe-dark / MacTahoe-light.
+# plusieurs tailles fixes pour la netteté. Petites tailles des dossiers et documents
+# (16/22/24 px : listes du sélecteur de fichiers, Nemo…) : les versions couleur de
+# MacTahoe (dossier bleu plein, documents illustrés, comme dans les listes du Finder)
+# au lieu de ses pictos au trait, presque invisibles sur fond sombre. Tout le reste
+# (symboliques, apps tierces) est hérité de MacTahoe-dark / MacTahoe-light.
 {
   lib,
   stdenvNoCC,
@@ -57,7 +60,26 @@
     "Safari.png" = ["macos-safari"];
   };
   sizes = [16 22 24 32 48 64 128 256 512 1024];
-  dirsOf = lib.concatMapStringsSep "," (s: "${toString s}x${toString s}/apps") sizes;
+  # Petites tailles « couleur » : dossier de contexte -> tailles
+  smallColor = {
+    places = {
+      context = "Places";
+      sizes = [16 22 24];
+    };
+    mimes = {
+      context = "MimeTypes";
+      sizes = [16 22];
+    };
+  };
+  smallDirs = lib.concatLists (lib.mapAttrsToList (dir: v:
+    map (s: {
+      name = "${dir}/${toString s}";
+      size = s;
+      inherit (v) context;
+    })
+    v.sizes)
+  smallColor);
+  dirsOf = lib.concatStringsSep "," (map (s: "${toString s}x${toString s}/apps") sizes ++ map (d: d.name) smallDirs);
   sections =
     lib.concatMapStrings (s: ''
 
@@ -66,7 +88,35 @@
       Size=${toString s}
       Type=Fixed
     '')
-    sizes;
+    sizes
+    + lib.concatMapStrings (d: ''
+
+      [${d.name}]
+      Context=${d.context}
+      Size=${toString d.size}
+      Type=Fixed
+    '')
+    smallDirs;
+  # Liens <dossier>/<taille>/<nom>.svg -> version couleur (scalable) de MacTahoe du
+  # même nom, ou de l'icône vers laquelle pointe le lien de petite taille
+  smallLinks =
+    lib.concatMapStrings (d: let
+      dir = builtins.head (lib.splitString "/" d.name);
+    in ''
+      mkdir -p "$dark/${d.name}"
+      for f in "$base/${d.name}"/*.svg; do
+        n=$(basename "$f")
+        # nom cible du lien (ex. mimes/16/inode-directory -> places/16/folder)
+        t=$(basename "$(readlink "$f" || echo "$f")")
+        for c in "$base/${dir}/scalable/$n" "$base/places/scalable/$t" "$base/mimes/scalable/$t"; do
+          if [ -e "$c" ]; then
+            ln -s "$c" "$dark/${d.name}/$n"
+            break
+          fi
+        done
+      done
+    '')
+    smallDirs;
   indexFor = variant: inherits: ''
     [Icon Theme]
     Name=MacTahoe-Apple-${variant}
@@ -118,8 +168,12 @@ in
       }
       ${commands}
 
+      # Dossiers et documents en couleur aux petites tailles
+      base=${mactahoe-icon-theme}/share/icons/MacTahoe
+      ${smallLinks}
+
       # Variante claire : mêmes icônes d'apps, héritage MacTahoe-light
-      for d in $dark/*x*; do ln -s "../MacTahoe-Apple-dark/$(basename "$d")" "$light/$(basename "$d")"; done
+      for d in $dark/*x* $dark/places $dark/mimes; do ln -s "../MacTahoe-Apple-dark/$(basename "$d")" "$light/$(basename "$d")"; done
       cat > $dark/index.theme <<'EOF'
       ${indexFor "dark" "MacTahoe-dark"}
       EOF

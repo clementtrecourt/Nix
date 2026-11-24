@@ -14,12 +14,16 @@ import qs.spotlight
 import qs.notifications
 import qs.missioncontrol
 import qs.finder
+import qs.settings
 
 ShellRoot {
     // Fond d'écran, verrouillage, dialogues de session, À propos, Polkit
     Session {}
 
     MenuBar {}
+    // Mission Control avant le Dock : sa surface (toujours mappée) est ainsi
+    // empilée au-dessus de la barre des menus et sous le Dock, comme sur macOS
+    MissionControl {}
     Dock {}
 
     ControlCenter {}
@@ -28,9 +32,11 @@ ShellRoot {
     Spotlight {}
     Notifications {}
 
-    MissionControl {}
     AppSwitcher {}
 
     // Gestionnaire de fichiers façon Finder
     Finder {}
+
+    // Réglages Système (System Settings)
+    Settings {}
 }

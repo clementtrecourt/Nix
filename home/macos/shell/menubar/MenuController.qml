@@ -10,6 +10,8 @@ QtObject {
     // Identifiant du menu ouvert : "logo", "app", "file", "edit", "view",
     // "window", "help", "tray:<id>" ; "" = fermé.
     property string openId: ""
+    // ⌥ enfoncée pendant que le menu est ouvert (éléments alternés)
+    property bool optionDown: false
     // Écran (nom de sortie) où le menu est affiché
     property string screenName: ""
     // Abscisse (repère écran) du bord gauche de la pastille du titre
@@ -69,6 +71,7 @@ QtObject {
 
     // Ferme le menu. `animated` : fondu de 150 ms (choix d'un élément, clic hors).
     function close(animated) {
+        optionDown = false;
         if (!isOpen && !closing) return;
         closing = !!animated;
         openId = "";

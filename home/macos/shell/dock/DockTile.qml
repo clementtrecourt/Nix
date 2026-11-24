@@ -74,9 +74,14 @@ Item {
     // Le Finder est toujours ouvert sur macOS : point permanent
     readonly property bool running: isApp && (windows.length > 0 || dock.model.isFinder(appId))
     readonly property var launchState: isApp ? (dock.model.launching[appId] ?? null) : null
-    readonly property bool urgent: isApp && cls !== "" && dock.model.urgentClasses.includes(cls)
+    // Début de la demande d'attention en cours (un seul rebond), 0 sinon
+    readonly property real attentionStart: isApp && cls !== "" ? (dock.model.attention[cls] ?? 0) : 0
     readonly property var toplevel: isWindow ? dock.model.toplevelByAddress(address) : null
     property bool pressed: false
+    // Téléchargements affiché « en pile » (Display as: Stack) et non vide
+    readonly property bool showStack: kind === "folder" && dock.stackDisplay === "stack" && dock.downloads.count > 0
+    // Trois premiers éléments (ordre de tri), dessinés de l'arrière vers l'avant
+    readonly property var stackItems: showStack ? dock.downloads.sorted.slice(0, 3).reverse() : []
 
     // Nom affiché dans la bulle (libellés de macOS en anglais US)
     readonly property string label: {
@@ -128,7 +133,7 @@ Item {
 
     // ---- Rebond (lancement / demande d'attention), piloté par l'horloge du Dock ----
     // Lancement : paraboles de 0,7 s, hauteur ≈ 0,5 tuile ; on termine le saut en cours
-    // quand la fenêtre apparaît. Attention : sauts plus hauts suivis d'une pause.
+    // quand la fenêtre apparaît. Attention : un seul saut, plus haut (demande informative).
     readonly property real bounce: {
         const now = dock.now;
         if (launchState) {
@@ -141,9 +146,9 @@ Item {
             const f = (el % P) / P;
             return canvas * 0.5 * 4 * f * (1 - f);
         }
-        if (urgent) {
-            const P = 1100, flight = 640, el = now % P;
-            if (el > flight) return 0;
+        if (attentionStart > 0) {
+            const flight = 640, el = now - attentionStart;
+            if (el < 0 || el > flight) return 0;
             const f = el / flight;
             return canvas * 0.9 * 4 * f * (1 - f);
         }
@@ -230,25 +235,84 @@ Item {
         // grande image (ci-dessous, pendant l'agrandissement) donnait des icônes
         // floues sur un écran 1x.
         readonly property real restW: tile.boxed ? tile.canvas * 0.805 * 0.66 : tile.canvas * tile.iconScale
-        readonly property bool atRest: Math.abs(tile.vSize - tile.canvas) < 0.5 && !tile.pressed
+        readonly property bool atRest: Math.abs(tile.vSize - tile.canvas) < 0.5
         readonly property real _dpr: QsWindow.window?.devicePixelRatio ?? 1
+        // Origine absolue de iconBox dans la fenêtre : l'icône est posée sur un
+        // pixel entier de la FENÊTRE (pas seulement de son parent).
+        readonly property real absX: tile.x + x
+        readonly property real absY: y
         Image {
             id: iconRest
-            visible: !iconBox.stackOpen && iconBox.atRest && status === Image.Ready
+            visible: !iconBox.stackOpen && iconBox.atRest && status === Image.Ready && !tile.showStack
             width: Math.round(iconBox.restW)
             height: width
-            x: Math.round((parent.width - width) / 2)
-            y: Math.round((parent.height - height) / 2)
+            x: Math.round(iconBox.absX + (iconBox.width - width) / 2) - iconBox.absX
+            y: Math.round(iconBox.absY + (iconBox.height - height) / 2) - iconBox.absY
             source: tile.iconSource
             sourceSize: Qt.size(Math.round(width * iconBox._dpr), Math.round(width * iconBox._dpr))
             fillMode: Image.PreserveAspectFit
             smooth: true
             mipmap: false
+            // macOS assombrit l'icône pendant l'appui (même rastérisation : reste nette)
+            layer.enabled: tile.pressed
+            layer.effect: MultiEffect { brightness: -0.35 }
+        }
+
+        // « Display as: Stack » (réglage par défaut de Tahoe) : l'icône est la pile
+        // des derniers éléments, le plus récent devant, les suivants dépassant
+        // au-dessus (capture Ars Technica de Tahoe, Dock sombre). Aperçus du cache
+        // de miniatures, sinon icône du type ; boîtes en pixels entiers.
+        Item {
+            id: stackIcon
+            visible: tile.showStack && !iconBox.stackOpen
+            anchors.fill: parent
+            layer.enabled: tile.pressed
+            layer.effect: MultiEffect { brightness: -0.35 }
+            Repeater {
+                model: tile.stackItems
+                Item {
+                    id: layerItem
+                    required property var modelData
+                    required property int index
+                    // Rang depuis l'avant (0 = le plus récent)
+                    readonly property int rank: tile.stackItems.length - 1 - index
+                    readonly property int boxH: Math.round(tile.vSize * 0.84) - rank * Math.round(tile.vSize * 0.03)
+                    readonly property int boxW: Math.round(tile.vSize * 0.84 * (1 - 0.06 * rank))
+                    width: boxW
+                    height: boxH
+                    x: Math.round(iconBox.absX + (iconBox.width - width) / 2) - iconBox.absX
+                    // Bas du premier plan à ~8 % du bas de la toile ; les autres remontent
+                    y: Math.round(iconBox.absY + tile.vSize * 0.92) - iconBox.absY - rank * Math.max(2, Math.round(tile.vSize * 0.05)) - boxH
+                    readonly property bool img: tile.dock.downloads.isImage(modelData.name)
+                    readonly property var sources: {
+                        const d = tile.dock.downloads;
+                        const l = [];
+                        const th = modelData.isDir ? "" : d.thumbFor(modelData.path, false);
+                        if (th) l.push(th);
+                        if (img) l.push("file://" + modelData.path);
+                        l.push(d.iconFor(modelData.name, modelData.isDir));
+                        return l;
+                    }
+                    property int attempt: 0
+                    onSourcesChanged: attempt = 0
+                    Image {
+                        id: prev
+                        anchors.fill: parent
+                        source: layerItem.sources[Math.min(layerItem.attempt, layerItem.sources.length - 1)]
+                        sourceSize: Qt.size(Math.round(width * iconBox._dpr), Math.round(height * iconBox._dpr))
+                        fillMode: Image.PreserveAspectFit
+                        verticalAlignment: Image.AlignBottom
+                        asynchronous: true
+                        smooth: true
+                        onStatusChanged: if (status === Image.Error && layerItem.attempt < layerItem.sources.length - 1) layerItem.attempt++
+                    }
+                }
+            }
         }
 
         Image {
             id: icon
-            visible: !iconBox.stackOpen && !iconRest.visible
+            visible: !iconBox.stackOpen && !iconRest.visible && !tile.showStack
             anchors.centerIn: parent
             width: tile.boxed ? box.width * 0.66 : tile.vSize * tile.iconScale
             height: width
@@ -280,11 +344,14 @@ Item {
         readonly property real winH: tile.toplevel?.lastIpcObject?.size?.[1] ?? 10
         readonly property real fit: Math.min(width * 0.9 / Math.max(1, winW), height * 0.9 / Math.max(1, winH))
 
+        // Au repos : miniature et badge sur des pixels entiers de la fenêtre
+        readonly property real absX: tile.x + x
         ClippingRectangle {
             id: thumbClip
-            anchors.centerIn: parent
-            width: Math.max(4, thumbBox.winW * thumbBox.fit)
-            height: Math.max(4, thumbBox.winH * thumbBox.fit)
+            width: Math.max(4, Math.round(thumbBox.winW * thumbBox.fit))
+            height: Math.max(4, Math.round(thumbBox.winH * thumbBox.fit))
+            x: Math.round(thumbBox.absX + (thumbBox.width - width) / 2) - thumbBox.absX
+            y: Math.round(thumbBox.y + (thumbBox.height - height) / 2) - thumbBox.y
             radius: Math.max(2, Theme.radiusWindow * thumbBox.fit)
             color: "transparent"
 
@@ -313,26 +380,29 @@ Item {
             visible: shot.hasContent
             width: Math.round(thumbBox.width * 0.42)
             height: width
-            x: thumbBox.width - width - thumbBox.width * 0.02
-            y: thumbBox.height - height - thumbBox.height * 0.02
+            x: Math.round(thumbBox.absX + thumbBox.width - width - thumbBox.width * 0.02) - thumbBox.absX
+            y: Math.round(thumbBox.y + thumbBox.height - height - thumbBox.height * 0.02) - thumbBox.y
             source: tile.isWindow ? tile.iconSource : ""
-            sourceSize: Qt.size(tile.dock.iconPixels, tile.dock.iconPixels)
+            // Rastérisé à sa taille exacte (net en 1x, y compris pendant l'agrandissement)
+            sourceSize: Qt.size(Math.round(width * iconBox._dpr), Math.round(width * iconBox._dpr))
             fillMode: Image.PreserveAspectFit
             smooth: true
-            mipmap: true
+            mipmap: false
         }
     }
 
-    // ---- Point d'app ouverte (4 pt, centré 4,5 pt au-dessus du bord bas de la
-    // plaque ; noir ~85 % en clair, blanc ~70 % en sombre) ----
+    // ---- Point d'app ouverte (4 pt, centré 4 pt au-dessus du bord bas de la
+    // plaque, sur des pixels entiers ; relevés : noir ~95 % en clair — Newsroom
+    // #011435, MacStories #000228 —, blanc ~55 % en sombre — Ars #969FA8 sur
+    // #192229) ----
     Rectangle {
         visible: tile.isApp
         width: 4
         height: 4
         radius: 2
-        x: tile.centerX - 2
-        y: tile.dock.platterBottom - 4.5 - 2
-        color: Theme.dark ? Qt.rgba(1, 1, 1, 0.70) : Qt.rgba(0, 0, 0, 0.85)
+        x: Math.round(tile.x + tile.centerX - 2) - tile.x
+        y: Math.round(tile.dock.platterBottom) - 6
+        color: Theme.dark ? Qt.rgba(1, 1, 1, 0.55) : Qt.rgba(0, 0, 0, 0.95)
         opacity: (tile.running || (tile.launchState !== null)) ? tile.presence : 0
         Behavior on opacity { NumberAnimation { duration: 200 } }
     }

@@ -3,6 +3,8 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import qs.services
+import qs.dock
+import qs.notifications
 
 // Sélecteur d'applications Cmd+Tab (macOS Tahoe).
 //
@@ -68,6 +70,32 @@ Scope {
         const outLow = out.map(c => c.toLowerCase());
         for (const c of running) if (!outLow.includes(c.toLowerCase())) out.push(c);
         return out;
+    }
+
+    // ---- Icônes et pastilles : mêmes sources que le Dock ----
+    // Résolveur d'icônes du Dock (surcharge utilisateur > toile Apple du thème
+    // MacTahoe-Apple > thème > icône amont « en boîte ») : kitty -> Terminal…
+    DockIcons { id: iconResolver; maxPixels: 256 }
+    readonly property alias icons: iconResolver
+    function iconKey(cls) {
+        const e = Apps.entryFor(cls);
+        return e ? e.id : String(cls).toLowerCase();
+    }
+    function themeIcon(cls) {
+        const e = Apps.entryFor(cls);
+        return e && e.icon ? e.icon : cls;
+    }
+    onAppsChanged: { for (const c of apps) iconResolver.want(iconKey(c), themeIcon(c)); }
+    // Pastille rouge : nombre de notifications de l'app présentes dans le Centre
+    // de notifications (Linux n'a pas d'équivalent général du badge d'app macOS)
+    function badgeCount(cls) {
+        const e = Apps.entryFor(cls);
+        const keys = [String(cls).toLowerCase()];
+        if (e) keys.push(String(e.id).toLowerCase(), String(e.name).toLowerCase());
+        let n = 0;
+        for (const x of NotifStore.entries)
+            if (keys.includes(x.appKey) || keys.includes(String(x.appName).toLowerCase())) n++;
+        return n;
     }
 
     // ---- Séquence Cmd+Tab ----

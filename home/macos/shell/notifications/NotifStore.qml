@@ -17,7 +17,12 @@ import qs.services
 //    restent à l'écran jusqu'à action de l'utilisateur ;
 //  - regroupement par application (pile) ;
 //  - "Ne pas déranger" (services/Focus.qml, s'il existe) : pas de bannière, mais la
-//    notification arrive quand même dans le Centre de notifications.
+//    notification arrive quand même dans le Centre de notifications ;
+//  - System Settings > Notifications (services/SystemPrefs.qml, appliqué en
+//    direct) : aperçus (Always / When Unlocked / Never), autorisation quand
+//    l'écran est en veille, verrouillé ou recopié / partagé, et réglages par
+//    app (autoriser, style Temporary / Persistent, bureau, Centre de
+//    notifications, écran de verrouillage, son, aperçus, regroupement).
 Singleton {
     id: root
 
@@ -88,6 +93,9 @@ Singleton {
 
     // ---- Réception ----------------------------------------------------------
     function receive(n) {
+        // App non autorisée (Allow notifications désactivé) : la notification
+        // n'est ni affichée ni conservée (non suivie, le serveur la détruit)
+        if (!confFor(groupKey(n.desktopEntry, n.appName), n.appName).allow) return;
         n.tracked = true;
         let e = entries.find(x => x.notif === n);
         // Rechargement à chaud : le serveur réémet les notifications conservées
@@ -101,9 +109,13 @@ Singleton {
         }
         fill(e, n);
         e.time = Date.now();
+        // « Show in Notification Center » désactivé : seulement la bannière
+        // (et l'écran de verrouillage), l'entrée est retirée ensuite
+        e.centerHidden = !confOf(e).center;
         entries = [e].concat(entries.filter(x => x !== e));
         showBanner(e);
-        playSound(n);
+        playSound(n, e);
+        if (e.centerHidden && !e.popup && !onLockScreen(e)) Qt.callLater(() => root.dismiss(e));
         scheduleSave();
     }
 
@@ -136,9 +148,15 @@ Singleton {
 
     // Son de la notification (indices freedesktop "sound-file" / "sound-name"),
     // comme macOS : seulement si l'app en demande un, jamais en "Ne pas déranger".
-    function playSound(n) {
+    function playSound(n, e) {
         const h = n.hints ?? {};
         if (h["suppress-sound"] || (doNotDisturb && n.urgency < 2)) return;
+        // « Play sound for notification » (réglage de l'app)
+        if (e && !confOf(e).sound) return;
+        // Bannière retenue (veille, recopie, écran verrouillé sans affichage
+        // sur l'écran de verrouillage) : pas de son non plus
+        const paused = e ? pausedReason() : "";
+        if (paused !== "" && !(paused === "locked" && onLockScreen(e))) return;
         const file = h["sound-file"] ? String(h["sound-file"]).replace(/^file:\/\//, "") : "";
         const name = h["sound-name"] ? String(h["sound-name"]) : "";
         if (!file && !name) return;
@@ -294,6 +312,10 @@ fi
     function showBanner(e) {
         if (centerOpen) return;
         if (doNotDisturb && e.urgency < 2) return;
+        // « Show notifications on desktop » (réglage de l'app)
+        if (!confOf(e).desktop) return;
+        // Écran verrouillé, en veille, recopié / partagé : pas de bannière
+        if (pausedReason() !== "") return;
         e.popup = true;
         let idx = -1;
         for (let i = 0; i < bannerModel.count; i++)
@@ -316,7 +338,7 @@ fi
     function hideBanner(key) {
         for (const e of entries.filter(x => x.popup && x.appKey === key)) {
             e.popup = false;
-            if (e.isTransient) dismiss(e);
+            if (e.isTransient || e.centerHidden) dismiss(e);
         }
         for (let i = 0; i < bannerModel.count; i++)
             if (bannerModel.get(i).key === key) { bannerModel.remove(i); break; }
@@ -398,12 +420,19 @@ fi
     }
 
     // ---- Groupes du Centre de notifications --------------------------------------
-    function groupItems(key) { return entries.filter(x => x.appKey === key); }
+    // Regroupement (réglage de l'app) : Automatic / By Application = une pile
+    // par app ; Off = chaque notification seule
+    function groupOf(e) { return confOf(e).grouping === "off" ? e.appKey + "#" + e.uid : e.appKey; }
+    function groupItems(key) { return entries.filter(x => !x.centerHidden && groupOf(x) === key); }
 
     onEntriesChanged: syncGroups()
     function syncGroups() {
         const keys = [];
-        for (const e of entries) if (!keys.includes(e.appKey)) keys.push(e.appKey);
+        for (const e of entries) {
+            if (e.centerHidden) continue;
+            const k = groupOf(e);
+            if (!keys.includes(k)) keys.push(k);
+        }
         // Supprime les groupes disparus
         for (let i = groupModel.count - 1; i >= 0; i--)
             if (!keys.includes(groupModel.get(i).key)) groupModel.remove(i);
@@ -481,6 +510,62 @@ fi
             if (e.wasPopup) { e.wasPopup = false; showBanner(e); }
     }
 
+    // ---- Réglages (System Settings > Notifications) ---------------------------------
+    // Réglages de l'app d'une entrée (clé de regroupement + id .desktop connu)
+    function confFor(appKey, appName) {
+        const de = Apps.entryFor(appKey) ?? (appName ? Apps.entryFor(appName) : null);
+        return SystemPrefs.appConf(de?.id ?? appKey, appKey);
+    }
+    function confOf(e) { return e ? confFor(e.appKey, e.appName) : SystemPrefs.appNotifDefaults; }
+
+    // Style « Persistent » : la bannière reste jusqu'à ce qu'on la ferme
+    function isPersistent(e) { return !!e && confOf(e).style === "persistent"; }
+
+    // Aperçu masqué (« Show previews ») : réglage de l'app, sinon réglage global.
+    // When Unlocked = masqué tant que l'écran est verrouillé.
+    function previewHidden(e) {
+        if (!e) return false;
+        const own = confOf(e).previews;
+        const p = own && own !== "default" ? own : SystemPrefs.notifPreviews;
+        return p === "never" || (p === "unlocked" && ShellState.locked);
+    }
+
+    // Notification affichée sur l'écran de verrouillage : reçue depuis le
+    // verrouillage, autorisée globalement et pour l'app
+    function onLockScreen(e) {
+        return ShellState.locked && SystemPrefs.notifLocked && e.time >= ShellState.lockedSince && confOf(e).lock;
+    }
+    // Notifications de l'écran de verrouillage (plus récente d'abord)
+    readonly property var lockEntries: {
+        entries; SystemPrefs.appNotif; SystemPrefs.notifLocked; ShellState.locked; ShellState.lockedSince;
+        return entries.filter(e => root.onLockScreen(e));
+    }
+
+    // Pourquoi les bannières sont retenues ("" = rien ne les retient) : écran
+    // verrouillé (elles vont sur l'écran de verrouillage), écran en veille ou
+    // recopié / partagé sans autorisation
+    function pausedReason() {
+        if (ShellState.locked) return "locked";
+        if (!SystemPrefs.notifSleeping && DisplayState.asleep) return "sleeping";
+        if (!SystemPrefs.notifMirroring && (DisplayState.mirroring || DisplayState.sharing)) return "mirroring";
+        return "";
+    }
+
+    // Réglages changés : regroupement et visibilité dans le Centre réévalués
+    Connections {
+        target: SystemPrefs
+        function onAppNotifChanged() { root.syncGroups(); }
+    }
+    // Déverrouillage : les notifications gardées seulement pour l'écran de
+    // verrouillage (absentes du Centre) disparaissent
+    Connections {
+        target: ShellState
+        function onLockedChanged() {
+            if (ShellState.locked) return;
+            for (const e of root.entries.filter(x => x.centerHidden && !x.popup)) root.dismiss(e);
+        }
+    }
+
     // ---- IPC -----------------------------------------------------------------------
     IpcHandler {
         target: "notifications"
@@ -520,6 +605,7 @@ fi
         }
     }
     function injectFake(app, summary, body, actions, urgency, image, minutesAgo) {
+        if (!confFor(groupKey(app, app), app).allow) return;
         const e = entryComponent.createObject(root, {
             uid: nextUid++, appKey: groupKey(app, app), appName: displayName(app, app),
             appIcon: resolveIcon(app, "", app), image: image ? (image.startsWith("/") ? "file://" + image : image) : "",
@@ -527,6 +613,7 @@ fi
             time: Date.now() - minutesAgo * 60000
         });
         e.actions = actions ? actions.split("|").map((t, i) => ({ identifier: "a" + i, text: t, ref: null })) : [];
+        e.centerHidden = !confOf(e).center;
         entries = [e].concat(entries).sort((a, b) => b.time - a.time);
         if (minutesAgo === 0) showBanner(e);
         scheduleSave();

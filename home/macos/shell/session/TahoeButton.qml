@@ -15,6 +15,7 @@ Item {
     property bool enabled: true
     property int fontSize: 13
     property real radius: height / 2
+    readonly property real labelWidth: label.implicitWidth
     signal clicked()
 
     implicitHeight: 28

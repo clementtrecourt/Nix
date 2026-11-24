@@ -5,7 +5,7 @@
 #   macos-screenshot : Cmd+Maj+3 / Cmd+Maj+4 (+ Espace = fenêtre), nommage macOS français
 #   macos-appearance : mode clair / sombre de tout le système (GTK4/libadwaita,
 #                      Kvantum, barres de titre hyprbars) d'après gsettings color-scheme
-#   macos-settings   : « Réglages Système » (gnome-control-center hors GNOME), aussi
+#   macos-settings   : « Réglages Système » (app du shell, IPC settings), aussi
 #                      exposé sous le nom gnome-control-center appelé par le shell
 {
   lib,
@@ -21,12 +21,14 @@
   jq,
   libnotify,
   mactahoe-gtk-theme,
+  mactahoe-kde,
   pipewire,
   procps,
   quickshell,
   slurp,
   socat,
   sound-theme-freedesktop,
+  tahoe-titlebuttons,
   wdisplays,
   wl-clipboard,
 }: let
@@ -35,24 +37,34 @@
   # ---------------------------------------------------------------------------
   appearance = writeShellApplication {
     name = "macos-appearance";
-    runtimeInputs = [coreutils dconf hyprland];
+    runtimeInputs = [coreutils dconf gawk hyprland];
     text = ''
       # macos-appearance <commande>
       #   apply [dark|light]  applique le mode (par défaut : celui de gsettings color-scheme)
       #   hypr [dark|light]   réapplique seulement les couleurs Hyprland (après un reload)
+      #   files [dark|light]  écrit seulement les fichiers (activation home-manager)
       #   watch               applique puis suit les changements de color-scheme
       #                       (Control Center du shell, Réglages, gsettings…)
       #
       # Le shell (controlcenter/Appearance.qml) écrit color-scheme + gtk-theme ;
       # ce script propage aux parties que gsettings ne pilote pas :
       #   - libadwaita/GTK4 : ~/.config/gtk-4.0/gtk.css importe MacTahoe-Light ou -Dark
+      #                       (+ feux tricolores de Tahoe)
+      #   - GTK3             : feux tricolores de Tahoe ($XDG_STATE_HOME/macos-appearance/
+      #                       gtk3.css, lié par home-manager à ~/.config/gtk-3.0/gtk.css)
+      #   - apps KDE         : schéma de couleurs MacTahoeLight / MacTahoeDark
+      #                       ($XDG_STATE_HOME/macos-appearance/kdeglobals, lié par
+      #                       home-manager à ~/.config/kdeglobals)
       #   - Qt (Kvantum)     : ~/.config/Kvantum/kvantum.kvconfig -> MacTahoe / MacTahoeDark
-      #   - hyprbars         : couleur des barres de titre, du titre, feux inactifs
+      #   - Hyprland         : barres hyprbars (fond, titre, feux inactifs), liseré
       # kitty suit seul le mode (fichiers *-theme.auto.conf, via le portail Settings).
       cmd="''${1:-apply}"
       key=/org/gnome/desktop/interface/color-scheme
       conf="''${XDG_CONFIG_HOME:-$HOME/.config}"
+      state="''${XDG_STATE_HOME:-$HOME/.local/state}/macos-appearance"
       themes="${mactahoe-gtk-theme}/share/themes"
+      tb="${tahoe-titlebuttons}/share/tahoe-titlebuttons"
+      kcolors="${mactahoe-kde}/share/color-schemes"
 
       mode() {
         case "$(dconf read "$key" 2>/dev/null)" in
@@ -70,34 +82,98 @@
 
       hypr() {
         [ -n "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || return 0
-        # Barre de titre = fond de la barre d'en-tête MacTahoe (#333333 / #ffffff),
-        # titre en label (actif) ou tertiaryLabel (inactif), feux inactifs gris.
-        # (barre inactive = fond « backdrop » de la barre d'en-tête MacTahoe)
+        # Barre de titre = fond de la barre d'en-tête MacTahoe (#333333 / #ffffff), la
+        # même active ou non (pas de bande bicolore avec le contenu) ; titre en label
+        # (actif) ou tertiaryLabel (inactif) ; feux inactifs = Theme.trafficInactive
+        # posé sur la barre ; liseré clair en sombre, noir ~20 % en clair (Tahoe).
         if [ "$1" = dark ]; then
-          bar="rgb(333333)" back="rgb(242424)" text="rgba(ffffffd9)" dim="rgba(ffffff4d)" off="rgb(4f4f52)" term="rgb(1e1e1e)"
+          bar="rgb(333333)" text="rgba(ffffffd9)" dim="rgba(ffffff4d)" off="rgb(585858)" term="rgb(1e1e1e)"
+          border="rgba(ffffff24)" border_off="rgba(ffffff14)"
         else
-          bar="rgb(ffffff)" back="rgb(f2f2f2)" text="rgba(000000d9)" dim="rgba(0000004d)" off="rgb(d9d9d9)" term="rgb(ffffff)"
+          bar="rgb(ffffff)" text="rgba(000000d9)" dim="rgba(0000004d)" off="rgb(dcdcdc)" term="rgb(ffffff)"
+          border="rgba(00000033)" border_off="rgba(00000024)"
         fi
         local b=""
         b+="keyword plugin:hyprbars:bar_color $bar;"
         b+="keyword plugin:hyprbars:col.text $text;"
         b+="keyword plugin:hyprbars:inactive_button_color $off;"
-        # Règles ajoutées après celles de la config : elles l'emportent (terminal en dernier)
-        b+="keyword windowrule hyprbars:bar_color $back, match:focus false;"
-        b+="keyword windowrule hyprbars:bar_color $term, match:class ^(kitty|foot|footclient|Alacritty)\$;"
-        b+="keyword windowrule hyprbars:title_color $dim, match:focus false"
+        b+="keyword general:col.active_border $border;"
+        b+="keyword general:col.inactive_border $border_off;"
+        # Règles ajoutées après celles de la config : elles l'emportent
+        b+="keyword windowrule hyprbars:title_color $dim, match:focus false;"
+        b+="keyword windowrule hyprbars:bar_color $term, match:class ^(kitty|foot|footclient|Alacritty)\$"
         hyprctl --batch "$b" >/dev/null 2>&1 || true
+      }
+
+      # Feux tricolores de Tahoe en CSS GTK (mêmes couleurs que hyprbars et le shell) :
+      # disques de 14 px espacés de 9 px, symboles au survol, gris en arrière-plan.
+      # titlebuttons <gtk3|gtk4> <dark|light>
+      titlebuttons() {
+        local sel hover b
+        if [ "$1" = gtk4 ]; then
+          # GTK4 : le survol remonte au conteneur -> symboles dès que le groupe est survolé
+          sel="windowcontrols button"
+          hover="windowcontrols:hover button"
+          printf '%s\n' "windowcontrols { border-spacing: 9px; }"
+        else
+          sel="button.titlebutton"
+          hover="button.titlebutton:hover"
+        fi
+        printf '%s\n' "$sel.close, $sel.minimize, $sel.maximize {
+        min-width: 14px; min-height: 14px; margin: 0; padding: 0;
+        background-color: transparent; border: none; box-shadow: none; color: transparent;
+        background-position: center; background-repeat: no-repeat; background-size: 14px 14px;
+      }"
+        [ "$1" = gtk3 ] && printf '%s\n' "$sel.close, $sel.minimize { margin-right: 9px; }"
+        for b in close minimize maximize; do
+          printf '%s\n' "$sel.$b { background-image: url(\"file://$tb/$b.svg\"); }"
+          printf '%s\n' "$sel.$b:backdrop { background-image: url(\"file://$tb/backdrop-$2.svg\"); }"
+          if [ "$1" = gtk4 ]; then
+            printf '%s\n' "$hover.$b, $sel.$b:hover { background-image: url(\"file://$tb/$b-hover.svg\"); }"
+          else
+            printf '%s\n' "$sel.$b:hover { background-image: url(\"file://$tb/$b-hover.svg\"); }"
+          fi
+          printf '%s\n' "$sel.$b:active { background-image: url(\"file://$tb/$b-active.svg\"); }"
+        done
+      }
+
+      # kdeglobals des apps KDE : schéma de couleurs MacTahoe + polices / icônes du
+      # système (Inter 10 = texte de 13 pt du Mac, comme qt6ct)
+      # (le style Qt reste celui de qt6ct : Kvantum)
+      kdeglobals() {
+        local K="$1" icons
+        icons=$(dconf read /org/gnome/desktop/interface/icon-theme 2>/dev/null | tr -d "'" || true)
+        printf '%s\n' "[General]
+      ColorScheme=$K
+      font=Inter,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+      menuFont=Inter,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+      toolBarFont=Inter,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+      smallestReadableFont=Inter,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+      fixed=JetBrains Mono,11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+
+      [Icons]
+      Theme=''${icons:-MacTahoe-Apple-dark}
+      "
+        # Couleurs du schéma, sans son groupe [General] (remplacé ci-dessus)
+        awk '/^\[/{skip = ($0 == "[General]")} !skip' "$kcolors/$K.colors"
       }
 
       apply() {
         local m="''${1:-$(mode)}" T K
         if [ "$m" = dark ]; then T=Dark K=MacTahoeDark; else T=Light K=MacTahoe; fi
+        local KC="MacTahoe$T"
         # gtk-theme suit le mode (utile si le mode a été changé hors du shell)
-        if [ "$(dconf read /org/gnome/desktop/interface/gtk-theme 2>/dev/null)" != "'MacTahoe-$T'" ]; then
+        if [ -z "''${MACOS_APPEARANCE_FILES_ONLY:-}" ] &&
+          [ "$(dconf read /org/gnome/desktop/interface/gtk-theme 2>/dev/null)" != "'MacTahoe-$T'" ]; then
           dconf write /org/gnome/desktop/interface/gtk-theme "'MacTahoe-$T'" 2>/dev/null || true
         fi
         put "$conf/gtk-4.0/gtk.css" "/* Généré par macos-appearance (mode $m) : thème des apps libadwaita */
-      @import url(\"file://$themes/MacTahoe-$T/gtk-4.0/gtk.css\");"
+      @import url(\"file://$themes/MacTahoe-$T/gtk-4.0/gtk.css\");
+      $(titlebuttons gtk4 "$m")"
+        # Fichiers cibles des liens home-manager (~/.config/gtk-3.0/gtk.css, ~/.config/kdeglobals)
+        put "$state/gtk3.css" "/* Généré par macos-appearance (mode $m) : feux tricolores de Tahoe */
+      $(titlebuttons gtk3 "$m")"
+        put "$state/kdeglobals" "$(kdeglobals "$KC")"
         put "$conf/Kvantum/kvantum.kvconfig" "[General]
       theme=$K"
         hypr "$m"
@@ -105,6 +181,10 @@
 
       case "$cmd" in
         apply) apply "''${2:-}" ;;
+        files)
+          # Activation home-manager : fichiers seuls, sans toucher à Hyprland ni à dconf
+          MACOS_APPEARANCE_FILES_ONLY=1 HYPRLAND_INSTANCE_SIGNATURE="" apply "''${2:-}"
+          ;;
         hypr) hypr "''${2:-$(mode)}" ;;
         watch)
           apply
@@ -141,6 +221,8 @@
       #   fullscreen        Ctrl+Cmd+F / bouton vert : plein écran dans un nouvel espace
       #                     (et retour à l'espace d'origine en sortie)
       #   cycle-app         Cmd+` : fenêtre suivante de la même app
+      #   toggle-float      Super+W : fenêtre pavée <-> flottante ; une fenêtre qui
+      #                     devient flottante est centrée, à 60 % × 70 % de l'écran
       #   key <k> [shift]   Cmd+<k> -> Ctrl+<k> (Ctrl+Maj pour les terminaux)
       #   kill-line         Cmd+⌫ : efface jusqu'au début de la ligne
       #   lock              verrouille (écran du shell, sinon hyprlock)
@@ -258,6 +340,13 @@
             # Nouvel espace juste après l'espace courant (glissement), puis plein écran
             jq -r '.workspace.id' <<<"$win" >"$state/fs-$addr"
             hyprctl --batch "dispatch movetoworkspace emptynm,address:$addr; dispatch fullscreenstate 2 2" >/dev/null
+          fi
+          ;;
+        toggle-float)
+          if [ "$(active | jq -r '.floating // false')" = true ]; then
+            hyprctl dispatch togglefloating >/dev/null
+          else
+            hyprctl --batch "dispatch togglefloating; dispatch resizeactive exact 60% 70%; dispatch centerwindow 1" >/dev/null
           fi
           ;;
         cycle-app)
@@ -469,22 +558,32 @@
   };
 
   # ---------------------------------------------------------------------------
-  # Réglages Système : gnome-control-center (barre latérale + panneaux, la plus
-  # proche des Réglages Système du Mac) lancé hors GNOME ; « Écrans » -> wdisplays
-  # (le panneau GNOME exige Mutter). Le shell appelle `gnome-control-center <panneau>`.
+  # Réglages Système : l'app du shell (shell/settings, IPC « settings »).
+  # `macos-settings [panneau]` ; aussi installé sous le nom gnome-control-center
+  # (le shell et des apps appellent `gnome-control-center <panneau>` : les noms
+  # de panneaux GNOME sont traduits par le shell). Si le shell ne tourne pas,
+  # repli sur le vrai gnome-control-center lancé hors GNOME.
   # ---------------------------------------------------------------------------
   settingsScript = writeShellApplication {
     name = "macos-settings";
-    runtimeInputs = [coreutils];
+    runtimeInputs = [coreutils quickshell];
     text = ''
-      case "''${1:-}" in
+      pane=""
+      for a in "$@"; do
+        case "$a" in
+          -*) ;;
+          *) [ -z "$pane" ] && pane="$a" ;;
+        esac
+      done
+      if quickshell -c macos ipc call settings open "$pane" >/dev/null 2>&1; then
+        exit 0
+      fi
+      # Repli : gnome-control-center (refuse de démarrer hors GNOME sans ce marqueur)
+      case "$pane" in
         display | displays) exec ${lib.getExe wdisplays} ;;
       esac
-      # gnome-control-center refuse de démarrer hors GNOME sans ce marqueur
       export XDG_CURRENT_DESKTOP=GNOME
-      # Les panneaux sont décrits par des fichiers .desktop cherchés dans XDG_DATA_DIRS
       export XDG_DATA_DIRS="${gnome-control-center}/share''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
-      # … et ignorés si leur Exec=gnome-control-center n'est pas dans le PATH
       export PATH="${gnome-control-center}/bin:$PATH"
       exec ${gnome-control-center}/bin/gnome-control-center "$@"
     '';
@@ -498,7 +597,7 @@
       mkdir -p $out/share
       ln -s ${gnome-control-center}/share/icons $out/share/icons
       mkdir -p $out/share/applications
-      sed "s|^Exec=.*|Exec=$out/bin/macos-settings|; s|^OnlyShowIn=.*||" \
+      sed "s|^Exec=.*|Exec=$out/bin/macos-settings|; s|^OnlyShowIn=.*||; s|^Name=.*|Name=System Settings|; /^Name\[/d" \
         ${gnome-control-center}/share/applications/org.gnome.Settings.desktop \
         >$out/share/applications/org.gnome.Settings.desktop
     '';

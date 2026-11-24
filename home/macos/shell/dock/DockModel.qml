@@ -39,8 +39,34 @@ Item {
         prefs = p;
         saveState(false);
     }
-    // « Options > Attribuer à » : { id: "all" | <id d'espace de travail> }
+    // « Options > Assign To » : { id: "all" | <id d'espace de travail> } (absent = None)
     property var assign: ({})
+    function assignOf(id) {
+        const v = assign[norm(cleanId(id))];
+        return v === undefined || v === null ? "none" : v === "all" ? "all" : "this";
+    }
+    function setAssign(id, mode) {
+        const a = Object.assign({}, assign);
+        const k = norm(cleanId(id));
+        if (mode === "none") delete a[k];
+        else if (mode === "all") a[k] = "all";
+        else a[k] = Hyprland.focusedMonitor?.activeWorkspace?.id ?? 1;
+        assign = a;
+        saveState(false);
+    }
+    // Nouvelle fenêtre d'une app attribuée à un bureau : envoyée sur ce bureau.
+    // « All Desktops » : épinglée sur tous les bureaux (fenêtres flottantes,
+    // seules épinglables sous Hyprland).
+    function applyAssign(addr, ws, cls) {
+        const v = assign[norm(idForClass(cls))];
+        if (v === undefined || v === null) return;
+        if (v === "all") {
+            const t = toplevelByAddress(addr.startsWith("0x") ? addr : "0x" + addr);
+            if (t?.lastIpcObject?.floating) Windows.dispatch("pin address:" + (addr.startsWith("0x") ? addr : "0x" + addr));
+        } else if (String(v) !== String(ws)) {
+            Windows.dispatch("movetoworkspacesilent " + v + ",address:" + (addr.startsWith("0x") ? addr : "0x" + addr));
+        }
+    }
     property bool stateLoaded: false
     property bool userPinned: false
     property var basePinned: null
@@ -164,8 +190,34 @@ Item {
     // ---- Apps en cours de lancement (rebond) ----
     // { id: { start: ms, end: ms|0 } }
     property var launching: ({})
-    readonly property bool bouncing: Object.keys(launching).length > 0 || urgentClasses.length > 0
+    readonly property bool bouncing: Object.keys(launching).length > 0 || Object.keys(attention).length > 0
     readonly property var urgentClasses: Windows.toplevels.filter(t => t.urgent).map(t => Windows.classOf(t))
+    // Demande d'attention : Hyprland ne distingue pas « informative » et
+    // « critique » ; macOS fait rebondir une demande informative une seule fois
+    // (≈ 1 s). { classe: début (ms) } ; une classe qui redevient urgente rebondit
+    // à nouveau.
+    property var attention: ({})
+    property var lastUrgent: []
+    onUrgentClassesChanged: {
+        const a = Object.assign({}, attention);
+        let changed = false;
+        for (const c of urgentClasses)
+            if (!lastUrgent.includes(c)) { a[c] = Date.now(); changed = true; }
+        lastUrgent = urgentClasses.slice();
+        if (changed) attention = a;
+    }
+    Timer {
+        // Fin du rebond d'attention (un saut de 0,64 s)
+        interval: 200
+        repeat: true
+        running: Object.keys(root.attention).length > 0
+        onTriggered: {
+            const now = Date.now(), a = {};
+            for (const c in root.attention)
+                if (now - root.attention[c] < 1000) a[c] = root.attention[c];
+            if (Object.keys(a).length !== Object.keys(root.attention).length) root.attention = a;
+        }
+    }
 
     function markLaunching(id) {
         const l = Object.assign({}, launching);
@@ -349,6 +401,11 @@ Item {
         target: Hyprland
         function onRawEvent(ev) {
             const n = ev.name;
+            if (n === "openwindow") {
+                // adresse,espace de travail,classe,titre
+                const f = String(ev.data).split(",");
+                if (f.length >= 3) root.applyAssign(f[0], f[1], f[2]);
+            }
             if (n === "openwindow" || n === "closewindow" || n === "movewindow" || n === "movewindowv2"
                 || n === "windowtitle" || n === "windowtitlev2" || n === "urgent" || n === "activewindow") {
                 // lastIpcObject (classe, taille, espace de travail) n'est rempli
@@ -404,6 +461,17 @@ Item {
         const list = windowsFor(cls).filter(t => isHidden(t));
         for (const t of list) Windows.dispatch("movetoworkspacesilent " + ws + ",address:" + Windows.addressOf(t));
         if (list.length) Windows.dispatch("focuswindow address:" + Windows.addressOf(list[list.length - 1]));
+    }
+
+    // « Force Quit » (Option + Quit) : SIGKILL aux processus des fenêtres de l'app
+    function forceQuit(cls) {
+        const pids = [];
+        for (const t of windowsFor(cls)) {
+            const p = t?.lastIpcObject?.pid;
+            if (p && p > 0 && !pids.includes(p)) pids.push(p);
+        }
+        if (pids.length) Quickshell.execDetached(["kill", "-KILL"].concat(pids.map(String)));
+        else Windows.quitApp(cls);
     }
 
     function setPinned(id, keep) {

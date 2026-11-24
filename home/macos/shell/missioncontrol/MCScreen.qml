@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -9,7 +8,7 @@ import qs.session
 import "layout.js" as Layout
 import "decor.js" as Decor
 
-// Mission Control sur un écran : surface plein écran (calque Overlay) qui
+// Mission Control sur un écran : surface plein écran (calque Top) qui
 // recouvre le bureau réel. Les fenêtres partent de leur position exacte à
 // l'écran (progress = 0, le fond d'écran est encore transparent : on voit le
 // vrai bureau) et glissent vers une grille sans chevauchement (progress = 1).
@@ -36,24 +35,33 @@ PanelWindow {
     property bool forceExpanded: false        // débogage : barre dépliée
     property int forceHoverSpace: -1          // débogage : bureau survolé
 
-    // Surface montrée une fois les positions rafraîchies (évite un flash de
+    // Contenu montré une fois les positions rafraîchies (évite un flash de
     // fenêtres à d'anciennes positions)
     property bool started: false
-    visible: started
+    // Surface active (de l'ouverture à la fin de la sortie)
+    property bool surfaceUp: false
     color: "transparent"
-    // Calque Top, comme le Dock et la barre des menus. Dans un même calque,
-    // Hyprland empile les surfaces dans l'ordre où elles sont mappées : Mission
-    // Control (mappé à l'ouverture) recouvre donc la barre des menus (masquée,
-    // comme sur macOS)... mais aussi le Dock (« layerrule = order » ne règle que
-    // la réservation d'espace, pas l'empilement). Garder le Dock visible demande
-    // de le placer dans le calque Overlay (hors de ce composant).
+    // Empilement : calque Top, comme le Dock et la barre des menus. Dans un même
+    // calque, Hyprland empile les surfaces dans l'ordre où elles ont été MAPPÉES.
+    // La surface est donc créée au démarrage (shell.qml : MissionControl avant
+    // Dock, après MenuBar) et reste mappée en permanence : elle passe au-dessus
+    // de la barre des menus (masquée pendant Mission Control, comme sur macOS)
+    // et sous le Dock (visible par-dessus, comme sur macOS), sans remappage.
+    // Fermée : entièrement transparente, zone de saisie vide, pas de clavier,
+    // contenu masqué (Qt ne redessine rien, aucune capture d'écran en cours).
+    // Elle garde sa taille plein écran : la réduire à 1x1 px imposait un aller-
+    // retour de redimensionnement avec le compositeur à chaque ouverture
+    // (ouverture retardée, images manquées).
     // "macos-lg-*" : pas de flou Hyprland (surface opaque une fois ouverte ;
     // pendant l'animation, le vrai bureau doit rester net sous les vignettes).
+    visible: true
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "macos-lg-missioncontrol"
     WlrLayershell.keyboardFocus: isOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
-    anchors { top: true; bottom: true; left: true; right: true }
+    anchors { top: true; left: true; bottom: true; right: true }
+    mask: surfaceUp ? null : noInput
+    Region { id: noInput }
 
     // ---- Fenêtres affichées ----
     readonly property int wsId: monitor?.activeWorkspace?.id ?? 1
@@ -81,7 +89,8 @@ PanelWindow {
         // Ordre d'empilement réel d'Hyprland : la fenêtre du dessus en dernier
         return Stacking.sort(list);
     }
-    readonly property var wins: closing ? frozen : liveWins
+    // Rien à capturer tant que Mission Control est fermé
+    readonly property var wins: !surfaceUp ? [] : closing ? frozen : liveWins
 
     // App Exposé : fenêtres réduites de l'app (special:minimized), rangée à part
     // en bas de l'écran sous un filet, comme sur macOS
@@ -91,7 +100,7 @@ PanelWindow {
         return Hyprland.toplevels.values.filter(t => Windows.isMinimized(t)
             && t.lastIpcObject?.at !== undefined && Windows.classOf(t).toLowerCase() === cls);
     }
-    readonly property var minWins: closing ? frozenMin : liveMinWins
+    readonly property var minWins: !surfaceUp ? [] : closing ? frozenMin : liveMinWins
     readonly property real minStripH: minWins.length > 0 ? 150 : 0
     // Haut de la rangée des fenêtres réduites
     readonly property real minStripY: height - dockReserve - 26 - minStripH
@@ -115,27 +124,23 @@ PanelWindow {
     readonly property rect area: shownMode === "app"
         ? Qt.rect(40, 56, width - 80, height - 56 - dockReserve - 24 - (minStripH > 0 ? minStripH + 56 : 0))
         : Qt.rect(48, spaces.collapsedH + 30, width - 96, height - spaces.collapsedH - 30 - dockReserve - 18)
-    readonly property var baseRects: Layout.compute(wins.map(geomOf), {
+    // Disposition organique (chaque fenêtre reste près de sa place réelle) ;
+    // toujours un léger "recul", comme macOS
+    readonly property var baseRects: Layout.organic(wins.map(geomOf), {
         x: area.x, y: area.y, w: area.width, h: area.height
-    }, { gapX: 26, gapY: 46, maxScale: 0.88 })   // toujours un léger "recul", comme macOS
-    // Barre des Spaces dépliée (survol, glisser) : comme sur macOS, la même
-    // disposition est réduite et descendue sous la barre (aucune fenêtre ne
-    // change de place dans la grille).
+    }, { gapX: 26, gapY: 46, maxScale: 0.88, screen: { x: 0, y: 0, w: width, h: height } })
+    // Barre des Spaces dépliée (survol, glisser) : comme sur macOS, toute la
+    // disposition est réduite (≈ ×0,88 sur un écran 1080p, mesuré ×0,87 sur
+    // Tahoe) et descendue sous la barre ; aucune fenêtre ne change de place.
     readonly property var rects: {
         const r = baseRects;
         if (shownMode !== "mc" || !spaces.expanded || r.length === 0) return r;
-        let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-        for (const q of r) {
-            x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y);
-            x1 = Math.max(x1, q.x + q.w); y1 = Math.max(y1, q.y + q.h);
-        }
-        const top = spaces.expandedH + 30;
         const bottom = height - dockReserve - 18;
-        const k = Math.min(1, (bottom - top) / Math.max(1, y1 - y0));
-        const cx = (x0 + x1) / 2;
-        const ny0 = Math.max(top, Math.min(y0, bottom - (y1 - y0) * k));
+        const top = spaces.expandedH + 30;
+        const k = Math.min(1, (bottom - top) / Math.max(1, bottom - area.y));
+        const cx = area.x + area.width / 2;
         return r.map(q => ({
-            x: cx + (q.x - cx) * k, y: ny0 + (q.y - y0) * k,
+            x: cx + (q.x - cx) * k, y: top + (q.y - area.y) * k,
             w: q.w * k, h: q.h * k, s: q.s * k
         }));
     }
@@ -152,6 +157,7 @@ PanelWindow {
     }
 
     function begin() {
+        surfaceUp = true;
         closing = false;
         raised = null;
         fadeAll.stop();
@@ -177,7 +183,8 @@ PanelWindow {
         if (to === 1) { started = true; content.forceActiveFocus(); }
         anim.stop();
         anim.to = to;
-        anim.duration = (to === 1 ? 420 : 380) * speed;
+        // ~280 ms dans les deux sens (vidéos de Tahoe 26 image par image)
+        anim.duration = 280 * speed;
         anim.start();
     }
     Timer {
@@ -193,9 +200,10 @@ PanelWindow {
         id: anim
         target: win
         property: "progress"
-        // Ressort macOS amorti (pas de dépassement visible)
+        // Ressort macOS critique (sans dépassement) : vitesse en cloche, pic
+        // vers 40 % de la durée (écarts image à image mesurés sur Tahoe 26)
         easing.type: Easing.BezierSpline
-        easing.bezierCurve: [0.22, 0.86, 0.26, 1.0, 1, 1]
+        easing.bezierCurve: [0.38, 0.06, 0.24, 1.0, 1, 1]
         onFinished: if (win.progress === 0) win.finish()
     }
     readonly property bool opening: anim.running && anim.to === 1
@@ -203,11 +211,13 @@ PanelWindow {
     function freezeAt(p) {
         settleTimer.stop();
         anim.stop();
+        surfaceUp = true;
         started = true;
         progress = p;
     }
     function finish() {
         started = false;
+        surfaceUp = false;
         shownMode = "";
         closing = false;
         frozen = [];
@@ -279,6 +289,7 @@ PanelWindow {
         id: content
         anchors.fill: parent
         focus: true
+        visible: win.started
 
         Keys.onEscapePressed: ShellState.close()
         Keys.onReturnPressed: {
@@ -287,43 +298,25 @@ PanelWindow {
             else ShellState.close();
         }
 
-        // Fond d'écran (copie du bureau). Au départ (progress = 0) la surface
-        // est transparente : on voit le vrai bureau. Le fond d'écran net devient
-        // opaque presque aussitôt, en même temps que les vignettes (qui
-        // recouvrent alors exactement les vraies fenêtres : pas de « fantôme »
-        // des fenêtres réelles pendant l'animation), puis se floute et
-        // s'assombrit progressivement, comme sur macOS.
+        // Fond d'écran (copie du bureau), INTACT comme sur Tahoe 26 : ni flou ni
+        // voile, en Mission Control comme en App Exposé (mesuré au pixel près sur
+        // les vidéos de Tahoe : même couleur que le bureau). Au départ
+        // (progress = 0) la surface est transparente : on voit le vrai bureau ;
+        // la copie devient opaque presque aussitôt, en même temps que les
+        // vignettes (qui recouvrent alors exactement les vraies fenêtres : pas de
+        // « fantôme » des fenêtres réelles pendant l'animation).
         Item {
             id: backdrop
             anchors.fill: parent
             opacity: Math.min(1, win.progress / 0.06)
-            layer.enabled: true
-            // Avancement du flou/voile (et des ombres des vignettes)
+            // Avancement des ombres des vignettes
             readonly property real fx: Math.min(1, win.progress / 0.35)
 
-            // Fond d'écran net (source du flou et des vignettes des Spaces)
+            // Fond d'écran net (source de la bande et des vignettes des Spaces)
             WallpaperView {
                 id: wallpaper
                 anchors.fill: parent
                 layer.enabled: true
-            }
-            MultiEffect {
-                anchors.fill: parent
-                source: wallpaper
-                opacity: backdrop.fx
-                autoPaddingEnabled: false
-                blurEnabled: true
-                blur: 1.0
-                blurMax: 64
-                blurMultiplier: 0.6
-                saturation: 0.05
-            }
-            // Voile : Mission Control assombrit le fond ; l'Exposé
-            // d'application l'assombrit davantage
-            Rectangle {
-                anchors.fill: parent
-                color: "black"
-                opacity: (win.shownMode === "app" ? 0.40 : 0.24) * backdrop.fx
             }
         }
 
@@ -357,6 +350,8 @@ PanelWindow {
                     settle: win.progress === 1
                     active: (modelData.lastIpcObject?.focusHistoryID ?? 1) === 0
                     shadowOpacity: backdrop.fx
+                    showTitle: win.shownMode === "app"
+                    labelMaxY: win.height - win.dockReserve - 6
                     z: dragging ? 1000 : (win.raised === modelData && win.closing ? 900 : index)
                     onHoveredChanged: if (hovered) tiles.hoveredIndex = index; else if (tiles.hoveredIndex === index) tiles.hoveredIndex = -1
                     Binding on hovered {
@@ -400,6 +395,8 @@ PanelWindow {
                     settle: win.progress === 1
                     active: false
                     shadowOpacity: backdrop.fx
+                    showTitle: true
+                    labelMaxY: win.height - win.dockReserve - 6
                     draggable: false
                     z: win.raised === modelData && win.closing ? 900 : 0
                     onActivated: win.pick(modelData)
@@ -414,7 +411,6 @@ PanelWindow {
             screenH: win.height
             y: -(1 - win.progress) * (height + 30)
             visible: win.shownMode === "mc"
-            backdrop: backdrop
             wallpaper: wallpaper
             monitor: win.monitor
             progress: win.progress

@@ -15,6 +15,12 @@ Item {
     property real lead: 0
 
     readonly property real colW: 240
+    // Largeur propre à chaque colonne (poignée « ıı » en bas de sa piste)
+    property var colWidths: ({})
+    function widthOf(i) { return colWidths[i] ?? colW; }
+    // Piste de défilement de chaque colonne (11 pt, gris pâle, arrondie),
+    // qui sert aussi de séparateur (captures Daring Fireball 2x, MacRumors)
+    readonly property real trackW: 11
     readonly property real topY: fw.chromeHeight + 2
     // Chaîne des dossiers affichés (le premier = dossier de la fenêtre)
     property var chain: [fw.path]
@@ -125,7 +131,7 @@ Item {
                     required property int index
                     readonly property var entries: root.entriesOf(index)
                     property alias view: lv
-                    width: root.colW
+                    width: root.widthOf(index)
                     height: colsRow.height
 
                     MouseArea {
@@ -153,7 +159,8 @@ Item {
 
                     ListView {
                         id: lv
-                        anchors.fill: parent
+                        width: parent.width - root.trackW - 3
+                        height: parent.height
                         topMargin: root.topY + 2
                         bottomMargin: 8
                         model: col.entries
@@ -258,21 +265,53 @@ Item {
                             }
                         }
                     }
+                    // Piste de la colonne : séparateur, barre de défilement et
+                    // poignée de redimensionnement en bas
+                    Rectangle {
+                        id: track
+                        x: parent.width - root.trackW - 3
+                        y: root.topY
+                        width: root.trackW
+                        height: parent.height - y - 10
+                        radius: width / 2
+                        color: Theme.dark ? Qt.rgba(1, 1, 1, 0.06) : Qt.rgba(0, 0, 0, 0.05)
+                        // Poignée « ıı »
+                        Row {
+                            x: Math.round((parent.width - width) / 2)
+                            y: parent.height - 12
+                            spacing: 2
+                            Repeater {
+                                model: 2
+                                Rectangle { width: 1; height: 5; color: Theme.dark ? Qt.rgba(1, 1, 1, 0.38) : Qt.rgba(0, 0, 0, 0.36) }
+                            }
+                        }
+                        MouseArea {
+                            x: -3
+                            y: parent.height - 18
+                            width: parent.width + 6
+                            height: 18
+                            cursorShape: Qt.SplitHCursor
+                            property real startX: 0
+                            property real startW: 0
+                            onPressed: (m) => { startX = mapToItem(null, m.x, 0).x; startW = col.width; }
+                            onPositionChanged: (m) => {
+                                const w = Math.round(Math.max(110, Math.min(700, startW + mapToItem(null, m.x, 0).x - startX)));
+                                const c = Object.assign({}, root.colWidths);
+                                c[col.index] = w;
+                                root.colWidths = c;
+                            }
+                            onDoubleClicked: {
+                                const c = Object.assign({}, root.colWidths);
+                                delete c[col.index];
+                                root.colWidths = c;
+                            }
+                        }
+                    }
                     OverlayScrollbar {
                         flick: lv
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                        startMargin: root.topY
-                        endMargin: 4
-                    }
-                    // Séparateur de colonnes
-                    Rectangle {
-                        x: parent.width - 1
-                        y: root.topY
-                        width: 1
-                        height: parent.height - root.topY
-                        color: FStyle.gridLine
+                        x: track.x - 2
+                        y: track.y
+                        height: track.height - 18
                     }
                 }
             }

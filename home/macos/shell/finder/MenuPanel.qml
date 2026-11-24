@@ -48,7 +48,8 @@ Item {
         Glass {
             anchors.fill: parent
             radius: 12
-            tint: Theme.dark ? Qt.rgba(0.17, 0.17, 0.18, 0.97) : Qt.rgba(0.985, 0.985, 0.99, 0.97)
+            // Légèrement translucide (flou des popups par Hyprland : blur:popups)
+            tint: Theme.dark ? Qt.rgba(0.17, 0.17, 0.18, 0.86) : Qt.rgba(0.975, 0.975, 0.98, 0.84)
             shadowBlur: 0.85
             shadowOffset: 8
             shadowMax: 1.0

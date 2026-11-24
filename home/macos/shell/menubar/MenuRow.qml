@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Widgets
 import qs.common
@@ -24,9 +25,12 @@ Item {
     // raccourcis et chevrons à ~17 pt du bord droit.
     readonly property real edge: 16
     readonly property real rightEdge: 17
-    // Écart entre les modificateurs et la touche, et entre deux modificateurs
-    readonly property real modsGap: 3
-    readonly property real modsSpacing: 2
+    // Écart entre les modificateurs et la touche, et entre deux modificateurs :
+    // Tahoe colle les glyphes (⇧ 188-199, ⌘ 201,5-212,5, ⌫ 215-226 pt dans le
+    // menu Finder de 512pixels : 2,5 pt d'encre à encre) ; les approches
+    // latérales des glyphes d'Inter suffisent à cet écart.
+    readonly property real modsGap: 1
+    readonly property real modsSpacing: 0
     // Section dépliable (« Autres réseaux » du menu Wi-Fi) : dépliée ?
     property bool expanded: false
     property bool hasSubmenu: !!entry.hasSubmenu
@@ -68,8 +72,8 @@ Item {
         anchors.rightMargin: 5
         radius: 6
         color: row.hasToggle ? Theme.fill
-            : row.muted ? Qt.rgba(Theme.menuHighlight.r, Theme.menuHighlight.g, Theme.menuHighlight.b, 0.22)
-            : Theme.menuHighlight
+            : row.muted ? Qt.rgba(Theme.menuSelection.r, Theme.menuSelection.g, Theme.menuSelection.b, 0.22)
+            : Theme.menuSelection
         visible: row.lit || (row.muted && row.highlighted) || (row.hasToggle && row.highlighted && row.isEnabled)
     }
 
@@ -92,7 +96,8 @@ Item {
         height: parent.height
 
         Glyph {
-            anchors.centerIn: parent
+            x: Math.round((parent.width - width) / 2)
+            y: Math.round((parent.height - height) / 2)
             visible: !!row.entry.checked
             name: "checkmark"
             size: 12
@@ -115,7 +120,8 @@ Item {
         height: parent.height
 
         Glyph {
-            anchors.centerIn: parent
+            x: Math.round((parent.width - width) / 2)
+            y: Math.round((parent.height - height) / 2)
             visible: !!row.entry.icon
             name: row.entry.icon ?? ""
             size: 15
@@ -184,7 +190,7 @@ Item {
     // Cadenas des réseaux sécurisés
     Glyph {
         visible: !!row.entry.locked
-        anchors.verticalCenter: parent.verticalCenter
+        y: Math.round((parent.height - height) / 2)
         anchors.right: parent.right
         anchors.rightMargin: row.edge
         name: "lock.fill"
@@ -279,17 +285,31 @@ Item {
     }
 
     // Chevron de sous-menu ; pour une section dépliable, il pivote vers le bas
-    // quand la section est ouverte (Wi-Fi > Autres réseaux sur Tahoe)
-    Glyph {
+    // quand la section est ouverte (Wi-Fi > Autres réseaux sur Tahoe).
+    // Tahoe : chevron de 5,5 x 9 pt, trait épais (~1,5 pt), couleur du libellé
+    // (menu Finder de 512pixels, menu Apple de Jim Nielsen, HIG « Menus »).
+    Item {
         visible: row.hasSubmenu || !!row.entry.disclosure
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.right: parent.right
-        anchors.rightMargin: row.rightEdge
-        name: "chevron.right"
-        size: 10
-        tint: row.fg
+        width: 6
+        height: 10
+        x: parent.width - row.rightEdge - width
+        y: Math.round((parent.height - height) / 2)
         rotation: row.entry.disclosure && row.expanded ? 90 : 0
         Behavior on rotation { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        Shape {
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeWidth: 1.6
+                strokeColor: row.fg
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+                startX: 1; startY: 0.8
+                PathLine { x: 5.2; y: 5 }
+                PathLine { x: 1; y: 9.2 }
+            }
+        }
     }
 
     MouseArea {

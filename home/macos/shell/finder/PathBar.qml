@@ -44,8 +44,9 @@ Item {
                 Symbol {
                     visible: seg.index > 0
                     name: "chevron.right"
-                    size: 8
-                    color: FStyle.secondaryText
+                    size: 9
+                    // Chevrons « › » bien visibles (HIG, barre de chemin de Tahoe)
+                    color: Theme.dark ? Qt.rgba(1, 1, 1, 0.55) : Qt.rgba(0, 0, 0, 0.55)
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 Item { width: 2; height: 1; visible: seg.index > 0 }
@@ -62,7 +63,8 @@ Item {
                     elide: Text.ElideRight
                     font.family: Theme.font
                     font.pixelSize: 11
-                    color: Theme.dark ? Qt.rgba(1, 1, 1, 0.75) : Qt.rgba(0, 0, 0, 0.70)
+                    // labelColor (≈ 85 % du noir), pas le gris secondaire
+                    color: Theme.dark ? Qt.rgba(1, 1, 1, 0.85) : Qt.rgba(0, 0, 0, 0.85)
                     MouseArea {
                         anchors.fill: parent
                         onDoubleClicked: seg.modelData.isDir ? root.fw.navigate(seg.modelData.path) : Fs.open(seg.modelData.path)

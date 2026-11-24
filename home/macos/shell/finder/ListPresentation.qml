@@ -13,7 +13,7 @@ Item {
     required property var fw
 
     readonly property real headerY: fw.chromeHeight - 2
-    readonly property real rowsTop: headerY + FStyle.listHeader + 6
+    readonly property real rowsTop: headerY + FStyle.listHeader + 8
     readonly property real inset: 9
 
     // ---- Colonnes ----
@@ -228,10 +228,12 @@ Item {
                 width: 14
                 height: parent.height
                 Symbol {
-                    anchors.centerIn: parent
+                    // Triangle un peu plus grand et plus foncé (capture MacStories 2x)
+                    x: Math.round((parent.width - width) / 2)
+                    y: Math.round((parent.height - height) / 2)
                     name: "chevron.right"
-                    size: 9
-                    color: row.sel && root.fw.active ? "white" : FStyle.secondaryText
+                    size: 10
+                    color: row.sel && root.fw.active ? "white" : (Theme.dark ? Qt.rgba(1, 1, 1, 0.65) : Qt.rgba(0, 0, 0, 0.62))
                     rotation: root.expanded[row.e.path] ? 90 : 0
                     Behavior on rotation { NumberAnimation { duration: 120 } }
                 }

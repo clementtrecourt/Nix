@@ -60,6 +60,9 @@ Scope {
         errorText = "";
         failures = 0;
         unlocking = false;
+        // État global (notifications sur l'écran de verrouillage, aperçus)
+        ShellState.lockedSince = Date.now();
+        ShellState.locked = true;
         sessionLock.locked = true;
     }
 
@@ -170,6 +173,7 @@ Scope {
         interval: 260
         onTriggered: {
             sessionLock.locked = false;
+            ShellState.locked = false;
             root.password = "";
             root.unlocking = false;
         }

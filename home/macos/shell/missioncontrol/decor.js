@@ -29,11 +29,11 @@ function hasBar(cls, fullscreen) {
 function radius(cls, fullscreen) {
     if (fullscreen) return 0;
     if (QT_ROUND.test(cls)) return 16;
-    if (/\./.test(cls) || CSD_LIST.test(cls)) return 24;
+    if (/\./.test(cls) || CSD_LIST.test(cls)) return 26;
     return 16;
 }
 
 // Couleur de la barre (Terminal.app : couleur du fond du terminal)
 function barColor(cls) {
-    return TERMINALS.test(cls) ? "#1e1e1e" : "#242424";
+    return TERMINALS.test(cls) ? "#1e1e1e" : "#333333";
 }

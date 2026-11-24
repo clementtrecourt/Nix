@@ -119,6 +119,9 @@ Scope {
             property var apps: ({})
             // Requêtes récentes (flèche Haut, comme Tahoe)
             property list<string> history: []
+            // Presse-papiers : id cliphist -> heure de copie (ms), relevée par
+            // `clipWatch` (cliphist ne garde pas l'heure)
+            property var clipTimes: ({})
         }
     }
     Process {
@@ -187,19 +190,21 @@ Scope {
     // Actions (Tahoe : actions système + actions des apps)
     // =====================================================================
     // tint : couleur de la tuile façon Raccourcis derrière le symbole blanc
+    // app : app qui fournit l'action, affichée en détail comme Tahoe
+    // (« Messages », « Clock »… capture Cult of Mac « Spotlight-Actions »)
     readonly property var systemActions: [
-        { id: "lock", title: "Lock Screen", symbol: "lock.fill", tint: "#5e5ce6", keywords: "lock screen" },
-        { id: "dark", title: Theme.dark ? "Turn Off Dark Mode" : "Turn On Dark Mode", symbol: "circle.lefthalf.filled", tint: "#1c1c1e", keywords: "dark mode light appearance theme" },
-        { id: "sleep", title: "Sleep", symbol: "moon.zzz", tint: "#5856d6", keywords: "sleep suspend" },
-        { id: "restart", title: "Restart…", symbol: "arrow.clockwise", tint: "#8e8e93", keywords: "restart reboot" },
-        { id: "shutdown", title: "Shut Down…", symbol: "power", tint: "#ff3b30", keywords: "shut down shutdown power off" },
-        { id: "logout", title: "Log Out " + root.userName + "…", symbol: "rectangle.portrait.and.arrow.right", tint: "#8e8e93", keywords: "log out logout sign out session" },
-        { id: "screenshot", title: "Take Screenshot", symbol: "camera.viewfinder", tint: "#8e8e93", keywords: "screenshot screen capture" },
-        { id: "missioncontrol", title: "Mission Control", symbol: "rectangle.3.group", tint: "#0a84ff", keywords: "mission control expose windows" },
-        { id: "controlcenter", title: "Control Center", symbol: "switch.2", tint: "#636366", keywords: "control center" },
-        { id: "notificationcenter", title: "Notification Center", symbol: "bell", tint: "#ff3b30", keywords: "notifications center widgets" },
-        { id: "forcequit", title: "Force Quit…", symbol: "xmark.octagon", tint: "#ff9500", keywords: "force quit kill" },
-        { id: "clearclip", title: "Clear Clipboard History", symbol: "trash", tint: "#8e8e93", keywords: "clipboard clear history" }
+        { id: "lock", title: "Lock Screen", app: "Shortcuts", symbol: "lock.fill", tint: "#5e5ce6", keywords: "lock screen" },
+        { id: "dark", title: Theme.dark ? "Turn Off Dark Mode" : "Turn On Dark Mode", app: "System Settings", symbol: "circle.lefthalf.filled", tint: "#1c1c1e", keywords: "dark mode light appearance theme" },
+        { id: "sleep", title: "Sleep", app: "Shortcuts", symbol: "moon.zzz", tint: "#5856d6", keywords: "sleep suspend" },
+        { id: "restart", title: "Restart…", app: "Shortcuts", symbol: "arrow.clockwise", tint: "#8e8e93", keywords: "restart reboot" },
+        { id: "shutdown", title: "Shut Down…", app: "Shortcuts", symbol: "power", tint: "#ff3b30", keywords: "shut down shutdown power off" },
+        { id: "logout", title: "Log Out " + root.userName + "…", app: "Shortcuts", symbol: "rectangle.portrait.and.arrow.right", tint: "#8e8e93", keywords: "log out logout sign out session" },
+        { id: "screenshot", title: "Take Screenshot", app: "Screenshot", symbol: "camera.viewfinder", tint: "#8e8e93", keywords: "screenshot screen capture" },
+        { id: "missioncontrol", title: "Mission Control", app: "Mission Control", symbol: "rectangle.3.group", tint: "#0a84ff", keywords: "mission control expose windows" },
+        { id: "controlcenter", title: "Control Center", app: "Control Center", symbol: "switch.2", tint: "#636366", keywords: "control center" },
+        { id: "notificationcenter", title: "Notification Center", app: "Notification Center", symbol: "bell", tint: "#ff3b30", keywords: "notifications center widgets" },
+        { id: "forcequit", title: "Force Quit…", app: "Shortcuts", symbol: "xmark.octagon", tint: "#ff9500", keywords: "force quit kill" },
+        { id: "clearclip", title: "Clear Clipboard History", app: "Spotlight", symbol: "trash", tint: "#8e8e93", keywords: "clipboard clear history" }
     ]
 
     // Nom complet de l'utilisateur pour « Log Out <nom>… » (menu Apple)
@@ -214,7 +219,7 @@ Scope {
 
     function actionItem(a, section) {
         return { kind: "action", section: section, group: "actions", actionId: a.id, title: a.title,
-                 subtitle: "System", symbol: a.symbol, tint: a.tint };
+                 subtitle: a.app, symbol: a.symbol, tint: a.tint, quickKeys: root.mode === "actions" };
     }
 
     // Actions déclarées par les .desktop (ex. « New Private Window »)
@@ -242,7 +247,7 @@ Scope {
             const s = q ? Fuzzy.score(q, a.title) : 0.5;
             if (s > 0) out.push({ s: s * 0.9, i: 1000 + out.length, item: {
                 kind: "appaction", section: a.app, group: "actions", entry: a.entry, action: a.action,
-                title: a.title, subtitle: a.app, icon: a.icon } });
+                title: a.title, subtitle: a.app, icon: a.icon, quickKeys: root.mode === "actions" } });
         }
         // Tri stable : à score égal, ordre de déclaration
         out.sort((x, y) => y.s - x.s || x.i - y.i);
@@ -295,18 +300,22 @@ Scope {
     // Fichiers (fd, asynchrone) + récents (recently-used.xbel)
     // =====================================================================
     property var fileHits: []          // [{ path, rel, dir, name }]
+    // Dossier où chercher ("" = dossier personnel) : Tab sur un dossier
+    property string fileScope: ""
+    property string fileScopeName: ""
     property string fileHitsQuery: ""
     property string fdQuery: ""
 
     // (Re)lance fd quand la requête, le mode ou l'activité change. Calculé ici
     // plutôt que lu dans une liaison : l'ordre d'évaluation n'est pas garanti.
     function refreshFiles() {
-        const want = active && (mode === "" || mode === "files") && q.length >= 2;
+        const want = active && (mode === "" || mode === "files") && (q.length >= 2 || (mode === "files" && fileScope !== ""));
         if (want) fdTimer.restart();
         else { fdTimer.stop(); fdProc.running = false; fileHits = []; fileHitsQuery = ""; }
     }
     onQChanged: { refreshFiles(); if (!q) resultFilter = ""; }
     onModeChanged: { refreshFiles(); resultFilter = ""; }
+    onFileScopeChanged: refreshFiles()
     onActiveChanged: refreshFiles()
 
     Timer {
@@ -314,7 +323,7 @@ Scope {
         interval: 90
         onTriggered: {
             fdProc.running = false;
-            root.fdQuery = root.query.trim();
+            root.fdQuery = root.fileScope + "\u0001" + root.query.trim();
             fdProc.running = true;
         }
     }
@@ -322,14 +331,17 @@ Scope {
         id: fdProc
         // fd liste les chemins (relatifs à $HOME), stat ajoute la date de
         // modification : « 1712345678\tDocuments/rapport.pdf »
+        // Portée : chemins relatifs à $HOME, préfixés du dossier choisi ;
+        // requête vide dans un dossier : son contenu direct
         command: ["sh", "-c",
-                  "cd \"$HOME\" && fd --strip-cwd-prefix --ignore-case --fixed-strings --max-results 80 --max-depth 8 " +
-                  "--exclude node_modules --exclude .git --exclude target --exclude result " +
-                  "--exclude .cache --exclude __pycache__ -0 -- \"$1\" | xargs -0 -r stat -c '%Y\t%s\t%n'",
-                  "sh", root.fdQuery]
+                  "cd \"$HOME/$2\" && fd --strip-cwd-prefix --ignore-case --fixed-strings --max-results 80 " +
+                  "--max-depth \"$3\" --exclude node_modules --exclude .git --exclude target --exclude result " +
+                  "--exclude .cache --exclude __pycache__ -0 -- \"$1\" | xargs -0 -r stat -c \"%Y\t%s\t$4%n\"",
+                  "sh", root.query.trim(), root.fileScope, root.query.trim() ? "8" : "1",
+                  root.fileScope ? root.fileScope + "/" : ""]
         stdout: StdioCollector {
             onStreamFinished: {
-                const want = root.query.trim();
+                const want = root.fileScope + "\u0001" + root.query.trim();
                 if (root.fdQuery !== want) return;      // résultat périmé
                 // « mtime<TAB>taille<TAB>chemin »
                 root.fileHits = text.split("\n").filter(l => l.split("\t").length >= 3).map(l => {
@@ -525,7 +537,9 @@ Scope {
         const size = f.isDir ? "" : sizeLabel(f.size);
         return {
             kind: "file", section: section ?? fileKindNames[k], fileKind: k, group: k,
-            title: f.name, path: f.path, isDir: f.isDir,
+            title: f.name, path: f.path, isDir: f.isDir, rel: f.rel,
+            // Tab sur un dossier : y chercher (« Search <dossier> » + tab)
+            tabHint: f.isDir ? "Search " + f.name : "",
             // « PDF document · 41 KB · 10/3/2024, 8:49 PM · Finance »
             subtitle: [kindLabel(f), size, date].filter(x => x).join(" · "),
             folder: folder,
@@ -543,7 +557,7 @@ Scope {
         const out = [];
         for (const f of fileHits) {
             let s = Fuzzy.score(q, f.name);
-            if (s <= 0) s = 10;   // fd a trouvé la requête dans le nom
+            if (s <= 0) s = q ? 10 : 50;   // fd a trouvé la requête dans le nom
             // Pénalise la profondeur et les dossiers techniques
             s -= f.rel.split("/").length * 2;
             if (/(^|\/)\./.test(f.rel)) s -= 20;
@@ -557,6 +571,39 @@ Scope {
     // Presse-papiers (cliphist)
     // =====================================================================
     property var clipItems: []         // [{ id, text, isImage, meta }]
+    // Chaque copie : relève l'id cliphist de l'élément le plus récent et
+    // l'heure (laisse à cliphist store le temps d'enregistrer)
+    Process {
+        id: clipWatch
+        running: true
+        command: ["sh", "-c", "command -v wl-paste >/dev/null && command -v cliphist >/dev/null || exit 0; " +
+                  "exec wl-paste --watch sh -c 'cat >/dev/null; sleep 0.6; cliphist list | head -n1 | cut -f1'"]
+        stdout: SplitParser {
+            onRead: line => {
+                const id = line.trim();
+                if (!/^\d+$/.test(id) || usage.clipTimes[id]) return;
+                const t = Object.assign({}, usage.clipTimes);
+                t[id] = Date.now();
+                // Garde les 300 plus récents
+                const keys = Object.keys(t).sort((a, b) => Number(b) - Number(a));
+                for (const k of keys.slice(300)) delete t[k];
+                usage.clipTimes = t;
+                saveTimer.restart();
+                if (root.wantClip) { clipProc.running = false; clipProc.running = true; }
+            }
+        }
+    }
+    // « Copied 4:19 PM » (aujourd'hui), « Copied Yesterday », « Copied 11/20/26 »
+    function copiedLabel(id) {
+        const ms = usage.clipTimes[id];
+        if (!ms) return "";
+        const d = new Date(ms), now = new Date();
+        const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+        const diff = Math.round((day(now) - day(d)) / 86400000);
+        if (diff === 0) return "Copied " + Qt.formatTime(d, "h:mm AP");
+        if (diff === 1) return "Copied Yesterday";
+        return "Copied " + Qt.formatDate(d, "M/d/yy");
+    }
     readonly property bool wantClip: active && mode === "clipboard"
     onWantClipChanged: if (wantClip) { clipProc.running = false; clipProc.running = true; }
     Process {
@@ -608,10 +655,14 @@ Scope {
     function clipItem(c) {
         const isUrl = /^(https?|ftp):\/\/\S+$/.test(c.text.trim());
         const isPath = /^(file:\/\/|\/)\S+$/.test(c.text.trim());
+        const host = isUrl ? (c.text.trim().match(/^[a-z]+:\/\/([^\/?#:]+)/i)?.[1] ?? "") : "";
+        // Cult of Mac « Spotlight-Clipboard » : « Text · Copied 4:19 PM »,
+        // « URL · en.wikipedia.org · Copied 4:17 PM »
+        const kindLbl = c.isImage ? "Image · " + c.meta : isUrl ? "URL" : isPath ? "File" : "Text";
         return {
             kind: "clip", section: "", clipId: c.id,
             title: c.isImage ? c.ext.toUpperCase() + " Image" : c.text.replace(/\s+/g, " ").trim(),
-            subtitle: c.isImage ? "Image · " + c.meta : (isUrl ? "Link" : isPath ? "File" : "Text"),
+            subtitle: [kindLbl, host, copiedLabel(c.id)].filter(x => x).join(" · "),
             symbol: c.isImage ? "photo" : isUrl ? "link" : isPath ? "doc" : "text.alignleft",
             // Comme Tahoe : icône de document du type copié
             icon: Quickshell.iconPath(c.isImage ? "image-x-generic" : isUrl ? "text-html" : "text-x-generic", "text-x-generic"),
@@ -728,10 +779,9 @@ Scope {
     // par ordre alphabétique. Pastille = filtre de catégorie ; la saisie
     // filtre à l'intérieur de la catégorie choisie.
     readonly property int suggestionCount: Metrics.gridColumns
-    // Grille (vrai) ou Liste (faux) : la rangée de suggestions est propre à la
-    // grille (capture Cult of Mac « Spotlight-Applications » : Safari, Mona…,
-    // Music, un trait, puis toutes les apps de A à Z, suggestions comprises)
-    property bool withSuggestions: true
+    // Grille comme Liste : les apps suggérées, un trait, puis toutes les apps
+    // de A à Z, suggestions comprises (Cult of Mac « Spotlight-Applications »,
+    // MacMagazine « lista »)
     function buildAppGrid() {
         if (!active || mode !== "apps") return [];
         if (q) {
@@ -741,10 +791,6 @@ Scope {
         }
         const all = root.apps.map(e => appItem(e, ""));
         if (appCategory) return all.filter(a => a.category === appCategory);
-        // Vue Liste : uniquement toutes les apps (la rangée de suggestions
-        // n'existe que dans la grille, sinon chaque suggestion serait listée
-        // deux fois sans trait pour les séparer)
-        if (!withSuggestions) return all;
         const used = root.apps.filter(e => usage.apps[e.id])
             .sort((a, b) => usageBoost(b.id) - usageBoost(a.id))
             .slice(0, suggestionCount);
@@ -759,10 +805,15 @@ Scope {
 
     readonly property var fileGrid: {
         if (!active || mode !== "files") return [];
-        const src = q ? rankedFiles() : recentFiles;
-        return src.map(f => fileItem(f, "")).filter(f => !fileKind || f.fileKind === fileKind).slice(0, 60);
+        const src = (q || fileScope) ? rankedFiles() : recentFiles;
+        const items = src.map(f => fileItem(f, "")).filter(f => !fileKind || f.fileKind === fileKind).slice(0, 60);
+        // Sans saisie : « Suggestions » (5 derniers fichiers ouverts), trait,
+        // puis « Recents » (Cult of Mac « Spotlight-Files »)
+        if (q || fileScope || fileKind || items.length <= suggestionCount) return items;
+        return [{ header: true, title: "Suggestions" }].concat(items.slice(0, suggestionCount),
+               [{ separator: true }, { header: true, title: "Recents" }], items.slice(suggestionCount));
     }
-    readonly property bool filesLoading: mode === "files" && q.length >= 2 && (fdProc.running || fdTimer.running)
+    readonly property bool filesLoading: mode === "files" && (q.length >= 2 || fileScope !== "") && (fdProc.running || fdTimer.running)
 
     // =====================================================================
     // Exécution d'un élément

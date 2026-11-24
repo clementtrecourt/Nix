@@ -23,31 +23,8 @@ PanelWindow {
     readonly property int topGap: 17
     readonly property int gap: 16
 
-    // ---- Widgets (ordre macOS : le moyen en haut, les petits en dessous) ----
-    readonly property var widgetIds: ["upnext", "calendar", "clock"]
-    property var hiddenWidgets: []
-    readonly property var shownWidgets: widgetIds.filter(w => !hiddenWidgets.includes(w))
-    readonly property var availableWidgets: widgetIds.filter(w => hiddenWidgets.includes(w))
-    // Mode « Edit Widgets » : pastille − pour retirer, + pour remettre
-    property bool editing: false
-    onOpenChanged: if (!open) editing = false
-
-    function setHidden(id, hide) {
-        const l = hiddenWidgets.filter(w => w !== id);
-        if (hide) l.push(id);
-        hiddenWidgets = l;
-        widgetCfg.setText(JSON.stringify({ hidden: l }));
-    }
-    FileView {
-        id: widgetCfg
-        path: Quickshell.statePath("widgets.json")
-        printErrors: false
-        blockLoading: true
-        atomicWrites: true
-    }
-    Component.onCompleted: {
-        try { hiddenWidgets = JSON.parse(widgetCfg.text() || "{}").hidden ?? []; } catch (e) {}
-    }
+    // Widgets (liste et galerie : WidgetStore). Fermer le Centre ferme la galerie.
+    onOpenChanged: if (!open) { WidgetStore.editing = false; widgetMenu.close(); }
 
     // Progression d'ouverture 0 → 1 (pilote le glissement depuis la droite)
     // (démarre quand la fenêtre est réellement visible, capture du fond prête)
@@ -87,6 +64,7 @@ PanelWindow {
     mask: Region {
         item: maskItem
         Region { item: actionMenu }
+        Region { item: widgetMenu }
     }
     Item {
         id: maskItem
@@ -97,10 +75,24 @@ PanelWindow {
 
     // Clic en dehors = fermeture. Léger délai : si le clic tombe sur l'horloge,
     // c'est la barre des menus qui referme via toggle (sinon on rouvrirait).
+    // La galerie de widgets fait partie de la saisie. Sa fermeture (fenêtre
+    // démappée) annule la saisie Hyprland : on la reprend au lieu de fermer.
     HyprlandFocusGrab {
-        windows: [win]
-        active: win.open && win.visible
-        onCleared: outsideTimer.restart()
+        id: grab
+        property bool regrab: false
+        property real galleryChange: 0
+        windows: WidgetStore.galleryWindow ? [win, WidgetStore.galleryWindow] : [win]
+        active: win.open && win.visible && !regrab
+        onCleared: {
+            if (WidgetStore.editing || Date.now() - galleryChange < 600) {
+                regrab = true;
+                Qt.callLater(() => grab.regrab = false);
+            } else outsideTimer.restart();
+        }
+    }
+    Connections {
+        target: WidgetStore.galleryWindow
+        function onVisibleChanged() { grab.galleryChange = Date.now(); }
     }
     Timer {
         id: outsideTimer
@@ -115,7 +107,11 @@ PanelWindow {
         x: (1 - win.progress) * (win.cardWidth + win.edgeMargin + 30)
         opacity: Math.min(1, win.progress * 1.6)
         focus: win.open
-        Keys.onEscapePressed: ShellState.close()
+        Keys.onEscapePressed: {
+            if (widgetMenu.open) widgetMenu.close();
+            else if (WidgetStore.editing) WidgetStore.editing = false;
+            else ShellState.close();
+        }
 
         Flickable {
             id: flick
@@ -172,78 +168,55 @@ PanelWindow {
                 Flow {
                     width: win.cardWidth
                     spacing: win.gap
-                    visible: win.shownWidgets.length > 0
+                    visible: WidgetStore.widgets.length > 0
                     Repeater {
-                        model: win.shownWidgets
+                        model: WidgetStore.widgets
                         WidgetSlot {
                             required property string modelData
+                            required property int index
                             wid: modelData
-                            editing: win.editing
-                            onToggled: win.setHidden(modelData, true)
+                            slotIndex: index
                         }
                     }
                 }
 
-                // Capsule « Edit Widgets » (« Done » en mode édition)
+                // Capsule « Edit Widgets » : ouvre la galerie de widgets (masquée
+                // pendant l'édition, comme sur macOS : « Done » est dans la galerie)
                 Item {
                     width: win.cardWidth
                     height: 22
                     Item {
                         id: editBtn
                         anchors.horizontalCenter: parent.horizontalCenter
-                        width: editLabel.implicitWidth + 24
+                        // Image Apple (macOS 26) : ~85,5 × 22 pt, ~10 pt de marge
+                        width: editLabel.implicitWidth + 20
                         height: 22
+                        opacity: WidgetStore.editing ? 0 : 1
+                        visible: opacity > 0
+                        Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
                         NotifGlass {
                             anchors.fill: parent
                             radius: height / 2
-                            tint: editMouse.pressed ? (Theme.dark ? Qt.rgba(0.30, 0.30, 0.32, 0.55) : Qt.rgba(1, 1, 1, 0.55))
-                                : Theme.dark ? Qt.rgba(0.22, 0.22, 0.24, 0.42) : Qt.rgba(1, 1, 1, 0.42)
+                            tint: editMouse.pressed ? (Theme.dark ? Qt.rgba(0.30, 0.30, 0.32, 0.50) : Qt.rgba(1, 1, 1, 0.50))
+                                : Theme.dark ? Qt.rgba(0.22, 0.22, 0.24, 0.34) : Qt.rgba(1, 1, 1, 0.30)
                             shadowOffset: 2
                             shadowBlur: 0.4
                         }
                         Text {
                             id: editLabel
                             anchors.centerIn: parent
-                            text: win.editing ? "Done" : "Edit Widgets"
-                            color: Theme.dark ? Qt.rgba(1, 1, 1, 0.78) : Qt.rgba(0, 0, 0, 0.58)
+                            text: "Edit Widgets"
+                            // Texte clair légèrement teinté (vibrancy), plus pâle que le libellé
+                            color: Theme.dark ? Qt.rgba(1, 1, 1, 0.70) : Qt.rgba(0.10, 0.14, 0.22, 0.52)
                             font.family: Theme.font
                             font.pixelSize: 12
-                            font.weight: win.editing ? Font.DemiBold : Font.Medium
+                            font.weight: Font.Medium
                         }
                         MouseArea {
                             id: editMouse
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: win.editing = !win.editing
-                        }
-                    }
-                }
-
-                // Mode édition : widgets retirés, à remettre avec +
-                Column {
-                    width: win.cardWidth
-                    spacing: 10
-                    visible: win.editing && win.availableWidgets.length > 0
-                    Text {
-                        x: 4
-                        text: "Available Widgets"
-                        color: Theme.labelSecondary
-                        font.family: Theme.font
-                        font.pixelSize: 12
-                        font.weight: Font.DemiBold
-                    }
-                    Flow {
-                        width: win.cardWidth
-                        spacing: win.gap
-                        Repeater {
-                            model: win.editing ? win.availableWidgets : []
-                            WidgetSlot {
-                                required property string modelData
-                                wid: modelData
-                                editing: true
-                                available: true
-                                onToggled: win.setHidden(modelData, false)
-                            }
+                            onClicked: { widgetMenu.close(); WidgetStore.editing = true; }
                         }
                     }
                 }
@@ -259,59 +232,172 @@ PanelWindow {
     Component { id: calendarComp; WidgetCalendar { today: clockTick.now } }
     Component { id: clockComp; WidgetClock { running: win.visible } }
 
-    // Emplacement de widget : le widget + la pastille −/+ du mode édition
+    // Emplacement de widget du Centre :
+    //  - clic : ouvre l'app (Calendar, Clock…) et ferme le Centre ;
+    //  - Ctrl-clic / clic droit : menu contextuel (« Edit Widgets… », « Remove Widget ») ;
+    //  - bouton Remove (−) en haut à gauche pendant l'édition (galerie ouverte)
+    //    ou au survol avec ⌥ enfoncée (aide Apple « Use Notification Center »).
     component WidgetSlot: Item {
         id: slot
         property string wid
-        property bool editing: false
-        property bool available: false
-        signal toggled()
+        property int slotIndex: -1
+        readonly property bool showRemove: WidgetStore.editing || optHover.hovered
         width: loader.width
         height: loader.height
         Loader {
             id: loader
             sourceComponent: slot.wid === "upnext" ? upNextComp : slot.wid === "calendar" ? calendarComp : clockComp
-            opacity: slot.available ? 0.55 : 1
         }
-        // Pastille ronde à cheval sur le coin haut-gauche (comme le × des notifications)
+        HoverHandler {
+            id: optHover
+            acceptedModifiers: Qt.AltModifier
+        }
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton || (mouse.modifiers & Qt.ControlModifier)) {
+                    const p = mapToItem(column, mouse.x, mouse.y);
+                    widgetMenu.openAt(slot.slotIndex, p.x, p.y);
+                } else if (!WidgetStore.editing) {
+                    WidgetStore.openApp(slot.wid);
+                    ShellState.close();
+                }
+            }
+        }
+        // Bouton Remove : pastille ronde à cheval sur le coin haut-gauche (comme le ×)
         Item {
-            x: -7
-            y: -7
-            width: 22
-            height: 22
-            opacity: slot.editing ? 1 : 0
-            scale: slot.editing ? 1 : 0.6
+            x: -6
+            y: -4
+            width: 20
+            height: 20
+            opacity: slot.showRemove ? 1 : 0
+            scale: slot.showRemove ? 1 : 0.6
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
             Behavior on scale { NumberAnimation { duration: Theme.durMed; easing.type: Easing.OutBack; easing.overshoot: 1.6 } }
             NotifGlass {
                 anchors.fill: parent
-                radius: 11
+                radius: 10
                 tint: Theme.dark ? Qt.rgba(0.20, 0.20, 0.21, 0.85) : Qt.rgba(0.97, 0.97, 0.98, 0.90)
                 shadowEnabled: false
             }
             Rectangle {
                 anchors.centerIn: parent
-                width: 9
-                height: 1.8
-                radius: 1
-                color: Theme.label
-            }
-            Rectangle {
-                visible: slot.available
-                anchors.centerIn: parent
-                width: 1.8
-                height: 9
-                radius: 1
-                color: Theme.label
+                width: 8
+                height: 1.6
+                radius: 0.8
+                color: Theme.dark ? Qt.rgba(1, 1, 1, 0.75) : Qt.rgba(0, 0, 0, 0.62)
             }
             MouseArea {
                 anchors.fill: parent
                 anchors.margins: -3
-                enabled: slot.editing
-                onClicked: slot.toggled()
+                enabled: slot.showRemove
+                onClicked: WidgetStore.removeAt(slot.slotIndex)
             }
         }
+    }
+
+    // Clic ailleurs dans le Centre : ferme le menu contextuel
+    MouseArea {
+        parent: column
+        anchors.fill: parent
+        z: 199
+        visible: widgetMenu.open
+        acceptedButtons: Qt.AllButtons
+        onPressed: widgetMenu.close()
+    }
+    // Menu contextuel d'un widget (Ctrl-clic)
+    Item {
+        id: widgetMenu
+        property int target: -1
+        readonly property bool open: target >= 0
+        parent: column
+        z: 200
+        visible: open
+        width: open ? Math.max(wmRemove.implicitWidth, wmEdit.implicitWidth) + 32 : 0
+        height: open ? wmCol.implicitHeight + 10 : 0
+        function openAt(i, px, py) {
+            target = i;
+            Qt.callLater(() => {
+                x = Math.round(Math.min(px, column.width - width - 4));
+                y = Math.round(py);
+            });
+        }
+        function close() { target = -1; }
+        NotifGlass {
+            anchors.fill: parent
+            radius: Theme.radiusMenu
+            tint: Theme.dark ? Qt.rgba(0.17, 0.17, 0.18, 0.80) : Qt.rgba(0.97, 0.97, 0.98, 0.80)
+            shadowOffset: 6
+            shadowBlur: 0.8
+        }
+        Column {
+            id: wmCol
+            x: 5
+            y: 5
+            width: parent.width - 10
+            WidgetMenuItem {
+                id: wmEdit
+                text: "Edit Widgets…"
+                onTriggered: { widgetMenu.close(); WidgetStore.editing = true; }
+            }
+            Item {
+                width: parent.width
+                height: 11
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width - 20
+                    height: 1
+                    color: Theme.separator
+                }
+            }
+            WidgetMenuItem {
+                id: wmRemove
+                text: "Remove Widget"
+                onTriggered: { const i = widgetMenu.target; widgetMenu.close(); WidgetStore.removeAt(i); }
+            }
+        }
+    }
+    component WidgetMenuItem: Item {
+        id: wmi
+        property string text
+        signal triggered()
+        implicitWidth: wmiLabel.implicitWidth
+        width: parent ? parent.width : 0
+        height: 24
+        Rectangle {
+            anchors.fill: parent
+            radius: Theme.radiusMenuItem
+            color: Theme.menuHighlight
+            visible: wmiMouse.containsMouse
+        }
+        Text {
+            id: wmiLabel
+            x: 11
+            anchors.verticalCenter: parent.verticalCenter
+            text: wmi.text
+            color: wmiMouse.containsMouse ? Theme.menuHighlightText : Theme.label
+            font.family: Theme.font
+            font.pixelSize: 13
+        }
+        MouseArea {
+            id: wmiMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: wmi.triggered()
+        }
+    }
+
+    // Débogage (pas de clic possible dans le banc de test)
+    IpcHandler {
+        target: "widgets-debug"
+        function gallery(on: bool): void { WidgetStore.editing = on; }
+        function menu(index: int): void { widgetMenu.openAt(index, 200, 120); }
+        function closeMenu(): void { widgetMenu.close(); }
+        function add(id: string): void { WidgetStore.add(id); }
+        function remove(index: int): void { WidgetStore.removeAt(index); }
+        function list(): string { return WidgetStore.widgets.join(","); }
     }
 
     // Date du jour (rafraîchie à minuit pour le calendrier)

@@ -28,17 +28,22 @@ Item {
     readonly property string tomorrowIso: Qt.formatDate(new Date(now.getTime() + 86400000), "yyyy-MM-dd")
     readonly property string nowHm: Qt.formatTime(now, "HH:mm")
 
-    // Horaire au format US de macOS : « 9:00 – 10:30 AM », « 11:30 AM – 1:00 PM »
+    // Horaire au format du widget macOS (image Apple, macOS 26) : « 1 – 1:30PM »,
+    // « 5:30 – 7PM », « 11:30AM – 1PM » : pas de « :00 » aux heures pleines,
+    // AM/PM collé au chiffre, en petites capitales réduites, une seule fois si
+    // la plage ne change pas de demi-journée. Texte riche (taille de AM/PM).
     function hm(t) {
         const [h, m] = String(t).split(":").map(Number);
-        return { t: (h % 12 || 12) + ":" + String(m || 0).padStart(2, "0"), p: h < 12 ? "AM" : "PM" };
+        return { t: (h % 12 || 12) + (m ? ":" + String(m).padStart(2, "0") : ""), p: h < 12 ? "AM" : "PM" };
     }
+    function ampm(p) { return "<span style=\"font-size:8px\">" + p + "</span>"; }
     function timeRange(start, end) {
         if (!start) return "";
         const a = hm(start);
-        if (!end) return a.t + " " + a.p;
+        if (!end) return a.t + ampm(a.p);
         const b = hm(end);
-        return a.p === b.p ? a.t + " – " + b.t + " " + b.p : a.t + " " + a.p + " – " + b.t + " " + b.p;
+        const dash = "\u2009–\u2009";
+        return a.p === b.p ? a.t + dash + b.t + ampm(b.p) : a.t + ampm(a.p) + dash + b.t + ampm(b.p);
     }
 
     property var allEvents: []
@@ -96,10 +101,10 @@ Item {
         x: 18
         y: 73
         width: 146
-        spacing: 5
+        spacing: 6
         Repeater {
             model: w.leftEvents
-            EventPill { required property var modelData; event: modelData; width: 146; height: 27 }
+            EventPill { required property var modelData; event: modelData; width: 146; height: 26 }
         }
     }
     Text {
@@ -120,7 +125,7 @@ Item {
         x: 180
         y: 18
         width: 146
-        spacing: 4
+        spacing: 6
         Text {
             visible: w.upcoming.length === 0 && w.tomorrow.length > 0
             text: "TOMORROW"
@@ -133,7 +138,7 @@ Item {
         }
         Repeater {
             model: w.rightEvents
-            EventPill { required property var modelData; event: modelData; width: 146; height: 28 }
+            EventPill { required property var modelData; event: modelData; width: 146; height: 26 }
         }
     }
 
@@ -174,11 +179,12 @@ Item {
             Text {
                 width: parent.width
                 text: w.timeRange(pill.event.start, pill.event.end)
+                textFormat: Text.RichText
                 color: pill.ink
                 opacity: 0.9
                 font.family: Theme.font
                 font.pixelSize: 11
-                font.weight: Font.Medium
+                font.weight: Font.DemiBold
                 font.features: { "tnum": 1 }
             }
         }

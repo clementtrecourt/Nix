@@ -26,14 +26,16 @@ Item {
         anchors.fill: parent
         radius: tile.radius
         tint: ma.containsMouse && tile.interactive ? tile.hoverTint : tile.tint
+        // Liseré teinté par le fond (référence Tahoe : cyan sur fond bleu)
+        rimTintMix: 0.7
         blur: CCStyle.glassBlur
         saturation: tile.glassSaturation
         adaptive: CCStyle.glassAdaptive
-        // Liseré visible sur tout le pourtour (plus vif sur les arcs éclairés)
+        // Liseré directionnel (arcs éclairés), flancs presque éteints
         rimBase: CCStyle.rimBase
-        shadowBlur: 0.3
-        shadowOffset: 1
-        shadowColor: Qt.rgba(0, 0, 0, 0.22)
+        edgeDarken: CCStyle.edgeDarken
+        // Pas d'anneau sombre autour du module (Tahoe)
+        shadowEnabled: CCStyle.tileShadow
         opacity: tile.glassVisible ? 1 : 0
         Behavior on tint { ColorAnimation { duration: 140 } }
     }

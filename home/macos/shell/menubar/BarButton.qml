@@ -11,6 +11,11 @@ Item {
 
     property bool active: false
     property real padding: 10
+    property real paddingLeft: padding
+    property real paddingRight: padding
+    // Largeur imposée (icônes d'état : Tahoe espace leurs CENTRES de ~37 pt,
+    // quel que soit le picto) ; le contenu y est centré. 0 : largeur du contenu.
+    property int slotWidth: 0
     // Débord de la pastille de part et d'autre de l'élément : sur Tahoe, la
     // pastille d'une icône d'état (~44 x 24 pt pour le Control Center) est plus
     // large que l'écart entre deux pictos (~20 pt).
@@ -29,7 +34,11 @@ Item {
     signal dragged(point p)
     signal released(point p)
 
-    implicitWidth: holder.childrenRect.width + padding * 2
+    // Largeur ENTIÈRE : l'avance des glyphes d'Inter est fractionnaire, et un
+    // bouton posé sur un x non entier rendait flou tout le texte du calque
+    // (halo) à l'échelle 1
+    implicitWidth: slotWidth > 0 ? slotWidth
+        : Math.ceil(holder.childrenRect.width) + Math.round(paddingLeft) + Math.round(paddingRight)
     implicitHeight: parent ? parent.height : 32
 
     // Verre (Liquid Glass sur le fond d'écran) pour la pastille ; sinon
@@ -43,8 +52,9 @@ Item {
     // compression de luminance du verre, pas un voile blanc qui délaverait).
     // Sur fond clair (texte noir), la pastille assombrit légèrement.
     readonly property real pillWidth: width + 2 * pillExtra
-    // (20-22 pt de haut sur Tahoe)
-    readonly property real pillHeight: Math.min(height - 8, 22)
+    // (512pixels, macOS 26.0 : pastille de y=3 à 26,5 pt dans la barre de 30 pt ;
+    // 24 px ici, posée sur des pixels entiers y=3..27)
+    readonly property real pillHeight: Math.min(height - 6, 24)
     Loader {
         id: pillGlass
         active: root.glassPill && (root.active || opacity > 0)
@@ -53,20 +63,26 @@ Item {
         height: root.pillHeight
         opacity: root.active ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
+        // Capsule pleine et unie, SANS liseré ni lentille de bord : Tahoe passe
+        // directement du fond (#3F79B0) à une capsule plus claire (#518CC5) avec
+        // 1 px d'anticrénelage (512pixels, Macworld, Rogue Amoeba). Le verre ne
+        // sert ici qu'à éclaircir le fond en gardant sa couleur.
         sourceComponent: Glass {
             radius: height / 2
-            tint: root.lightBackdrop ? Qt.rgba(0, 0, 0, 0.09) : Qt.rgba(1, 1, 1, 0.13)
+            tint: root.lightBackdrop ? Qt.rgba(0, 0, 0, 0.09) : Qt.rgba(1, 1, 1, 0.11)
             adaptive: 0
-            saturation: 1.1
-            refraction: 2
+            saturation: 1.12
+            refraction: 0
+            dispersion: 0
             blur: 3
             shadowEnabled: false
-            // (liseré à peine perceptible : la pastille de Tahoe n'a pas de bord net)
-            rimColor: Qt.rgba(1, 1, 1, root.lightBackdrop ? 0.18 : 0.07)
-            rimBase: 0.2
+            rimColor: "transparent"
+            rimBase: 0
+            rimWidth: 0
             glowColor: "transparent"
             shadeColor: "transparent"
             edgeDarken: 0
+            edgeSaturate: 0
         }
     }
     Rectangle {
@@ -83,8 +99,8 @@ Item {
 
     Item {
         id: holder
-        x: root.padding
-        width: childrenRect.width
+        x: root.slotWidth > 0 ? Math.round((root.width - width) / 2) : Math.round(root.paddingLeft)
+        width: Math.ceil(childrenRect.width)
         height: parent.height
 
         // Halo discret (ombre portée sans décalage, comme la barre de Tahoe)

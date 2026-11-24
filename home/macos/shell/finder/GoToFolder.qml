@@ -21,11 +21,26 @@ Item {
               .sort((a, b) => a.name.localeCompare(b.name)).slice(0, 8)
         : []
 
+    // Pré-rempli avec le dernier chemin saisi (comme Tahoe), sinon le dossier
+    // courant
     onVisibleChanged: if (visible) {
-        text = fw.isVirtual ? "~/" : fw.path.replace(Fs.home, "~") + "/";
+        text = fw.finder.lastGoTo || (fw.isVirtual ? "~/" : fw.path.replace(Fs.home, "~") + "/");
         current = -1;
         input.forceActiveFocus();
         input.selectAll();
+    }
+    function close() {
+        if (!fw.showGoTo) return;
+        fw.showGoTo = false;
+        fw.focusStage();
+    }
+    // Le panneau se ferme dès qu'il perd le focus (clic ailleurs, ⌘T, barre
+    // latérale…) ou que la fenêtre change de dossier / d'onglet
+    Connections {
+        target: root.fw
+        function onPathChanged() { root.close(); }
+        function onTabIndexChanged() { root.close(); }
+        function onActiveChanged() { if (!root.fw.active) root.close(); }
     }
 
     DirLister {
@@ -38,8 +53,8 @@ Item {
         let t = (p ?? typed).trim();
         if (!t) return;
         if (t.startsWith("~")) t = Fs.home + t.slice(1);
-        fw.showGoTo = false;
-        fw.focusStage();
+        fw.finder.lastGoTo = (p !== undefined ? p.replace(Fs.home, "~") : text).trim();
+        close();
         if (!t.startsWith("/")) t = Fs.join(fw.isVirtual ? Fs.home : fw.path, t);
         fw.finder.openInWindow(fw, t);
     }
@@ -47,7 +62,7 @@ Item {
     // Clic hors du champ : ferme
     MouseArea {
         anchors.fill: parent
-        onPressed: { root.fw.showGoTo = false; root.fw.focusStage(); }
+        onPressed: root.close()
     }
 
     Item {
@@ -97,7 +112,8 @@ Item {
             clip: true
             Keys.onReturnPressed: root.go(root.current >= 0 ? root.suggestions[root.current].path : undefined)
             Keys.onEnterPressed: root.go(root.current >= 0 ? root.suggestions[root.current].path : undefined)
-            Keys.onEscapePressed: { root.fw.showGoTo = false; root.fw.focusStage(); }
+            Keys.onEscapePressed: root.close()
+            onActiveFocusChanged: if (!activeFocus) Qt.callLater(() => { if (!input.activeFocus) root.close(); })
             Keys.onDownPressed: root.current = Math.min(root.suggestions.length - 1, root.current + 1)
             Keys.onUpPressed: root.current = Math.max(-1, root.current - 1)
             Keys.onTabPressed: {
@@ -129,6 +145,8 @@ Item {
                     FileIcon { x: 10; anchors.verticalCenter: parent.verticalCenter; size: 18; entry: parent.modelData; thumbnails: false }
                     Text {
                         x: 36
+                        width: parent.width - x - 10
+                        elide: Text.ElideMiddle
                         anchors.verticalCenter: parent.verticalCenter
                         text: parent.modelData.path.replace(Fs.home, "~")
                         font.family: Theme.font

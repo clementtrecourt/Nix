@@ -49,7 +49,8 @@ PanelWindow {
     // à la même place en plein écran.
     exclusionMode: ExclusionMode.Ignore
     exclusiveZone: 0
-    readonly property int top: Math.round((Theme.menuBarHeight + 22) / 2) + 1
+    // (512pixels, macOS 26.0 : barre de 30 pt, menu à y=31 pt)
+    readonly property int top: Theme.menuBarHeight + 1
     margins.top: top
     anchors {
         top: true
@@ -118,6 +119,7 @@ PanelWindow {
             const p = loader.item?.deepest();
             if (!p) return;
             switch (event.key) {
+            case Qt.Key_Alt: menuLayer.controller.optionDown = true; break;
             case Qt.Key_Escape: p.keyEscape(); break;
             case Qt.Key_Down: p.move(1); break;
             case Qt.Key_Up: p.move(-1); break;
@@ -132,6 +134,12 @@ PanelWindow {
                 else return;
             }
             event.accepted = true;
+        }
+        Keys.onReleased: event => {
+            if (event.key === Qt.Key_Alt) {
+                menuLayer.controller.optionDown = false;
+                event.accepted = true;
+            }
         }
     }
 

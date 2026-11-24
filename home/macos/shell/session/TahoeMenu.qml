@@ -28,9 +28,15 @@ Item {
 
     readonly property bool hasIcons: items.some(i => !!i.icon)
     readonly property bool hasChecks: items.some(i => i.checked !== undefined)
+    // Colonne de coche à gauche, réservée dès qu'une ligne est cochée ; le
+    // pictogramme est conservé à sa droite (Tahoe, menu Window du Finder :
+    // « ✓ ▭ 2025 » — coche à 14 pt du bord, picto à 26 pt, texte à 47 pt).
+    readonly property bool checkColumn: hasIcons && items.some(i => i.checked === true)
     readonly property int padding: 5
     readonly property int rowHeight: 24
-    readonly property int textX: (hasIcons || hasChecks) ? 34 : 12
+    readonly property int checkX: 3
+    readonly property int iconX: checkColumn ? 21 : 10
+    readonly property int textX: hasIcons ? (checkColumn ? 42 : 34) : (hasChecks ? 34 : 12)
 
     implicitWidth: Math.max(minWidth, measure.maxWidth + textX + 34)
     implicitHeight: col.implicitHeight + padding * 2
@@ -102,8 +108,11 @@ Item {
     SessionGlass {
         anchors.fill: parent
         radius: Theme.radiusMenu
-        // Clair : blanc laiteux comme les menus Tahoe ; sombre : jeton du thème
-        tint: Theme.dark ? Theme.menuBackground : Qt.rgba(0.97, 0.97, 0.98, 0.80)
+        // Verre dépoli (le fond n'y est qu'une teinte homogène, jamais une
+        // image lisible) ; clair : blanc laiteux comme les menus Tahoe
+        frost: 30
+        frostSaturation: Theme.dark ? 1.1 : 1.1
+        tint: Theme.dark ? Qt.rgba(0.16, 0.16, 0.17, 0.74) : Qt.rgba(0.97, 0.97, 0.98, 0.86)
         shadowBlur: 0.9
         shadowOffset: 6
     }
@@ -154,19 +163,20 @@ Item {
                 }
 
                 Symbol {
-                    visible: !row.sep && !!row.modelData.icon && !row.modelData.checked
+                    visible: !row.sep && !!row.modelData.icon
                     name: row.modelData.icon ?? ""
                     size: 15
-                    x: 10
+                    x: root.iconX
                     anchors.verticalCenter: parent.verticalCenter
                     color: row.lit ? Theme.menuHighlightText : (row.on ? Theme.label : Theme.labelTertiary)
                 }
-                // Coche (remplace le pictogramme quand la commande est cochée)
+                // Coche : dans sa colonne à gauche (menu à pictogrammes), sinon
+                // à la place du texte en retrait
                 Symbol {
                     visible: !row.sep && row.modelData.checked === true
                     name: "checkmark"
                     size: 12
-                    x: 11
+                    x: root.hasIcons ? root.checkX : 11
                     anchors.verticalCenter: parent.verticalCenter
                     color: row.lit ? Theme.menuHighlightText : (row.on ? Theme.label : Theme.labelTertiary)
                 }

@@ -137,6 +137,8 @@ Scope {
         function reveal(on: bool): void {
             for (const b of Object.values(ctl.bars)) b.revealed = on;
         }
+        // Simule ⌥ enfoncée (éléments alternés : File > Close All)
+        function option(on: bool): void { ctl.optionDown = on; }
         function demo(on: bool): void {
             for (const b of Object.values(ctl.bars)) b.demo = on;
         }

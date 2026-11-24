@@ -3,8 +3,10 @@ import qs.common
 
 // Boutons de fenêtre macOS Tahoe (fermer / réduire / plein écran) : 14 pt,
 // pas de 23 pt (relevé sur les captures Tahoe 26 de 512pixels : À propos de ce
-// Mac, Forcer à quitter). Les glyphes (×, −, flèches) n'apparaissent qu'au survol du groupe,
-// comme dans AppKit. Un bouton désactivé est gris.
+// Mac, Forcer à quitter). Couleurs Tahoe (Theme.traffic*) : disque plein +
+// anneau d'un demi-point plus sombre. Les glyphes (×, −, flèches)
+// n'apparaissent qu'au survol du groupe, comme dans AppKit. Un bouton
+// désactivé prend un voile gris translucide (teinté par le fond).
 Row {
     id: root
 
@@ -21,8 +23,8 @@ Row {
     spacing: 9
 
     readonly property bool groupHovered: h1.containsMouse || h2.containsMouse || h3.containsMouse
-    readonly property color off: Theme.dark ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(0, 0, 0, 0.14)
-    readonly property color offStroke: Theme.dark ? Qt.rgba(1, 1, 1, 0.04) : Qt.rgba(0, 0, 0, 0.03)
+    readonly property color off: Theme.trafficInactive
+    readonly property color offStroke: Theme.trafficInactiveRing
 
     component Light: Rectangle {
         id: light
@@ -37,7 +39,7 @@ Row {
         height: 14
         radius: 7
         color: enabledButton && root.active ? fill : root.off
-        border.width: 0.5
+        border.width: Theme.trafficRingWidth
         border.color: enabledButton && root.active ? stroke : root.offStroke
         // Assombri à l'appui
         Rectangle {
@@ -62,8 +64,8 @@ Row {
 
     Light {
         id: closeBtn
-        fill: "#FF5F57"
-        stroke: "#E2463F"
+        fill: Theme.trafficRed
+        stroke: Theme.trafficRedRing
         enabledButton: root.closeEnabled
         onClicked: root.closeClicked()
         Canvas {
@@ -85,8 +87,8 @@ Row {
     }
     Light {
         id: minBtn
-        fill: "#FEBC2E"
-        stroke: "#E1A116"
+        fill: Theme.trafficYellow
+        stroke: Theme.trafficYellowRing
         enabledButton: root.minimizeEnabled
         onClicked: root.minimizeClicked()
         Rectangle {
@@ -99,8 +101,8 @@ Row {
     }
     Light {
         id: zoomBtn
-        fill: "#28C840"
-        stroke: "#14AE2B"
+        fill: Theme.trafficGreen
+        stroke: Theme.trafficGreenRing
         enabledButton: root.zoomEnabled
         onClicked: root.zoomClicked()
         Canvas {

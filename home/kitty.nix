@@ -76,13 +76,17 @@ in {
 
     # Configuration générale
     settings = {
-      # Curseur
-      cursor_shape = "beam";
-      cursor_blink_interval = "1.0";
-      cursor_stop_blinking_after = 30;
-      cursor_trail = 10;
-      cursor_trail_start_threshold = 20;
+      # Curseur de Terminal.app (profil Basique) : bloc fixe, sans clignotement ni
+      # traînée animée ; l'intégration shell ne le change pas en barre
+      cursor_shape = "block";
+      cursor_blink_interval = 0;
+      cursor_trail = 0;
       shell_integration = "no-cursor";
+
+      # Onglets sous la barre de titre, comme dans Terminal (et non en bas)
+      tab_bar_edge = "top";
+      tab_bar_style = "separator";
+      tab_separator = "\" │ \"";
 
       # Performance / Latence
       repaint_delay = 8;

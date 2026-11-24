@@ -77,8 +77,12 @@ Item {
         if (handle) src = opener.children.values;
         else src = items ?? [];
         let out = [];
+        // Éléments alternés (AppKit) : `alternate` ne s'affiche que pendant
+        // l'appui sur ⌥, à la place de l'élément marqué `hasAlternate`
+        const opt = !!panel.controller?.optionDown;
         for (const e of src) {
             const n = normalize(e);
+            if ((n.alternate && !opt) || (n.hasAlternate && opt)) continue;
             out.push(n);
             // Section dépliable ouverte : ses éléments suivent, en place
             if (n.disclosure) {
@@ -132,10 +136,9 @@ Item {
             if (e.separator) continue;
             if (e.search) { search = true; continue; }
             if (e.mods || e.globe) {
-                // Modificateurs espacés de 2 pt, globe de 12 pt (voir MenuRow)
+                // Modificateurs accolés (approches d'Inter), globe de 12 pt (voir MenuRow)
                 const chars = Array.from(e.mods ?? "");
                 let m = chars.reduce((a, ch) => a + fm.advanceWidth(ch), 0) + (e.globe ? 12 : 0);
-                m += 2 * Math.max(0, chars.length + (e.globe ? 1 : 0) - 1);
                 mw = Math.max(mw, m);
             }
             if (e.key) kw = Math.max(kw, fm.advanceWidth(e.key));
@@ -147,14 +150,17 @@ Item {
         // picto à 31,5, texte après picto à 47 (Fenêtre du Finder).
         const cols = gutter ? { check: 13, plain: 25, icon: 31, iconText: 47 }
                             : { check: 13, plain: 16, icon: 24, iconText: 38 };
-        const keys = kw > 0 ? 22 + Math.ceil(mw) + 3 + Math.ceil(kw) : 0;
-        // 2e passage : largeur nécessaire par ligne. Marge droite : 14 pt +
-        // respiration (macOS laisse au moins ~20 pt après le texte).
+        // Tahoe (menu Finder de 512pixels, 203,5 pt de large) : ~25 pt d'encre
+        // entre la fin du libellé et le premier modificateur (20 + approches des
+        // glyphes d'Inter), touche à 17-18 pt du bord.
+        const keys = kw > 0 ? 20 + Math.ceil(mw) + Math.ceil(kw) : 0;
+        // 2e passage : largeur nécessaire par ligne. Marge droite : 17 pt (bord
+        // des raccourcis et des chevrons) ; sans raccourci, ~20 pt de respiration.
         let w = 0;
         for (const e of model) {
             if (e.separator || e.search) continue;
             let need = 1 + (e.header ? cols.plain : e.network ? 46 : e.indent ? cols.iconText : cols.plain)
-                + fm.advanceWidth(e.text ?? "") * (e.header ? 0.9 : 1) + 24 + keys;
+                + fm.advanceWidth(e.text ?? "") * (e.header ? 0.9 : 1) + 17 + (keys > 0 ? keys : 20);
             if (e.pathText) need += fm.advanceWidth(e.pathText) * (e.info ? 1 : 0.85) + 12;
             if (e.hasSubmenu || e.disclosure) need += 16;
             if (e.toggle !== undefined && e.toggle !== null) need += 40;
@@ -163,7 +169,7 @@ Item {
             w = Math.max(w, need);
         }
         if (search) w = Math.max(w, 260);
-        return { cols: cols, modsW: Math.ceil(mw) + 3, keyW: Math.ceil(kw), width: Math.ceil(Math.max(w, 140)) };
+        return { cols: cols, modsW: Math.ceil(mw), keyW: Math.ceil(kw), width: Math.ceil(Math.max(w, 140)) };
     }
 
     width: metrics.width

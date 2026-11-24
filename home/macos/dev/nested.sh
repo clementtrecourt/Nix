@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Banc de test : lance un Hyprland imbriqué (fenêtre dans la session courante)
-# avec la config de dev, puis le shell Quickshell dedans.
+# avec le rendu de la prod (home/macos/hyprland-look.nix), puis le shell Quickshell dedans.
 #
 #   nested.sh start [WxH]   -> démarre Hyprland imbriqué
 #   nested.sh shell         -> (re)lance quickshell -p home/macos/shell dans l'instance
@@ -48,15 +48,29 @@ case "${1:-}" in
 start)
   SIZE="${2:-1920x1080}"
   CONF="$STATE/hyprland.conf"
+  # Réglages écrits par l'app Réglages Système (créé vide s'il manque, jamais réécrit)
+  SETTINGS_CONF="${MACOS_SETTINGS_CONF:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/macos-settings.conf}"
+  [ -e "$SETTINGS_CONF" ] || { mkdir -p "$(dirname "$SETTINGS_CONF")"; touch "$SETTINGS_CONF"; }
+  # Même rendu que la session réelle : le bloc « look » est évalué depuis la même
+  # expression Nix que home/macos/hyprland.nix (pure, instantané)
+  if ! nix eval --raw -f "$HERE/../hyprland-look.nix" > "$STATE/look.conf"; then
+    echo "évaluation de home/macos/hyprland-look.nix impossible" >&2
+    exit 1
+  fi
   {
     echo "monitor = , ${SIZE}@60, 0x0, 1"
     # Plugin hyprbars de la même version que Hyprland (comme en prod)
     echo "plugin = $(P hyprlandPlugins.hyprbars)/lib/libhyprbars.so"
+    # Bloc « look » de la prod (source unique : home/macos/hyprland-look.nix)
+    echo "source = $STATE/look.conf"
+    # Réglages propres au banc (aucun aujourd'hui)
     if [ -f "$HERE/hyprland-dev.conf" ]; then echo "source = $HERE/hyprland-dev.conf"; fi
     echo "misc {"
     echo "  disable_hyprland_logo = true"
     echo "  disable_splash_rendering = true"
     echo "}"
+    # Comme en prod, en dernier : réglages de l'app Réglages Système du shell
+    echo "source = $SETTINGS_CONF"
   } > "$CONF"
   before=$(ls "$XDG_RUNTIME_DIR/hypr" 2>/dev/null || true)
   nohup "$HYPR/bin/Hyprland" -c "$CONF" > "$STATE/hyprland.log" 2>&1 &
@@ -99,6 +113,7 @@ shell)
   export QS_ICON_THEME="${QS_ICON_THEME:-$(cat "$HERE/icon-theme" 2>/dev/null || echo MacTahoe-Apple-dark)}"
   # Comme le service de prod : texte hinté et net
   QT_QUICK_DEFAULT_TEXT_RENDER_TYPE="${QT_QUICK_DEFAULT_TEXT_RENDER_TYPE:-NativeRendering}" \
+  MACOS_SHELL_DEV=1 \
   nohup "$QS/bin/quickshell" -p "$SHELL_DIR" > "$STATE/qs.log" 2>&1 &
   echo $! > "$STATE/qs.pid"
   sleep "${WAIT:-3}"

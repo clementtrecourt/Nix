@@ -56,6 +56,7 @@ layout(std140, binding = 0) uniform buf {
     float edgeDarken;    // assombrissement max dans la bande (0..1)
     float edgeSaturate;  // renfort de chrominance dans la bande
     vec4 overlay;        // voile composé PAR-DESSUS le fond réfracté (alpha normal, prémultiplié)
+    float rimTintMix;    // part de la couleur du fond dans le liseré (0 = blanc pur)
 };
 
 layout(binding = 1) uniform sampler2D bg;
@@ -197,7 +198,7 @@ void main() {
         // Le reflet est de la lumière du fond renvoyée par l'arête : il prend
         // sa couleur (relevé Tahoe : liseré rosé sur fond rose, bleuté sur bleu).
         vec3 rimRgb = rimColor.a > 0.0 ? rimColor.rgb / rimColor.a : vec3(1.0);
-        if (hasBg > 0.5) rimRgb = mix(rimRgb, clamp(g * 1.6 + 0.25, 0.0, 1.0), 0.35);
+        if (hasBg > 0.5) rimRgb = mix(rimRgb, clamp(g * 1.6 + 0.25, 0.0, 1.0), rimTintMix);
         vec4 rim = vec4(rimRgb, 1.0) * rimColor.a * ri;
         col = rim + col * (1.0 - rim.a);
 

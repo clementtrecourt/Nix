@@ -140,8 +140,15 @@ Scope {
         }
         function collapse(): void { cc.collapse(); }
         function dark(on: bool): void { Theme.dark = on; }
-        // Simule un rétroéclairage (machine de test sans /sys/class/backlight)
-        function fakeBrightness(v: real): void { Brightness.available = true; Brightness.value = v; }
+        // Simule un écran pilotable (machine de test sans rétroéclairage ni DDC)
+        function fakeBrightness(v: real): void { Brightness.fake = v >= 0; if (v >= 0) Brightness.value = v; }
+        // Simule un glissé du curseur Display : n valeurs, une toutes les 16 ms
+        // (test du débit des écritures DDC)
+        function brightnessSweep(n: int): void { sweep.left = n; sweep.restart(); }
+        // État de la luminosité (moyen, écrans DDC détectés)
+        function brightness(): string {
+            return JSON.stringify({ backend: Brightness.backend, available: Brightness.available, value: Brightness.value, ddc: Brightness.ddcDisplays });
+        }
         function state(): string {
             // latence de la capture du fond à la dernière ouverture (ms)
             const snap = ccBackdrop.children.find(c => c.latencyMs !== undefined);
@@ -154,6 +161,19 @@ Scope {
             cc.expand(name, t);
             expandAnim.stop();
             cc.ex = k;
+        }
+    }
+
+    // Débogage : glissé simulé (cf. brightnessSweep)
+    Timer {
+        id: sweep
+        property int left: 0
+        interval: 16
+        repeat: true
+        onTriggered: {
+            if (left <= 0) { stop(); return; }
+            left--;
+            Brightness.set(Math.abs(Math.sin(left / 20)));
         }
     }
 
@@ -293,7 +313,8 @@ Scope {
                 // pression, sans action.
                 CircleModule {
                     x: 2 * grid.s; y: 2 * grid.s
-                    symbol: "squares.leading.rectangle"
+                    // Fenêtre paysage (Tahoe : ~20 x 16,6 pt, glyphe ~28 pt de large)
+                    symbol: "cc.stagemanager"
                     glyphSize: 32
                 }
                 // Recopie de l'écran : se déplie comme sur Tahoe (liste des
@@ -301,14 +322,15 @@ Scope {
                 CircleModule {
                     id: mirrorTile
                     x: 3 * grid.s; y: 2 * grid.s
-                    symbol: "rectangle.on.rectangle"
+                    // Deux fenêtres en blanc plein (Tahoe)
+                    symbol: "cc.screenmirroring"
                     glyphSize: 33
                     onClicked: cc.expand("mirroring", mirrorTile)
                 }
 
                 CircleModule {
                     x: 0; y: 3 * grid.s
-                    symbol: "circle.lefthalf.filled.inverse"
+                    symbol: "cc.darkmode"
                     glyphSize: 28
                     on: Theme.dark
                     onClicked: Appearance.toggle()
@@ -318,8 +340,9 @@ Scope {
                 // contrat Cmd+Maj+5, porté par le composant notifications).
                 CircleModule {
                     x: grid.s; y: 3 * grid.s
-                    symbol: "camera.viewfinder"
-                    glyphSize: 27
+                    // Boîtier plein ~13 pt dans des coins de visée de 21,6 pt (Tahoe)
+                    symbol: "cc.screenshot"
+                    glyphSize: 24
                     onClicked: {
                         cc.close();
                         shotTimer.restart();
@@ -329,9 +352,11 @@ Scope {
                     id: focusTile
                     x: 2 * grid.s; y: 3 * grid.s
                     title: Focus.doNotDisturb ? Focus.modeNameEn : "Focus"
-                    subtitle: Focus.untilLabelEn
+                    // Tahoe : « Do Not / Disturb / On » (sous-titre « On » sans échéance)
+                    subtitle: Focus.doNotDisturb ? (Focus.untilLabelEn || "On") : ""
                     symbol: Focus.doNotDisturb ? Focus.modeSymbol : "moon.fill"
-                    glyphSize: 20
+                    // Lune ~17 pt dans la pastille de 37 pt (Tahoe)
+                    glyphSize: 23
                     on: Focus.doNotDisturb
                     onGlyph: Focus.modeColor
                     onToggled: Focus.toggle()
@@ -358,10 +383,10 @@ Scope {
                     title: "Sound"
                     leftSymbol: Audio.muted ? "speaker.slash.fill" : "speaker.fill"
                     leftSize: 19
-                    leftCenterX: 21
-                    trackLeft: 34.5
-                    trackRightInset: 78.5
-                    rightInset: 61
+                    leftCenterX: 19
+                    trackLeft: 30
+                    trackRightInset: 72
+                    rightInset: 57.5
                     rightSymbol: "speaker.wave.3.fill"
                     rightSize: 20
                     accessory: true

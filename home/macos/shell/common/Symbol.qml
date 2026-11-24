@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import Quickshell
 import qs.common
 
 // Pictogramme façon SF Symbols : charge assets/symbols/<name>.svg (dessin noir sur
@@ -18,7 +19,10 @@ Item {
         id: img
         anchors.fill: parent
         source: root.name ? Qt.resolvedUrl("../assets/symbols/" + root.name + ".svg") : ""
-        sourceSize: Qt.size(root.size * 2, root.size * 2)
+        // Rastérisé à la taille exacte en pixels (écran 1x : un rendu 2x réduit
+        // ensuite donnait des pictos flous)
+        readonly property real _dpr: QsWindow.window?.devicePixelRatio ?? 1
+        sourceSize: Qt.size(Math.round(root.size * _dpr), Math.round(root.size * _dpr))
         fillMode: Image.PreserveAspectFit
         smooth: true
         visible: false

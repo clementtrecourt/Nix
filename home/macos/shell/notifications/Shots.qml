@@ -12,8 +12,11 @@ import Quickshell.Hyprland
 //      « Screenshot 2026-11-24 at 9.12.11 AM.png »
 //      « Screen Recording 2026-11-24 at 9.12.11 AM.mov »
 //    (heure sur 12 h sans zéro initial, séparateurs « . », espace insécable fine
-//    U+202F avant AM/PM comme macOS depuis Ventura) dans ~/Pictures/Screenshots
-//    (ou le dossier choisi dans Options).
+//    U+202F avant AM/PM comme macOS depuis Ventura) sur le Bureau par défaut
+//    (ou l'emplacement choisi dans Options).
+//  - Portion d'écran : cadre choisi dans la barre ⇧⌘5 (`selection`, en
+//    coordonnées de l'écran) ; gardé d'une capture à l'autre si « Remember Last
+//    Selection » est coché.
 //  - Après chaque capture : vignette flottante (signal `captured`).
 //
 // IPC (utilisée par les raccourcis Hyprland Cmd+Maj+3/4) :
@@ -24,17 +27,22 @@ Singleton {
     id: root
 
     // ---- Réglages (menu Options, persistés) ----
-    // desktop | documents | clipboard | preview | screenshots | custom
-    // (« screenshots » = ~/Pictures/Screenshots, dossier des raccourcis Cmd+Maj+3/4 :
-    //  gardé par défaut pour que toutes les captures arrivent au même endroit ;
-    //  macOS l'afficherait comme un emplacement choisi via « Autre emplacement… »)
-    property string saveTo: "screenshots"
+    // desktop | documents | clipboard | mail | messages | preview | custom
+    // (macOS : Bureau par défaut ; un dossier choisi via « Other Location… »
+    //  devient une entrée « custom » du menu)
+    property string saveTo: "desktop"
     property string customDir: ""
     property int delay: 0                     // minuteur : 0, 5, 10 s
     property bool showThumbnail: true
-    property bool showPointer: false
-    property bool microphone: false           // enregistrement : son du micro par défaut
+    property bool showPointer: false          // captures
+    property bool showClicks: false           // enregistrements (non rendu par wf-recorder)
+    property bool rememberSelection: true
+    property string micDevice: ""             // enregistrement : nœud PipeWire du micro ("" = None)
     property string lastMode: "area"          // dernier mode choisi dans la barre d'outils
+    // Cadre de la portion d'écran (repère de l'écran), {x, y, w, h} ; null = cadre par défaut
+    property var selection: null
+    // La barre des menus affiche le bouton « Stop Recording » (sinon : pastille flottante)
+    property bool menuBarStopButton: false
 
     // ---- État ----
     property bool toolbarOpen: false
@@ -51,7 +59,7 @@ Singleton {
         case "desktop": return home + "/Desktop";
         case "documents": return home + "/Documents";
         case "custom": if (customDir) return customDir;
-        default: return home + "/Pictures/Screenshots";
+        default: return home + "/Desktop";
         }
     }
 
@@ -68,14 +76,13 @@ Singleton {
     // Écran et rectangles des fenêtres sont calculés côté QML (pas de jq requis).
     readonly property string captureScript: `
 set -u
-mode="$1"; out="$2"; delay="$3"; cursor="$4"; clip="$5"; mon="$6"; boxes="$7"
+mode="$1"; out="$2"; delay="$3"; cursor="$4"; clip="$5"; mon="$6"; boxes="$7"; geom="$8"
 c=""; [ "$cursor" = 1 ] && c="-c"
-geom=""
 case "$mode" in
   window)
     geom=$(printf '%s\n' "$boxes" | slurp -r -b "#00000000" -c "#0A84FFFF" -s "#0A84FF40" -w 0) || exit 2 ;;
   area)
-    geom=$(slurp -d -b "#00000000" -c "#FFFFFFE6" -s "#FFFFFF1F" -B "#00000000" -w 1 -F "Inter") || exit 2 ;;
+    [ -n "$geom" ] || geom=$(slurp -d -b "#00000000" -c "#FFFFFFE6" -s "#FFFFFF1F" -B "#00000000" -w 1 -F "Inter") || exit 2 ;;
 esac
 [ "$delay" -gt 0 ] && sleep "$delay"
 mkdir -p "$(dirname "$out")"
@@ -115,20 +122,23 @@ echo "$out"
         return out.join("\n");
     }
 
-    function capture(mode) {
+    // Fichier temporaire : Aperçu / Mail / Messages (rien n'est rangé, comme macOS)
+    readonly property bool tempTarget: saveTo === "preview" || saveTo === "mail" || saveTo === "messages"
+
+    // `geom` : « x,y lxh » (coordonnées globales) de la portion choisie dans la barre
+    function capture(mode, geom) {
         if (busy || recording || !["screen", "window", "area"].includes(mode)) return;
         lastMode = mode;
         busy = true;
         toolbarOpen = false;
         const clip = saveTo === "clipboard";
-        // Aperçu : l'image s'ouvre dans la visionneuse sans être rangée (comme macOS)
         const out = clip ? ("/tmp/qs-capture-" + Date.now() + ".png")
-                  : saveTo === "preview" ? ("/tmp/" + baseName("Screenshot") + ".png")
+                  : tempTarget ? ("/tmp/" + baseName("Screenshot") + ".png")
                          : (saveDir() + "/" + baseName("Screenshot") + ".png");
         Hyprland.refreshToplevels();
         shotProc.command = ["sh", "-c", captureScript, "capture", mode, out,
                             String(delay), showPointer ? "1" : "0", clip ? "1" : "0",
-                            focusedMonitor(), windowBoxes()];
+                            focusedMonitor(), windowBoxes(), geom ?? ""];
         // Laisse le temps à la barre d'outils de disparaître de l'écran
         startTimer.restart();
     }
@@ -142,7 +152,7 @@ echo "$out"
         stdout: StdioCollector {
             onStreamFinished: {
                 const p = text.trim();
-                if (p && root.saveTo === "preview") root.open(p);
+                if (p && root.tempTarget) root.deliver(p);
                 else if (p && root.showThumbnail) root.captured(p);
             }
         }
@@ -155,31 +165,30 @@ echo "$out"
     // ---- Enregistrement de l'écran ----
     readonly property string recordScript: `
 set -u
-mode="$1"; out="$2"; delay="$3"; mon="$4"; mic="$5"; boxes="$6"
+mode="$1"; out="$2"; delay="$3"; mon="$4"; mic="$5"; boxes="$6"; geom="$7"
 command -v wf-recorder >/dev/null || { echo "wf-recorder introuvable" >&2; exit 3; }
-geom=""
 case "$mode" in
   window)
     geom=$(printf '%s\n' "$boxes" | slurp -r -b "#00000000" -c "#0A84FFFF" -s "#0A84FF40" -w 0) || exit 2 ;;
   area)
-    geom=$(slurp -d -b "#00000000" -c "#FFFFFFE6" -s "#FFFFFF1F" -B "#00000000" -w 1 -F "Inter") || exit 2 ;;
+    [ -n "$geom" ] || geom=$(slurp -d -b "#00000000" -c "#FFFFFFE6" -s "#FFFFFF1F" -B "#00000000" -w 1 -F "Inter") || exit 2 ;;
 esac
 [ "$delay" -gt 0 ] && sleep "$delay"
 mkdir -p "$(dirname "$out")"
-a=""; [ "$mic" = 1 ] && a="-a"
+a=""; [ -n "$mic" ] && a="--audio=$mic"
 echo START
 if [ -n "$geom" ]; then exec wf-recorder -y $a -g "$geom" -f "$out"
 else exec wf-recorder -y $a \${mon:+-o "$mon"} -f "$out"
 fi
 `
-    function record(mode) {
+    function record(mode, geom) {
         if (busy || recording || !["screen", "window", "area"].includes(mode)) return;
         lastMode = "rec-" + mode;
         toolbarOpen = false;
-        recordPath = saveDir() + "/" + baseName("Screen Recording") + ".mov";
+        recordPath = (tempTarget || saveTo === "clipboard" ? "/tmp" : saveDir()) + "/" + baseName("Screen Recording") + ".mov";
         Hyprland.refreshToplevels();
         recProc.command = ["sh", "-c", recordScript, "record", mode, recordPath, String(delay), focusedMonitor(),
-                           microphone ? "1" : "0", windowBoxes()];
+                           micDevice, windowBoxes(), geom ?? ""];
         recStartTimer.restart();
     }
     Timer {
@@ -203,17 +212,25 @@ fi
         onExited: code => {
             const was = root.recording;
             root.recording = false;
-            if (was && root.showThumbnail) thumbDelay.restart();
+            if (was && (root.showThumbnail || root.tempTarget)) thumbDelay.restart();
         }
     }
     // Le fichier mp4 est finalisé juste après la sortie de wf-recorder
     Timer {
         id: thumbDelay
         interval: 300
-        onTriggered: root.captured(root.recordPath)
+        onTriggered: {
+            if (root.tempTarget) root.deliver(root.recordPath);
+            else root.captured(root.recordPath);
+        }
     }
 
     function open(path) { Quickshell.execDetached(["xdg-open", path]); }
+    // Aperçu : visionneuse ; Mail : nouveau message avec la pièce jointe
+    function deliver(path) {
+        if (saveTo === "mail") Quickshell.execDetached(["xdg-email", "--attach", path]);
+        else open(path);
+    }
 
     // « Autre emplacement… » : sélecteur de dossier (zenity)
     function chooseFolder() { if (!folderProc.running) folderProc.running = true; }
@@ -241,23 +258,33 @@ fi
         atomicWrites: true
     }
     function save() {
-        settingsFile.setText(JSON.stringify({ saveTo, customDir, delay, showThumbnail, showPointer, microphone, lastMode }));
+        settingsFile.setText(JSON.stringify({ saveTo, customDir, delay, showThumbnail, showPointer, showClicks,
+                                              rememberSelection, micDevice, lastMode,
+                                              selection: rememberSelection ? selection : null }));
     }
     onSaveToChanged: Qt.callLater(save)
     onCustomDirChanged: Qt.callLater(save)
     onDelayChanged: Qt.callLater(save)
     onShowThumbnailChanged: Qt.callLater(save)
     onShowPointerChanged: Qt.callLater(save)
-    onMicrophoneChanged: Qt.callLater(save)
+    onShowClicksChanged: Qt.callLater(save)
+    onRememberSelectionChanged: Qt.callLater(save)
+    onMicDeviceChanged: Qt.callLater(save)
+    onSelectionChanged: Qt.callLater(save)
     Component.onCompleted: {
         try {
             const j = JSON.parse(settingsFile.text() || "{}");
             if (j.customDir) customDir = j.customDir;
-            if (j.saveTo) saveTo = j.saveTo;
+            // Ancien réglage « screenshots » : devient un emplacement choisi
+            if (j.saveTo === "screenshots") { customDir = home + "/Pictures/Screenshots"; saveTo = "custom"; }
+            else if (j.saveTo) saveTo = j.saveTo;
             if (j.delay !== undefined) delay = j.delay;
             if (j.showThumbnail !== undefined) showThumbnail = j.showThumbnail;
             if (j.showPointer !== undefined) showPointer = j.showPointer;
-            if (j.microphone !== undefined) microphone = j.microphone;
+            if (j.showClicks !== undefined) showClicks = j.showClicks;
+            if (j.rememberSelection !== undefined) rememberSelection = j.rememberSelection;
+            if (typeof j.micDevice === "string") micDevice = j.micDevice;
+            if (j.selection && j.selection.w > 0) selection = j.selection;
             if (j.lastMode) lastMode = j.lastMode;
         } catch (e) {}
     }
@@ -273,6 +300,8 @@ fi
         function capture(mode: string): void { root.capture(mode); }
         function ui(): void { root.toolbarOpen = !root.toolbarOpen; }
         function stop(): void { root.stopRecording(); }
+        // Barre des menus : état de l'enregistrement (bouton « Stop Recording »)
+        function isRecording(): bool { return root.recording; }
         // Script des raccourcis ⇧⌘3/4 (macos-screenshot) : cache la vignette et la
         // barre avant grim (sinon elles seraient dans la capture), puis rétablit.
         function prepare(): void { root.busy = true; }

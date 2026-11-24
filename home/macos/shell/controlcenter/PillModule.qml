@@ -64,12 +64,17 @@ CCTile {
         return w <= textWidth ? CCStyle.tracking : Math.max(-0.4, (textWidth - w) / Math.max(1, longestWord.length));
     }
 
-    // Lignes de base relevées : titre à 28 pt du haut, sous-titre 16,4 pt plus bas
+    // Le titre entier tient-il sur une ligne ? Sinon deux lignes ("Do Not /
+    // Disturb"), avec ou sans sous-titre (Tahoe : « Do Not / Disturb / On »)
+    readonly property bool twoLineTitle: titleMetrics.advanceWidth(title) * titleFitSize / CCStyle.titleSize > textWidth
+
+    // Lignes de base relevées : titre à 28 pt du haut, sous-titre 16,4 pt plus
+    // bas ; titre sur deux lignes : pas de 14,8 pt, sous-titre 14,3 pt plus bas
     Column {
         x: pill.textLeft
         width: pill.textWidth
         anchors.verticalCenter: parent.verticalCenter
-        spacing: 2.5
+        spacing: pill.twoLineTitle ? 0 : 2.5
         opacity: pill.disabled ? CCStyle.disabledOpacity : 1
 
         Text {
@@ -81,10 +86,10 @@ CCTile {
             font.letterSpacing: pill.titleSpacing
             font.pixelSize: pill.titleFitSize
             font.weight: Font.DemiBold
-            // Sans sous-titre, un titre long passe sur deux lignes ("Ne pas / déranger")
-            wrapMode: pill.subtitle === "" ? Text.WordWrap : Text.NoWrap
-            maximumLineCount: pill.subtitle === "" ? 2 : 1
-            lineHeight: pill.subtitle === "" ? 0.92 : 1
+            // Un titre long passe sur deux lignes ("Do Not / Disturb")
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            lineHeight: pill.twoLineTitle ? 0.94 : 1
             elide: Text.ElideRight
         }
         Text {
@@ -97,9 +102,10 @@ CCTile {
             font.letterSpacing: CCStyle.tracking
             font.pixelSize: CCStyle.subtitleSize
             font.weight: Font.Medium
-            // Un nom de réseau long passe sur deux lignes ("TidBITS / Mesh"), comme sur Tahoe
+            // Un nom de réseau long passe sur deux lignes ("TidBITS / Mesh"), comme
+            // sur Tahoe (une seule si le titre en occupe déjà deux)
             wrapMode: Text.WordWrap
-            maximumLineCount: 2
+            maximumLineCount: pill.twoLineTitle ? 1 : 2
             lineHeight: 0.95
             elide: Text.ElideRight
         }

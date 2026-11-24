@@ -1,14 +1,17 @@
 import QtQuick
 import qs.common
 
-// Ligne de résultat de Spotlight (Tahoe) : icône 32 pt, titre et détail sur
-// deux lignes, information à droite (raccourci, date) ou bouton « copier »
-// rond (presse-papiers). La ligne sélectionnée est une capsule GRISE neutre en
+// Ligne de résultat de Spotlight (Tahoe) : icône (dessin de 30 pt), titre et
+// détail sur deux lignes (ou titre seul, centré : vue Applications en liste),
+// information à droite (date), « Add quick keys » (vue Actions), action « tab »
+// de la ligne choisie, ou bouton « copier » rond (presse-papiers). La ligne sélectionnée est une capsule GRISE neutre en
 // retrait des bords du panneau, texte inchangé (captures MacRumors
 // « search-spotlight-location », « spotlight-kind » : pas d'accent bleu).
 //
 // Élément { header: true, title } : en-tête de section en gras avec un filet
 // dessous (vue Actions : « Suggestions », nom de l'app).
+// Élément { separator: true } : trait entre les apps suggérées et la liste
+// de A à Z (vue Applications en liste, MacMagazine « lista »).
 Item {
     id: root
 
@@ -26,6 +29,7 @@ Item {
     signal pointed(real sx, real sy)
 
     readonly property bool isHeader: !!modelData.header
+    readonly property bool isSeparator: !!modelData.separator
     readonly property bool isClip: modelData.kind === "clip"
     readonly property bool showPath: modelData.kind === "file" && cmdHeld && selected
     readonly property string detail: showPath ? (modelData.location ?? "") : (modelData.subtitle ?? "")
@@ -34,19 +38,32 @@ Item {
 
     // Sélection : voile neutre (plus clair en sombre, plus sombre en clair)
     readonly property color selColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.13) : Qt.rgba(0, 0, 0, 0.075)
-    readonly property color detailColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.50) : Qt.rgba(0, 0, 0, 0.45)
+    // Détail : ≈ 35 % de noir en clair (« Messages », Cult of Mac « Spotlight-Actions »)
+    readonly property color detailColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.50) : Qt.rgba(0, 0, 0, 0.36)
+    // Action « tab » de la ligne choisie (« Search <dossier> »)
+    readonly property bool showTab: selected && !!modelData.tabHint && !cmdHeld
 
     width: ListView.view ? ListView.view.width : 0
-    height: isHeader ? Metrics.headerHeight : Metrics.rowHeight
+    height: isHeader ? Metrics.headerHeight : isSeparator ? 26 : Metrics.rowHeight
+
+    // ---- Trait (apps suggérées / liste de A à Z) ----
+    Rectangle {
+        visible: root.isSeparator
+        x: Metrics.sidePad
+        y: 24
+        width: parent.width - 2 * Metrics.sidePad
+        height: 1
+        color: Theme.separator
+    }
 
     // ---- En-tête de section ----
     Item {
         anchors.fill: parent
         visible: root.isHeader
+        // Texte centré à 21 pt du haut, trait à 34 pt (Cult of Mac « Spotlight-Actions »)
         Text {
             x: Metrics.sidePad
-            anchors.bottom: headerRule.top
-            anchors.bottomMargin: 6
+            y: Math.round(21 - height / 2)
             text: root.modelData.title ?? ""
             font.family: Theme.font
             font.pixelSize: Metrics.headerFontSize
@@ -56,7 +73,7 @@ Item {
         Rectangle {
             id: headerRule
             x: Metrics.sidePad
-            y: parent.height - 3
+            y: parent.height - 1
             width: parent.width - 2 * Metrics.sidePad
             height: 1
             color: Theme.separator
@@ -65,7 +82,7 @@ Item {
 
     Rectangle {
         id: bg
-        visible: !root.isHeader
+        visible: !root.isHeader && !root.isSeparator
         anchors.fill: parent
         anchors.leftMargin: Metrics.rowInset
         anchors.rightMargin: Metrics.rowInset
@@ -73,10 +90,10 @@ Item {
         color: root.selected ? root.selColor : "transparent"
         Behavior on color { ColorAnimation { duration: 80 } }
 
-        // Icône : à 19 pt du bord du panneau
+        // Icône : dessin à ≈ 20 pt du bord du panneau (cadre 34, marge 2)
         ItemIcon {
             id: icon
-            x: 19 - Metrics.rowInset
+            x: 18 - Metrics.rowInset
             anchors.verticalCenter: parent.verticalCenter
             size: Metrics.rowIcon
             item: root.modelData
@@ -84,7 +101,7 @@ Item {
 
         Column {
             anchors.left: parent.left
-            anchors.leftMargin: 70 - Metrics.rowInset
+            anchors.leftMargin: 71 - Metrics.rowInset
             anchors.right: trailing.left
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
@@ -141,38 +158,106 @@ Item {
             }
         }
 
-        // À droite : information courte, ou bouton copier (presse-papiers)
+        // À droite : information courte, action « tab », « Add quick keys »,
+        // ou bouton copier (presse-papiers). Bord droit à 19 pt du panneau.
         Item {
             id: trailing
             anchors.right: parent.right
-            anchors.rightMargin: 11
+            anchors.rightMargin: Metrics.sidePad - Metrics.rowInset
             anchors.verticalCenter: parent.verticalCenter
-            width: root.isClip ? 30 : trailText.implicitWidth
-            height: 30
+            width: root.isClip ? Metrics.copyButton
+                 : root.showTab ? tabRow.implicitWidth
+                 : root.modelData.quickKeys ? quickKeys.width
+                 : trailText.implicitWidth
+            height: Metrics.copyButton
 
             Text {
                 id: trailText
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                visible: !root.isClip && text.length > 0
+                visible: !root.isClip && !root.showTab && !root.modelData.quickKeys && text.length > 0
                 text: root.modelData.trailing ?? ""
                 font.family: Theme.font
                 font.pixelSize: 14
                 color: root.detailColor
             }
 
-            // Bouton copier rond (Tahoe : toujours visible sur chaque élément)
+            // « Search recent receipts and invoices  [tab] » (MacRumors
+            // « search-spotlight-location ») : texte 11 px, touche en capsule
+            Row {
+                id: tabRow
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.showTab
+                spacing: 9
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.modelData.tabHint ?? ""
+                    font.family: Theme.font
+                    font.pixelSize: 11
+                    font.letterSpacing: 0.3
+                    color: root.detailColor
+                }
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: tabText.implicitWidth + 12
+                    height: 18
+                    radius: 5
+                    color: Theme.dark ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(0, 0, 0, 0.08)
+                    Text {
+                        id: tabText
+                        anchors.centerIn: parent
+                        text: "tab"
+                        font.family: Theme.font
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                        color: Theme.dark ? Qt.rgba(1, 1, 1, 0.85) : Qt.rgba(0, 0, 0, 0.70)
+                    }
+                }
+            }
+
+            // « Add quick keys » : capsule grise discrète, texte 11 px
+            // (Cult of Mac « Spotlight-Actions » : 92 x 18 pt, rayon ≈ 5)
+            Rectangle {
+                id: quickKeys
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                visible: !root.isClip && !root.showTab && !!root.modelData.quickKeys
+                width: qkText.implicitWidth + 14
+                height: Metrics.quickKeysHeight
+                radius: 5
+                color: qkMouse.containsMouse ? (Theme.dark ? Qt.rgba(1, 1, 1, 0.13) : Qt.rgba(0, 0, 0, 0.09))
+                                             : (Theme.dark ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(0, 0, 0, 0.05))
+                Text {
+                    id: qkText
+                    anchors.centerIn: parent
+                    text: "Add quick keys"
+                    font.family: Theme.font
+                    font.pixelSize: Metrics.quickKeysFontSize
+                    font.weight: Font.Medium
+                    color: Theme.dark ? Qt.rgba(1, 1, 1, 0.38) : Qt.rgba(0, 0, 0, 0.30)
+                }
+                MouseArea {
+                    id: qkMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                }
+            }
+
+            // Bouton copier rond de 26 pt, symbole plein (Tahoe : toujours
+            // visible sur chaque élément, Cult of Mac « Spotlight-Clipboard »)
             Rectangle {
                 anchors.fill: parent
                 visible: root.isClip
                 radius: width / 2
-                color: copyMouse.containsMouse ? Theme.fillHover : Theme.fill
+                color: copyMouse.containsMouse ? (Theme.dark ? Qt.rgba(1, 1, 1, 0.20) : Qt.rgba(0, 0, 0, 0.12))
+                                               : (Theme.dark ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(0, 0, 0, 0.07))
                 Symbol {
                     anchors.centerIn: parent
-                    name: "doc.on.doc"
-                    size: 15
+                    name: "doc.on.doc.fill"
+                    size: 17
                     // (couleur opaque : Symbol recolore mal l'alpha)
-                    color: Theme.dark ? "#c2c2c7" : "#6e6e73"
+                    color: Theme.dark ? "#d6d6db" : "#3a3a3f"
                 }
                 MouseArea {
                     id: copyMouse

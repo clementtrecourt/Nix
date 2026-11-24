@@ -37,13 +37,17 @@ Item {
         return l;
     }
 
+    // Verre de la barre latérale : la fenêtre est transparente sous la plaque
+    // (fond troué dans FinderWindow) et Hyprland floute le bureau derrière la
+    // fenêtre ; le verre n'ajoute que la teinte claire / sombre, le liseré et
+    // l'ombre (capture 2x de Daring Fireball : la barre prend la couleur du
+    // fond d'écran, rose en bas, bleutée en haut).
     FinderGlass {
         anchors.fill: parent
         radius: FStyle.sidebarRadius
-        backdropItem: root.backdropItem
+        backdrop: "none"
         tint: FStyle.sidebarTint
-        veil: 0.6
-        veilColor: Theme.dark ? Qt.rgba(0.19, 0.19, 0.20, 1) : Qt.rgba(0.965, 0.965, 0.97, 1)
+        veil: 0
         shadowBlur: 0.55
         shadowColor: Qt.rgba(0, 0, 0, Theme.dark ? 0.30 : 0.07)
         rimColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.30) : Qt.rgba(1, 1, 1, 0.95)
@@ -105,9 +109,9 @@ Item {
                         visible: row.header
                         anchors.fill: parent
                         Text {
-                            x: 15.5
+                            x: 15
                             anchors.verticalCenter: parent.top
-                            anchors.verticalCenterOffset: 23.5
+                            anchors.verticalCenterOffset: 23
                             text: row.modelData.label ?? ""
                             font.family: Theme.font
                             font.pixelSize: 11
@@ -121,7 +125,7 @@ Item {
                             color: FStyle.sidebarHeader
                             x: parent.width - 26
                             anchors.verticalCenter: parent.top
-                            anchors.verticalCenterOffset: 23.5
+                            anchors.verticalCenterOffset: 23
                         }
                         MouseArea {
                             id: hh
@@ -142,8 +146,8 @@ Item {
                         opacity: row.modelData.enabled === false ? 0.38 : 1
 
                         Rectangle {
-                            x: 10.5
-                            width: parent.width - 21
+                            x: 10
+                            width: parent.width - 20
                             height: FStyle.sidebarPillHeight
                             anchors.verticalCenter: parent.verticalCenter
                             radius: FStyle.sidebarPillRadius

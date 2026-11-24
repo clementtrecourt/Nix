@@ -11,17 +11,33 @@ Item {
     id: root
 
     required property var fw
-    readonly property var entries: fw.items
+    // Groupes (Grouper par…) : [{ title, items }] ; entries dans l'ordre affiché
+    readonly property string groupKey: fw.effectiveGroup
+    readonly property bool grouped: groupKey !== ""
+    readonly property var groups: grouped ? Fs.groupEntries(fw.items, groupKey) : []
+    readonly property var entries: grouped ? [].concat(...groups.map(g => g.items)) : fw.items
+    readonly property var flatRows: entries
 
     readonly property real margin: 10
     readonly property real topPad: fw.chromeHeight + 9
-    readonly property int columns: Math.max(1, Math.floor((width - 2 * margin) / FStyle.iconCellW))
-    readonly property real cellW: (width - 2 * margin) / columns
-    readonly property real cellH: FStyle.iconCellH
+    // Taille des icônes (curseur de la barre d'état) ; la grille suit
+    readonly property int iconSize: fw.iconSize
+    readonly property real minCellW: Math.max(FStyle.iconCellW, iconSize + 48)
+    readonly property int columns: Math.max(1, Math.floor((width - 2 * margin) / minCellW))
+    readonly property real cellW: Math.floor((width - 2 * margin) / columns)
+    readonly property real cellH: FStyle.iconCellH - root.iconSize + iconSize
 
     function indexOf(p) { return entries.findIndex(e => e.path === p); }
-    function debugScroll(dy) { grid.contentY += dy; }
+    function debugScroll(dy) { if (grouped) groupFlick.contentY += dy; else grid.contentY += dy; }
     function ensureVisible(p) {
+        if (grouped) {
+            for (let g = 0; g < groups.length; ++g) {
+                const i = groups[g].items.findIndex(e => e.path === p);
+                const it = groupRep.itemAt(g);
+                if (i >= 0 && it) { it.list.positionViewAtIndex(i, ListView.Contain); return; }
+            }
+            return;
+        }
         const i = indexOf(p);
         if (i >= 0) grid.positionViewAtIndex(i, GridView.Contain);
     }
@@ -29,6 +45,16 @@ Item {
         const n = entries.length;
         if (!n) return;
         let i = indexOf(fw.cursorPath);
+        if (grouped && (k === Qt.Key_Up || k === Qt.Key_Down)) {
+            let gi = 0, acc = 0;
+            for (; gi < groups.length; ++gi) { if (i < acc + groups[gi].items.length) break; acc += groups[gi].items.length; }
+            const tg = i < 0 ? 0 : Math.max(0, Math.min(groups.length - 1, gi + (k === Qt.Key_Down ? 1 : -1)));
+            let start = 0;
+            for (let g = 0; g < tg; ++g) start += groups[g].items.length;
+            const ne = entries[start];
+            if (ne) { if (extend) fw.clickItem(ne, Qt.ShiftModifier, entries); else fw.selectPaths([ne.path]); }
+            return;
+        }
         if (i < 0) i = (k === Qt.Key_Left || k === Qt.Key_Up) ? n : -1;
         if (k === Qt.Key_Left) i = Math.max(0, i - 1);
         else if (k === Qt.Key_Right) i = Math.min(n - 1, i + 1);
@@ -49,7 +75,7 @@ Item {
             const c = i % columns, rr = Math.floor(i / columns);
             const cx = margin + c * cellW + cellW / 2;
             const y0 = rr * cellH;
-            const ix = cx - 36, iw = 72, iy = y0 + 4, ih = 96;
+            const ix = cx - iconSize / 2 - 4, iw = iconSize + 8, iy = y0 + 4, ih = iconSize + 32;
             if (ix < r.x + r.width && ix + iw > r.x && iy < r.y + r.height && iy + ih > r.y) out.push(entries[i].path);
         }
         return out;
@@ -73,7 +99,7 @@ Item {
             start = Qt.point(m.x, m.y + grid.contentY);
             base = (m.modifiers & (Qt.ShiftModifier | Qt.ControlModifier | Qt.MetaModifier)) ? Object.assign({}, root.fw.selMap) : {};
             if (!Object.keys(base).length) root.fw.clearSelection();
-            banding = true;
+            banding = !root.grouped;
         }
         onPositionChanged: (m) => {
             if (!banding) return;
@@ -123,16 +149,25 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         reuseItems: true
         cacheBuffer: 400
+        visible: !root.grouped
+        interactive: !root.grouped
+        delegate: cellComp
+    }
 
-        delegate: Item {
+    // Cellule (grille ou rangée d'un groupe)
+    Component {
+        id: cellComp
+        Item {
             id: cell
             required property var modelData
             required property int index
             readonly property var e: modelData
             readonly property bool sel: root.fw.isSel(e.path) || (drop.containsDrag && e.isDir)
             readonly property bool renaming: root.fw.renamingPath === e.path
-            width: root.cellW
+            width: GridView.view ? root.cellW : root.minCellW
             height: root.cellH
+            // Le champ de renommage déborde sur la rangée suivante : au-dessus
+            z: renaming ? 100 : 0
 
             // Fond gris arrondi derrière l'icône choisie
             Rectangle {
@@ -140,15 +175,15 @@ Item {
                 x: (parent.width - width) / 2
                 y: icon.y - 4
                 width: Math.max(icon.paintedW, 44) + 10
-                height: FStyle.iconSize + 8
+                height: root.iconSize + 8
                 radius: 7
                 color: FStyle.selectionIcon
             }
             FileIcon {
                 id: icon
-                x: (parent.width - FStyle.iconSize) / 2
+                x: Math.round((parent.width - root.iconSize) / 2)
                 y: 6
-                size: FStyle.iconSize
+                size: root.iconSize
                 entry: cell.e
                 dimmed: cell.e.hidden || root.fw.draggingPaths.includes(cell.e.path)
             }
@@ -172,50 +207,34 @@ Item {
                     }
                 }
             }
-            // Nom : pastille d'accent si choisi
-            Rectangle {
+            // Nom : coupé aux mots, 2e ligne tronquée au milieu ; pastille
+            // d'accent si choisi
+            IconLabel {
                 id: label
                 visible: !cell.renaming
-                readonly property real maxW: root.cellW - 8
-                x: (parent.width - width) / 2
-                y: icon.y + FStyle.iconSize + 6
-                width: Math.min(maxW, labelText.implicitWidth) + 8
-                height: labelText.height + 2
-                radius: 4
-                color: cell.sel ? (root.fw.active ? FStyle.selection : FStyle.selectionInactive) : "transparent"
-                Text {
-                    id: labelText
-                    x: 4
-                    y: 1
-                    width: Math.min(label.maxW, implicitWidth)
-                    text: cell.e.name
-                    font.family: Theme.font
-                    font.pixelSize: FStyle.iconText
-                    color: cell.sel && root.fw.active ? "white" : Theme.label
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WrapAnywhere
-                    maximumLineCount: 2
-                    elide: Text.ElideMiddle
-                    lineHeight: 1.0
-                }
+                x: Math.round((parent.width - width) / 2)
+                y: icon.y + root.iconSize + 6
+                name: cell.e.name
+                selected: cell.sel
+                active: root.fw.active
             }
             Loader {
                 active: cell.renaming
-                x: (parent.width - width) / 2
-                y: icon.y + FStyle.iconSize + 5
+                x: Math.round((parent.width - width) / 2)
+                y: icon.y + root.iconSize + 5
                 sourceComponent: RenameField {
                     fw: root.fw
                     entry: cell.e
                     centered: true
                     fontSize: FStyle.iconText
-                    maxWidth: root.cellW + 30
+                    maxWidth: FStyle.iconTextW + 16
                 }
             }
 
             MouseArea {
                 id: ma
                 x: (parent.width - width) / 2
-                width: Math.max(FStyle.iconSize + 10, label.width)
+                width: Math.max(root.iconSize + 10, label.width)
                 height: label.y + label.height
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 property point pressPos
@@ -249,6 +268,81 @@ Item {
                     const ps = root.fw.dropPaths(d).filter(p => p !== cell.e.path);
                     if (ps.length) root.fw.dropInto(cell.e.path, ps, d.proposedAction === Qt.CopyAction);
                     d.acceptProposedAction();
+                }
+            }
+        }
+    }
+
+    // ---- Présentation groupée (Grouper par…, Récents : Date Last Opened) ----
+    // Un groupe par rangée horizontale défilante, titre en tête (Tahoe)
+    Flickable {
+        id: groupFlick
+        visible: root.grouped
+        anchors.fill: parent
+        topMargin: root.topPad - 4
+        bottomMargin: 12
+        contentHeight: groupCol.implicitHeight
+        boundsBehavior: Flickable.StopAtBounds
+        acceptedButtons: Qt.NoButton
+        Column {
+            id: groupCol
+            width: groupFlick.width
+            Repeater {
+                id: groupRep
+                model: root.grouped ? root.groups : []
+                Item {
+                    id: grp
+                    required property var modelData
+                    required property int index
+                    property alias list: glv
+                    width: groupCol.width
+                    height: 30 + root.cellH + 8
+                    Text {
+                        x: root.margin + 10
+                        y: 8
+                        text: grp.modelData.title
+                        font.family: Theme.font
+                        font.pixelSize: 13
+                        font.weight: Font.Bold
+                        color: Theme.label
+                    }
+                    Text {
+                        visible: glv.contentWidth > glv.width
+                        anchors.right: parent.right
+                        anchors.rightMargin: root.margin + 10
+                        y: 9
+                        text: "Show All (" + grp.modelData.items.length + ")"
+                        font.family: Theme.font
+                        font.pixelSize: 12
+                        color: FStyle.secondaryText
+                    }
+                    Rectangle {
+                        visible: grp.index > 0
+                        x: root.margin + 10
+                        width: parent.width - 2 * x
+                        height: 1
+                        color: FStyle.gridLine
+                    }
+                    ListView {
+                        id: glv
+                        y: 30
+                        width: parent.width
+                        height: root.cellH
+                        orientation: ListView.Horizontal
+                        leftMargin: root.margin
+                        rightMargin: root.margin
+                        model: grp.modelData.items
+                        acceptedButtons: Qt.NoButton
+                        boundsBehavior: Flickable.StopAtBounds
+                        clip: true
+                        delegate: cellComp
+                    }
+                    OverlayScrollbar {
+                        flick: glv
+                        horizontal: true
+                        y: glv.y + glv.height - 10
+                        width: parent.width
+                    }
                 }
             }
         }

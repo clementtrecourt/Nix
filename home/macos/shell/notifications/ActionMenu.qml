@@ -26,7 +26,9 @@ Item {
         return l.concat(entry.actions);
     }
 
-    width: open ? Math.min(300, Math.max(150, menu.maxTextWidth + 2 * 15 + 10)) : 0
+    // Image Apple (macOS 26) : texte à 16 pt du bord gauche, ~16 pt de marge à
+    // droite du plus long libellé
+    width: open ? Math.min(300, Math.max(120, menu.maxTextWidth + 32)) : 0
     height: open ? items.length * rowH + 2 * padV : 0
     visible: open || fade.running
     z: 100
@@ -110,8 +112,8 @@ Item {
                     visible: rowMouse.containsMouse
                 }
                 Text {
-                    x: 10
-                    width: parent.width - 20
+                    x: 11
+                    width: parent.width - 22
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.modelData.text
                     color: rowMouse.containsMouse ? Theme.menuHighlightText : Theme.label
