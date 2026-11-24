@@ -127,7 +127,7 @@ Scope {
     GlobalShortcut {
         appid: "macos"
         name: "controlcenter"
-        description: "Ouvrir le Control Center"
+        description: "Open Control Center"
         onPressed: ShellState.toggle("controlcenter")
     }
 
@@ -142,7 +142,11 @@ Scope {
         function dark(on: bool): void { Theme.dark = on; }
         // Simule un rétroéclairage (machine de test sans /sys/class/backlight)
         function fakeBrightness(v: real): void { Brightness.available = true; Brightness.value = v; }
-        function state(): string { return JSON.stringify({ open: cc.open, expanded: cc.expanded, ex: cc.ex, opacity: content.opacity, scale: content.scale }); }
+        function state(): string {
+            // latence de la capture du fond à la dernière ouverture (ms)
+            const snap = ccBackdrop.children.find(c => c.latencyMs !== undefined);
+            return JSON.stringify({ open: cc.open, expanded: cc.expanded, ex: cc.ex, opacity: content.opacity, scale: content.scale, captureMs: snap?.latencyMs ?? -1 });
+        }
         // Fige la progression du dépliage (captures image par image), -1 = libère
         function freeze(name: string, k: real): void {
             if (k < 0) { cc.collapse(); return; }
@@ -157,14 +161,22 @@ Scope {
         id: win
 
         screen: cc.targetScreen
-        visible: cc.shown || content.opacity > 0.001
+        // Le verre réfracte une capture de l'écran prise juste avant l'ouverture
+        property Item glassBackdrop: ccBackdrop
+        GlassBackdrop {
+            id: ccBackdrop
+            mode: "snapshot"
+            screen: win.screen
+            want: cc.shown || content.opacity > 0.001
+        }
+        visible: ccBackdrop.pass
         color: "transparent"
         anchors { top: true; right: true }
         exclusionMode: ExclusionMode.Ignore
         margins.top: Theme.menuBarHeight
         implicitWidth: CCStyle.width + CCStyle.marginRight + 48
         implicitHeight: 640
-        WlrLayershell.namespace: "macos-controlcenter"
+        WlrLayershell.namespace: "macos-lg-controlcenter"
         WlrLayershell.layer: WlrLayer.Overlay
         // Exclusif tant qu'il est ouvert : Échap fonctionne dès l'ouverture au clavier
         WlrLayershell.keyboardFocus: cc.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
@@ -205,9 +217,11 @@ Scope {
             opacity: 0
             scale: 0.9
 
+            // L'ouverture attend la capture du fond (pass, ~50 ms) : sans quoi le
+            // début de l'animation se jouerait fenêtre encore cachée.
             states: State {
                 name: "open"
-                when: cc.shown
+                when: cc.shown && ccBackdrop.pass
                 PropertyChanges { content.opacity: 1; content.scale: 1 }
             }
             transitions: [
@@ -241,7 +255,7 @@ Scope {
                     id: wifiTile
                     x: 0; y: 0
                     title: "Wi-Fi"
-                    subtitle: !cc.wifiDevice ? "Indisponible" : !cc.wifiOn ? "Désactivé" : (cc.wifiNetwork?.name ?? "Non connecté")
+                    subtitle: !cc.wifiDevice ? "Not Available" : !cc.wifiOn ? "Off" : (cc.wifiNetwork?.name ?? "Not Connected")
                     symbol: "wifi"
                     glyphSize: 22
                     on: cc.wifiOn && !!cc.wifiDevice
@@ -253,7 +267,7 @@ Scope {
                     id: btTile
                     x: 0; y: grid.s
                     title: "Bluetooth"
-                    subtitle: !cc.btOn ? "Désactivé" : (cc.btConnected.length === 1 ? cc.btConnected[0].name : "Activé")
+                    subtitle: !cc.btOn ? "Off" : (cc.btConnected.length === 1 ? cc.btConnected[0].name : "On")
                     symbol: "bluetooth"
                     glyphSize: 23
                     on: cc.btOn
@@ -266,7 +280,7 @@ Scope {
                 PillModule {
                     x: 0; y: 2 * grid.s
                     title: "AirDrop"
-                    subtitle: "Désactivé"
+                    subtitle: "Off"
                     symbol: "airdrop.slash"
                     glyphSize: 23
                 }
@@ -314,8 +328,8 @@ Scope {
                 PillModule {
                     id: focusTile
                     x: 2 * grid.s; y: 3 * grid.s
-                    title: Focus.doNotDisturb ? Focus.modeName : "Concentration"
-                    subtitle: Focus.untilLabel
+                    title: Focus.doNotDisturb ? Focus.modeNameEn : "Focus"
+                    subtitle: Focus.untilLabelEn
                     symbol: Focus.doNotDisturb ? Focus.modeSymbol : "moon.fill"
                     glyphSize: 20
                     on: Focus.doNotDisturb
@@ -329,7 +343,7 @@ Scope {
                     x: 0; y: 4 * grid.s
                     expandable: true
                     onTitleClicked: cc.expand("display", displayTile)
-                    title: "Écran"
+                    title: "Display"
                     leftSymbol: "sun.min.fill"
                     leftSize: 17
                     rightSymbol: "sun.max.fill"
@@ -341,9 +355,13 @@ Scope {
                 SliderModule {
                     id: soundTile
                     x: 0; y: 5 * grid.s
-                    title: "Son"
+                    title: "Sound"
                     leftSymbol: Audio.muted ? "speaker.slash.fill" : "speaker.fill"
                     leftSize: 19
+                    leftCenterX: 21
+                    trackLeft: 34.5
+                    trackRightInset: 78.5
+                    rightInset: 61
                     rightSymbol: "speaker.wave.3.fill"
                     rightSize: 20
                     accessory: true
@@ -374,7 +392,7 @@ Scope {
                         renderType: Text.CurveRendering
                         id: editLabel
                         anchors.centerIn: parent
-                        text: "Modifier les commandes"
+                        text: "Edit Controls"
                         color: CCStyle.vibrant
                         font.family: Theme.font
                         font.pixelSize: 13
@@ -402,9 +420,24 @@ Scope {
                                   CCStyle.tile.g + (CCStyle.card.g - CCStyle.tile.g) * m,
                                   CCStyle.tile.b + (CCStyle.card.b - CCStyle.tile.b) * m,
                                   CCStyle.tile.a + (CCStyle.card.a - CCStyle.tile.a) * m)
+                    blur: CCStyle.glassBlur + (CCStyle.cardBlur - CCStyle.glassBlur) * m
+                    saturation: CCStyle.glassSaturation
+                    adaptive: CCStyle.glassAdaptive
                     shadowBlur: 0.3 + 0.6 * Math.min(1, card.k)
                     shadowOffset: 2 + 4 * Math.min(1, card.k)
                     shadowColor: Qt.rgba(0, 0, 0, 0.25)
+                }
+
+                // Morphose : le contenu du module d'origine (pastille, titre…)
+                // reste à sa place dans la carte qui grandit et s'efface pendant
+                // le premier tiers, avant l'apparition de la liste détaillée.
+                ShaderEffectSource {
+                    width: cc.fromRect.width
+                    height: cc.fromRect.height
+                    sourceItem: cc.sourceTile ? cc.sourceTile.contentLayer : null
+                    live: true
+                    opacity: Math.max(0, 1 - card.k / 0.4)
+                    visible: opacity > 0 && sourceItem !== null
                 }
 
                 Item {

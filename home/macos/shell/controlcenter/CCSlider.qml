@@ -20,7 +20,7 @@ Item {
     Rectangle {
         id: track
         anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: s.showTicks ? -3 : 0
+        anchors.verticalCenterOffset: s.showTicks ? -3 : 0   // HUD : piste au centre de la ligne, crans dessous
         width: parent.width
         height: CCStyle.trackHeight
         radius: height / 2
@@ -49,8 +49,9 @@ Item {
             height: 2
             radius: 1
             color: CCStyle.tick
+            // 17 points de 2 pt, de 4 à width - 4, centrés 6 pt sous la piste
             x: 3 + index * (s.width - 8) / s.steps
-            y: track.y + track.height + 4
+            y: track.y + track.height / 2 + 5
         }
     }
 

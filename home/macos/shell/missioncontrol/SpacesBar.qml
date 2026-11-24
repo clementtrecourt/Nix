@@ -4,7 +4,7 @@ import Quickshell
 import qs.common
 
 // Barre des Spaces de Mission Control (macOS Tahoe).
-//  - repliée : simple rangée de libellés "Bureau 1  Bureau 2 ..." en haut ;
+//  - repliée : simple rangée de libellés "Desktop 1  Desktop 2 ..." en haut ;
 //  - dépliée (survol, ou fenêtre glissée vers le haut) : vignettes des bureaux
 //    (1/10e de l'écran, 32 pt d'écart), bureau courant cerné de bleu (3 pt,
 //    détaché de 1 pt), libellé dessous, bouton "+" rond à droite.

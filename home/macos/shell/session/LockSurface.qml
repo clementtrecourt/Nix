@@ -7,19 +7,20 @@ import Quickshell.Services.UPower
 import qs.common
 import qs.menubar
 
-// Contenu d'un écran verrouillé, mise en page macOS Tahoe (proportions
-// relevées sur une capture de l'écran verrouillé Tahoe, rapportées à la
-// hauteur de l'écran) :
-//  - fond d'écran net, exactement comme sur le bureau (depuis Sonoma l'écran
-//    de verrouillage montre le fond tel quel, sans voile ni dégradé) ;
-//  - en haut au centre : date abrégée (« lun. 23 nov. ») puis grande heure en
-//    Liquid Glass translucide : le fond flouté transparaît dans les chiffres,
-//    éclairci par un voile laiteux, avec une arête claire et une ombre douce ;
-//  - en haut à droite : source de saisie (« Français » + clavier), Wi-Fi,
-//    batterie sur un portable ;
-//  - en bas au centre : avatar, nom et, au repos, une simple ligne d'indice
-//    « Saisir le mot de passe ». La pilule de verre du mot de passe n'apparaît
-//    qu'à la première frappe (ou au clic), et elle seule secoue sur erreur.
+// Contenu d'un écran verrouillé, mise en page macOS Tahoe 26 (proportions
+// relevées sur la capture « Fast User Lockscreen » de 512pixels, rapportées à
+// la hauteur de l'écran) :
+//  - fond d'écran net mais assombri (≈ x 0,77 : ciel 101,154,199 sur le
+//    bureau -> 75,117,153 verrouillé) ;
+//  - en haut au centre : date abrégée US (« Tue Nov 24 ») puis grande heure
+//    12 h sans AM/PM (« 9:41 »), toutes deux en verre « vibrant » : le fond
+//    flouté transparaît, éclairci par addition (date : +105 niveaux, chiffres :
+//    +63 niveaux mesurés), arête claire fine ;
+//  - en haut à droite : source de saisie (« U.S. » + clavier), batterie sur un
+//    portable, Wi-Fi ;
+//  - en bas au centre : avatar, nom et, au repos, « Enter Password ». La
+//    pilule Liquid Glass du mot de passe n'apparaît qu'à la première frappe
+//    (ou au clic), et elle seule secoue sur erreur.
 Item {
     id: root
 
@@ -56,9 +57,19 @@ Item {
     }
 
     // ---------------- Fond ----------------
-    WallpaperView {
+    // Fond d'écran assombri : affiché, et lu par le verre (date, heure, champ)
+    Item {
         id: wp
         anchors.fill: parent
+        // Fournisseur de fond pour LiquidGlass (backdrop "wallpaper")
+        readonly property bool ready: true
+        WallpaperView {
+            anchors.fill: parent
+        }
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.rgba(0, 0, 0, 0.23)
+        }
     }
 
     SystemClock {
@@ -73,31 +84,65 @@ Item {
         opacity: 0
         transform: Translate { id: topShift; y: -14 }
 
-        Text {
-            id: dateText
+        // Date « vibrante » : fond flouté + 0,41 (mesuré : 67,112,155 -> 171,224,255)
+        Item {
+            id: dateBox
             anchors.horizontalCenter: parent.horizontalCenter
             // Centre des capitales à 10,7 % de la hauteur
-            y: Math.round(root.height * 0.107 + font.pixelSize * root.capRatio / 2 - baselineOffset)
-            // Interface en français, jour et mois abrégés comme Tahoe (« Sun Jul 27 »)
-            text: Qt.locale("fr_FR").toString(clock.date, "ddd d MMM")
-            font.family: Theme.font
-            font.pixelSize: Math.round(23 * root.s)
-            font.weight: Font.DemiBold
-            color: Qt.rgba(1, 1, 1, 0.94)
-            // Ombre : copie sombre floutée dessous (évite les franges colorées
-            // d'un layer sur le texte lui-même)
+            y: Math.round(root.height * 0.107 + dateText.font.pixelSize * root.capRatio / 2 - dateText.baselineOffset)
+            width: dateText.implicitWidth + 8
+            height: dateText.implicitHeight
+
             Text {
-                z: -1
+                id: dateText
+                anchors.centerIn: parent
+                // Anglais US, jour et mois abrégés comme Tahoe (« Fri Sep 12 »)
+                text: Qt.locale("en_US").toString(clock.date, "ddd MMM d")
+                font.family: Theme.font
+                font.pixelSize: Math.round(23 * root.s)
+                font.weight: Font.DemiBold
+                color: "white"
+                visible: false
+            }
+            Item {
+                id: dateMask
                 anchors.fill: parent
-                text: parent.text
-                font: parent.font
-                color: Qt.rgba(0, 0, 0, 0.45)
+                visible: false
+                layer.enabled: true
+                Text {
+                    anchors.centerIn: parent
+                    text: dateText.text
+                    font: dateText.font
+                    color: "white"
+                }
+            }
+            ShaderEffectSource {
+                id: dateUnder
+                sourceItem: wp
+                sourceRect: Qt.rect(dateBox.x, dateBox.y + topShift.y, dateBox.width, dateBox.height)
+                anchors.fill: parent
+                visible: false
+            }
+            Item {
+                anchors.fill: parent
                 layer.enabled: true
                 layer.effect: MultiEffect {
+                    autoPaddingEnabled: false
+                    maskEnabled: true
+                    maskSource: dateMask
+                    maskThresholdMin: 0.5
+                    maskSpreadAtMin: 1.0
+                }
+                MultiEffect {
+                    anchors.fill: parent
+                    source: dateUnder
+                    autoPaddingEnabled: false
                     blurEnabled: true
-                    blur: 0.5
-                    blurMax: 12
-                    opacity: 0.5
+                    blur: 1
+                    blurMax: 24
+                    // Éclaircissement additif (garde la teinte du fond)
+                    brightness: 0.41
+                    saturation: 0.25
                 }
             }
         }
@@ -115,7 +160,8 @@ Item {
             Text {
                 id: timeText
                 anchors.centerIn: parent
-                text: Qt.formatTime(clock.date, "H:mm")
+                // 12 h sans AM/PM, comme Tahoe (« 8:10 »)
+                text: (clock.date.getHours() % 12 || 12) + ":" + String(clock.date.getMinutes()).padStart(2, "0")
                 font.family: root.clockFamily
                 font.pixelSize: timeBox.px
                 font.weight: Font.DemiBold
@@ -164,8 +210,7 @@ Item {
             // Verre des chiffres, composé dans une seule couche puis découpé
             // par la forme du texte (masque à bord adouci : pas d'épaississement
             // ni de frange) :
-            //  - fond flouté qui transparaît ;
-            //  - voile laiteux (≈ fond × 0,55 + blanc × 0,45, mesuré sur Tahoe) ;
+            //  - fond flouté qui transparaît, éclairci par addition ;
             //  - reflet un peu plus clair en haut.
             Item {
                 anchors.fill: parent
@@ -184,17 +229,16 @@ Item {
                     blurEnabled: true
                     blur: 1
                     blurMax: 48
-                    saturation: -0.1
+                    // Éclaircissement additif (+63 niveaux mesurés) et léger gain
+                    // de saturation : le verre garde la couleur du fond
+                    brightness: 0.25
+                    saturation: 0.2
                 }
-                Rectangle {
-                    anchors.fill: parent
-                    color: "white"
-                    opacity: Theme.dark ? 0.40 : 0.50
-                }
+                // Reflet un peu plus clair en haut des chiffres
                 Rectangle {
                     anchors.fill: parent
                     gradient: Gradient {
-                        GradientStop { position: 0.15; color: Qt.rgba(1, 1, 1, 0.12) }
+                        GradientStop { position: 0.15; color: Qt.rgba(1, 1, 1, 0.06) }
                         GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0.0) }
                     }
                 }
@@ -206,7 +250,7 @@ Item {
                 font: timeText.font
                 color: "transparent"
                 style: Text.Outline
-                styleColor: Qt.rgba(1, 1, 1, 0.38)
+                styleColor: Qt.rgba(1, 1, 1, 0.30)
             }
         }
     }
@@ -236,9 +280,9 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.lockRoot.layoutName
                 font.family: Theme.font
-                font.pixelSize: 12
+                font.pixelSize: 13
                 font.weight: Font.DemiBold
-                color: Qt.rgba(1, 1, 1, 0.9)
+                color: "white"
             }
             Symbol {
                 anchors.verticalCenter: parent.verticalCenter
@@ -253,9 +297,9 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: Math.round((status.battery?.percentage ?? 0) * 100) + " %"
+                text: Math.round((status.battery?.percentage ?? 0) * 100) + "%"
                 font.family: Theme.font
-                font.pixelSize: 12
+                font.pixelSize: 13
                 font.weight: Font.Medium
                 color: "white"
             }
@@ -331,7 +375,7 @@ Item {
             id: hint
             anchors.horizontalCenter: parent.horizontalCenter
             y: Math.round(root.height * 0.937 - height / 2)
-            text: "Saisir le mot de passe"
+            text: "Enter Password"
             font.family: Theme.font
             font.pixelSize: 11
             font.weight: Font.Medium
@@ -363,46 +407,26 @@ Item {
             // Seul le champ secoue sur erreur (comme macOS)
             transform: Translate { id: shake; x: 0 }
 
-            // Verre : fond flouté + voile
-            ShaderEffectSource {
-                id: fieldUnder
-                sourceItem: wp
-                sourceRect: Qt.rect(field.x + shake.x, field.y, field.width, field.height)
-                anchors.fill: parent
-                visible: false
-            }
-            ClippingRectangle {
+            // Verre Liquid Glass : réfracte le fond d'écran assombri
+            LiquidGlass {
                 anchors.fill: parent
                 radius: height / 2
-                color: "transparent"
-                MultiEffect {
-                    anchors.fill: parent
-                    source: fieldUnder
-                    autoPaddingEnabled: false
-                    blurEnabled: true
-                    blur: 1
-                    blurMax: 32
-                    brightness: 0.10
-                    saturation: 0.1
-                }
+                backdrop: "wallpaper"
+                backdropItem: wp
+                windowOrigin: Qt.point(0, 0)
+                tint: Qt.rgba(1, 1, 1, 0.12)
+                shadowEnabled: false
+                blur: 6
             }
-            Rectangle {
-                anchors.fill: parent
-                radius: height / 2
-                color: Qt.rgba(1, 1, 1, 0.16)
-                border.width: 1
-                border.color: Qt.rgba(1, 1, 1, 0.24)
-            }
-
             Text {
                 anchors.left: parent.left
                 anchors.leftMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
                 visible: input.text.length === 0
-                text: "Saisir le mot de passe"
+                text: "Enter Password"
                 font.family: Theme.font
-                font.pixelSize: 12
-                color: Qt.rgba(1, 1, 1, 0.60)
+                font.pixelSize: 13
+                color: Qt.rgba(1, 1, 1, 0.62)
             }
 
             TextInput {

@@ -10,7 +10,7 @@ Column {
 
     width: CCStyle.width
 
-    DetailHeader { title: "Écran" }
+    DetailHeader { title: "Display" }
 
     Item {
         width: parent.width
@@ -45,7 +45,7 @@ Column {
     DetailRow {
         symbol: "circle.lefthalf.filled"
         glyphSize: 15
-        text: "Mode sombre"
+        text: "Dark Mode"
         active: Theme.dark
         onClicked: Appearance.toggle()
     }
@@ -53,7 +53,7 @@ Column {
         symbol: "sun.max.fill"
         glyphSize: 15
         text: "Night Shift"
-        detail: NightShift.available ? "" : "Indisponible"
+        detail: NightShift.available ? "" : "Not Available"
         active: NightShift.on
         activeColor: Theme.orange
         opacity: NightShift.available ? 1 : CCStyle.disabledOpacity
@@ -61,7 +61,7 @@ Column {
     }
 
     DetailFooter {
-        text: "Réglages des écrans…"
+        text: "Displays Settings…"
         onClicked: {
             CCActions.openSettings("display");
             ShellState.close();

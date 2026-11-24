@@ -19,7 +19,10 @@ ListView {
     // Sans saisie ni navigation clavier, aucune case n'est surlignée (Tahoe)
     property bool showSelection: true
 
+    // Survol actif seulement après un vrai mouvement du pointeur (cf. Spotlight)
+    property bool hoverActive: true
     signal activated(var item)
+    signal pointed(real sx, real sy)
 
     readonly property real cellWidth: (width - 2 * sidePad) / columns
 
@@ -136,7 +139,7 @@ ListView {
                         width: parent.width - 8
                         height: parent.height - 4
                         radius: 16
-                        color: cell.isSel ? Theme.fillHover : (cellMouse.containsMouse ? Theme.fill : "transparent")
+                        color: cell.isSel ? Theme.fillHover : (cellMouse.containsMouse && root.hoverActive ? Theme.fill : "transparent")
                         Behavior on color { ColorAnimation { duration: 90 } }
                     }
                     ItemIcon {
@@ -167,6 +170,10 @@ ListView {
                         id: cellMouse
                         anchors.fill: parent
                         hoverEnabled: true
+                        onPositionChanged: mouse => {
+                            const p = mapToItem(null, mouse.x, mouse.y);
+                            root.pointed(p.x, p.y);
+                        }
                         onClicked: { root.selected = cell.modelData.flat; root.activated(cell.modelData.item); }
                     }
                 }

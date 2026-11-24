@@ -5,16 +5,16 @@ import qs.common
 import qs.services
 
 // Menu contextuel du bureau (clic droit sur le fond d'écran), comme le Finder
-// de macOS Tahoe :
-//   Nouveau dossier | Lire les informations, Changer le fond d'écran…,
-//   Modifier les widgets… | Utiliser les piles, Trier par ▸, Aligner,
-//   Aligner par ▸, Afficher les options de présentation
+// de macOS Tahoe (en anglais US) :
+//   New Folder | Get Info, Change Wallpaper…, Edit Widgets… | Use Stacks,
+//   Sort By ▸, Clean Up, Clean Up By ▸, Show View Options
+// Verre Liquid Glass : capture de l'écran prise juste avant l'ouverture.
 // Surface plein écran transparente : un clic en dehors du menu le ferme.
 // Comme AppKit : ouverture instantanée, fermeture en fondu (≈ 150 ms) ; le
 // clavier est pris pendant l'ouverture (flèches, Entrée, Échap, lettres).
 //
-// Le shell n'affiche pas d'icônes sur le bureau : « Utiliser les piles »,
-// « Trier par » et « Aligner (par) » gardent leur état (coches) mais n'ont,
+// Le shell n'affiche pas d'icônes sur le bureau : « Use Stacks », « Sort By »
+// et « Clean Up (By) » gardent leur état (coches) mais n'ont,
 // comme sur un bureau macOS vide, aucun effet visible.
 Scope {
     id: root
@@ -59,9 +59,9 @@ Scope {
     readonly property string desktopDir: home + "/Desktop"
 
     function newFolder() {
-        // "dossier sans titre", "dossier sans titre 2", … comme le Finder
+        // "untitled folder", "untitled folder 2", … comme le Finder
         Quickshell.execDetached(["sh", "-c",
-            'd="$1"; mkdir -p "$d"; n="dossier sans titre"; i=2; p="$d/$n"; ' +
+            'd="$1"; mkdir -p "$d"; n="untitled folder"; i=2; p="$d/$n"; ' +
             'while [ -e "$p" ]; do p="$d/$n $i"; i=$((i+1)); done; mkdir "$p"',
             "sh", desktopDir]);
     }
@@ -74,16 +74,16 @@ Scope {
     }
 
     readonly property var sortItems: [
-        { text: "Aucun", value: "none" },
-        { text: "Aligner sur la grille", value: "grid" },
+        { text: "None", value: "none" },
+        { text: "Snap to Grid", value: "grid" },
         { separator: true },
-        { text: "Nom", value: "name" },
-        { text: "Type", value: "kind" },
-        { text: "Date de dernière ouverture", value: "opened" },
-        { text: "Date d’ajout", value: "added" },
-        { text: "Date de modification", value: "modified" },
-        { text: "Date de création", value: "created" },
-        { text: "Taille", value: "size" },
+        { text: "Name", value: "name" },
+        { text: "Kind", value: "kind" },
+        { text: "Date Last Opened", value: "opened" },
+        { text: "Date Added", value: "added" },
+        { text: "Date Modified", value: "modified" },
+        { text: "Date Created", value: "created" },
+        { text: "Size", value: "size" },
         { text: "Tags", value: "tags" }
     ]
     function checkedList(list, current) {
@@ -91,17 +91,17 @@ Scope {
     }
 
     readonly property var items: [
-        { text: "Nouveau dossier", icon: "folder.badge.plus", action: "newfolder" },
+        { text: "New Folder", icon: "folder.badge.plus", action: "newfolder" },
         { separator: true },
-        { text: "Lire les informations", icon: "info.circle", action: "info" },
-        { text: "Changer le fond d’écran…", icon: "photo", action: "wallpaper" },
-        { text: "Modifier les widgets…", icon: "square.grid.2x2", action: "widgets" },
+        { text: "Get Info", icon: "info.circle", action: "info" },
+        { text: "Change Wallpaper…", icon: "photo", action: "wallpaper" },
+        { text: "Edit Widgets…", icon: "square.grid.2x2", action: "widgets" },
         { separator: true },
-        { text: "Utiliser les piles", icon: "square.stack.3d.up", action: "stacks", checked: root.useStacks },
-        { text: "Trier par", icon: "arrow.up.arrow.down", submenu: root.checkedList(root.sortItems, root.sortBy), kind: "sort" },
-        { text: "Aligner", icon: "square.grid.3x3", action: "cleanup", enabled: !root.useStacks },
-        { text: "Aligner par", icon: "list.bullet", submenu: root.sortItems.slice(3), kind: "cleanupby", enabled: !root.useStacks },
-        { text: "Afficher les options de présentation", icon: "eye", action: "viewoptions" }
+        { text: "Use Stacks", icon: "square.stack.3d.up", action: "stacks", checked: root.useStacks },
+        { text: "Sort By", icon: "arrow.up.arrow.down", submenu: root.checkedList(root.sortItems, root.sortBy), kind: "sort" },
+        { text: "Clean Up", icon: "square.grid.3x3", action: "cleanup", enabled: !root.useStacks },
+        { text: "Clean Up By", icon: "list.bullet", submenu: root.sortItems.slice(3), kind: "cleanupby", enabled: !root.useStacks },
+        { text: "Show View Options", icon: "eye", action: "viewoptions" }
     ]
 
     function run(item) {
@@ -125,8 +125,20 @@ Scope {
             id: win
             screen: root.screen
             color: "transparent"
+            // Verre Liquid Glass : capture de l'écran prise avant l'apparition
+            // (la surface n'existe que menu ouvert : la capture est prise à sa
+            // création, puis la surface apparaît)
+            property Item glassBackdrop: backdrop
+            GlassBackdrop {
+                id: backdrop
+                mode: "snapshot"
+                screen: win.screen
+                want: root.shown
+            }
+            visible: backdrop.pass
             WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.namespace: "macos-menu"
+            // "macos-lg-*" : pas de flou Hyprland (le verre floute et réfracte lui-même)
+            WlrLayershell.namespace: "macos-lg-menu"
             // Menu ouvert = clavier pris (Échap, flèches, lettres), comme AppKit
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
             exclusionMode: ExclusionMode.Ignore

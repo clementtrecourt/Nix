@@ -11,7 +11,7 @@ Column {
 
     width: CCStyle.width
 
-    DetailHeader { title: "Recopie de l’écran" }
+    DetailHeader { title: "Screen Mirroring" }
 
     Item {
         width: parent.width
@@ -21,7 +21,7 @@ Column {
             x: 16
             width: parent.width - 32
             anchors.verticalCenter: parent.verticalCenter
-            text: "Aucun appareil disponible"
+            text: "No Devices Available"
             color: CCStyle.textSecondary
             font.family: Theme.font
             font.letterSpacing: CCStyle.tracking
@@ -31,7 +31,7 @@ Column {
     }
 
     DetailFooter {
-        text: "Réglages des écrans…"
+        text: "Displays Settings…"
         onClicked: {
             CCActions.openSettings("display");
             ShellState.close();

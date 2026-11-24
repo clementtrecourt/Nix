@@ -25,13 +25,13 @@ Scope {
     // Ignore les variations de volume du démarrage / changement de sortie
     property bool armed: false
 
-    readonly property string title: kind === "volume" ? (Audio.sinkName || "Son")
-        : kind === "keyboard" ? "Luminosité du clavier" : displayName
+    readonly property string title: kind === "volume" ? (Audio.sinkName || "Sound")
+        : kind === "keyboard" ? "Keyboard Brightness" : displayName
     // Comme le module "Écran" du Control Center : "Écran" ; avec plusieurs
     // écrans, le modèle de l'écran externe concerné.
     readonly property string displayName: {
         const m = Hyprland.focusedMonitor;
-        if (!m || Quickshell.screens.length < 2 || (m.name ?? "").startsWith("eDP")) return "Écran";
+        if (!m || Quickshell.screens.length < 2 || (m.name ?? "").startsWith("eDP")) return "Display";
         return m.lastIpcObject?.model || m.description || m.name;
     }
     readonly property real value: kind === "volume" ? (Audio.muted ? 0 : Audio.volume)
@@ -101,7 +101,17 @@ Scope {
         // Marge minimale entre le HUD et le bord droit de l'écran
         readonly property int edge: 8
         screen: osd.targetScreen
-        visible: osd.shown || hud.opacity > 0.001
+        // Liquid Glass : le HUD réfracte une capture de l'écran prise juste avant
+        // son apparition. Un nouvel appel pendant qu'il est visible (touches de
+        // volume répétées, animation de fermeture) garde la capture courante.
+        property Item glassBackdrop: hudBackdrop
+        GlassBackdrop {
+            id: hudBackdrop
+            mode: "snapshot"
+            screen: win.screen
+            want: osd.shown || hud.opacity > 0.001
+        }
+        visible: hudBackdrop.pass
         color: "transparent"
         // Surface transparente collée au bord droit (sans marge : le HUD se
         // place dedans, ce qui permet de le rapprocher du bord sans marge négative)
@@ -119,7 +129,8 @@ Scope {
             if (ShellState.controlCenterIconX > 0) return ShellState.controlCenterIconX;
             return sw - 165;
         }
-        WlrLayershell.namespace: "macos-osd"
+        // "macos-lg-*" : pas de flou Hyprland (le verre floute lui-même)
+        WlrLayershell.namespace: "macos-lg-osd"
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         // Les clics traversent le HUD
@@ -137,6 +148,13 @@ Scope {
             height: CCStyle.cell
             hud: true
             radius: CCStyle.radiusHud
+            tint: CCStyle.hudTint
+            glassSaturation: CCStyle.hudSaturation
+            // Cotes du HUD Tahoe (pas de bouton AirPlay : picto droit au bord)
+            leftCenterX: 19.5
+            trackLeft: 31
+            trackRightInset: 30.5
+            rightInset: 16
             title: osd.title
             value: osd.value
             leftSymbol: osd.kind === "volume" ? (Audio.muted ? "speaker.slash.fill" : "speaker.fill")
@@ -152,9 +170,10 @@ Scope {
             scale: 0.86
             transform: Translate { id: drop; y: -10 }
 
+            // L'apparition attend la capture (pass) : animation jamais tronquée
             states: State {
                 name: "shown"
-                when: osd.shown
+                when: osd.shown && hudBackdrop.pass
                 PropertyChanges { hud.opacity: 1; hud.scale: 1; drop.y: 0 }
             }
             transitions: [

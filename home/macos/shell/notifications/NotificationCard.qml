@@ -8,7 +8,7 @@ import qs.common
 //
 //  ┌───────────────────────────────────────────────┐
 //  │ [icône]  URGENT (si critique)                  │
-//  │          Titre (semi-gras)          maintenant │
+//  │          Titre (semi-gras)                 now │
 //  │          Corps du message, jusqu'à 4 lignes…   │
 //  │                                  [Options ⌄]   │  ← au survol
 //  └───────────────────────────────────────────────┘
@@ -19,7 +19,7 @@ import qs.common
 // l'action s'il n'y en a qu'une, sinon « Options ⌄ » qui ouvre le menu des
 // actions (ActionMenu, fourni par la fenêtre via `menuHost`) sous la carte.
 // La carte ne s'agrandit pas : seul le corps se rétrécit pour laisser la place
-// à la capsule. « Répondre » (réponse en ligne) ouvre un champ de saisie.
+// à la capsule. « Reply » (réponse en ligne) ouvre un champ de saisie.
 Item {
     id: card
 
@@ -27,7 +27,7 @@ Item {
     property int stackCount: 1          // nb de notifications de la pile (lamelles)
     property bool closable: true
     property bool interactive: true
-    // Le × efface toute la pile ("Tout effacer" au survol, comme macOS)
+    // Le × efface toute la pile (« Clear All » au survol, comme macOS)
     property bool clearAllMode: false
     // Menu des actions de la fenêtre (ActionMenu), null = pas de menu
     property Item menuHost: null
@@ -40,20 +40,22 @@ Item {
     readonly property bool menuOpenHere: !!menuHost && menuHost.card === card && menuHost.open
     readonly property bool hovered: (pointerInside || NotifStore.debugHover || menuOpenHere || replying) && interactive
 
-    // Actions : celles de l'app + « Répondre » si l'app accepte une réponse en ligne
+    // Actions : celles de l'app + « Reply » si l'app accepte une réponse en ligne
     readonly property int actionCount: entry ? entry.actions.length + (entry.canReply ? 1 : 0) : 0
     readonly property bool hasActions: actionCount > 0
     readonly property bool showButton: hasActions && hovered && !replying
     readonly property bool singleAction: actionCount === 1
     readonly property string buttonText: !singleAction ? "Options"
-        : (entry.canReply ? "Répondre" : entry.actions[0].text)
+        : (entry.canReply ? "Reply" : entry.actions[0].text)
 
     // Réponse en ligne en cours
     property bool replying: false
     readonly property real plateHeight: plate.height
 
     // ---- Géométrie Tahoe (mesurée sur les images Apple de macOS 26) ----
-    readonly property int radius: 22
+    // Relevé sur l'image Apple « view app notifications » (macOS 26, 1,94 px/pt) :
+    // arc d'angle équivalent à un cercle de ~19 pt.
+    readonly property int radius: 19
     // Verre laiteux : blanc à ~70 % en clair, gris très sombre translucide en sombre.
     readonly property color tint: Theme.dark ? Qt.rgba(0.11, 0.11, 0.12, 0.52) : Qt.rgba(0.985, 0.985, 0.99, 0.70)
     readonly property int padH: 12
@@ -63,6 +65,7 @@ Item {
     readonly property int slivers: Math.min(stackCount - 1, 2)
     // Icône « générique » : l'app émettrice est inconnue
     readonly property bool genericIcon: !!entry && entry.appIcon === NotifStore.genericIcon
+    readonly property bool timeSensitive: !!entry && entry.urgency >= 2
 
     width: 344
     implicitHeight: plate.height + stackPeek
@@ -145,8 +148,9 @@ Item {
     NotifGlass {
         id: plate
         width: card.width
-        height: Math.max(card.iconSize, textCol.implicitHeight) + card.padV * 2
-                + (card.replying ? replyRow.height + 10 : 0)
+        // Hauteur paire (voir NotifGlass)
+        height: 2 * Math.ceil((Math.max(card.iconSize, textCol.implicitHeight) + card.padV * 2
+                + (card.replying ? replyRow.height + 10 : 0)) / 2)
         radius: card.radius
         tint: card.tint
         Behavior on height { NumberAnimation { duration: Theme.durMed * NotifStore.slow; easing.type: Easing.OutCubic } }
@@ -211,16 +215,29 @@ Item {
             width: plate.width - x - card.padH - 2
             spacing: 1
 
-            // Niveau d'interruption « Urgent » (Time Sensitive), petites capitales grises
-            Text {
-                visible: !!card.entry && card.entry.urgency >= 2
-                text: "URGENT"
-                color: Theme.labelSecondary
-                font.family: Theme.font
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-                font.letterSpacing: 0.5
+            // Niveau d'interruption « Time Sensitive », petites capitales grises ;
+            // l'heure reste sur la première ligne (coin haut droit), comme macOS.
+            RowLayout {
+                visible: card.timeSensitive
+                Layout.fillWidth: true
                 Layout.bottomMargin: 1
+                spacing: 6
+                Text {
+                    Layout.fillWidth: true
+                    text: "TIME SENSITIVE"
+                    color: Theme.labelSecondary
+                    font.family: Theme.font
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 0.5
+                    elide: Text.ElideRight
+                }
+                Text {
+                    text: timeLabel.text
+                    color: Theme.labelSecondary
+                    font.family: Theme.font
+                    font.pixelSize: 12
+                }
             }
 
             RowLayout {
@@ -239,6 +256,7 @@ Item {
                 }
                 Text {
                     id: timeLabel
+                    visible: !card.timeSensitive
                     Layout.alignment: Qt.AlignVCenter
                     text: card.entry ? NotifStore.relTime(card.entry.time) : ""
                     color: Theme.labelSecondary
@@ -248,8 +266,11 @@ Item {
             }
 
             // Corps (affiché aussi quand le titre est vide : le titre devient alors le
-            // nom de l'app). Au survol, il se rétrécit pour laisser place à la capsule.
+            // nom de l'app). Au survol, il se rétrécit pour laisser place à la
+            // capsule d'action SANS changer de nombre de lignes (la dernière est
+            // tronquée « … ») : pas de saut de hauteur de la carte ni de la pile.
             Text {
+                id: bodyText
                 Layout.preferredWidth: textCol.width - (card.showButton ? actBtn.width + 8 : 0)
                 visible: text.length > 0
                 text: card.entry ? card.entry.body : ""
@@ -258,11 +279,23 @@ Item {
                 font.family: Theme.font
                 font.pixelSize: 13
                 wrapMode: Text.Wrap
-                maximumLineCount: 4
+                maximumLineCount: Math.max(1, Math.min(4, bodyMeasure.lineCount))
                 elide: Text.ElideRight
                 textFormat: Text.PlainText
                 lineHeight: 1.04
             }
+        }
+        // Nombre de lignes du corps en pleine largeur (hors survol)
+        Text {
+            id: bodyMeasure
+            visible: false
+            width: textCol.width
+            text: bodyText.text
+            font: bodyText.font
+            wrapMode: Text.Wrap
+            maximumLineCount: 4
+            textFormat: Text.PlainText
+            lineHeight: 1.04
         }
 
         // ---- Capsule d'action (bas droite) : « Options ⌄ » ou l'action unique ----
@@ -353,7 +386,7 @@ Item {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: !replyInput.text
-                    text: card.entry && card.entry.replyPlaceholder ? card.entry.replyPlaceholder : "Répondre"
+                    text: card.entry && card.entry.replyPlaceholder ? card.entry.replyPlaceholder : "Reply"
                     color: Theme.labelTertiary
                     font: replyInput.font
                 }

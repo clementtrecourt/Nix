@@ -13,6 +13,7 @@ import qs.controlcenter
 import qs.spotlight
 import qs.notifications
 import qs.missioncontrol
+import qs.finder
 
 ShellRoot {
     // Fond d'écran, verrouillage, dialogues de session, À propos, Polkit
@@ -29,4 +30,7 @@ ShellRoot {
 
     MissionControl {}
     AppSwitcher {}
+
+    // Gestionnaire de fichiers façon Finder
+    Finder {}
 }

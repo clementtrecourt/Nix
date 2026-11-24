@@ -23,7 +23,7 @@ Scope {
     GlobalShortcut {
         appid: "macos"
         name: "appexpose"
-        description: "Fenêtres de l'application (App Exposé)"
+        description: "Application windows (App Exposé)"
         onPressed: ShellState.toggle("appexpose")
     }
 

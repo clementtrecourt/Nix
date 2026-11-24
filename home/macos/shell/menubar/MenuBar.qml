@@ -16,12 +16,11 @@ Scope {
     Menus {
         id: menuModel
         onAboutRequested: cls => about.show(cls)
-        // Finder > Vider la corbeille… : confirmation, puis `gio trash --empty`
+        // Finder > Empty Trash… : confirmation, puis `gio trash --empty`
         onEmptyTrashRequested: count => alert.show({
-            title: "Voulez-vous vraiment supprimer définitivement "
-                + (count > 1 ? "les " + count + " éléments" : "l’élément") + " de la corbeille ?",
-            message: "Vous ne pouvez pas annuler cette action.",
-            confirmText: "Vider la corbeille",
+            title: "Are you sure you want to permanently erase the items in the Trash?",
+            message: "You can’t undo this action.",
+            confirmText: "Empty Trash",
             iconSource: Quickshell.iconPath("user-trash-full", "user-trash"),
             onConfirm: () => {
                 Quickshell.execDetached(["gio", "trash", "--empty"]);
@@ -56,12 +55,12 @@ Scope {
         }
     }
 
-    // « À propos de <App> »
+    // « About <App> »
     AppAbout {
         id: about
     }
 
-    // Alertes de confirmation (Vider la corbeille…)
+    // Alertes de confirmation (Empty Trash…)
     Alert {
         id: alert
     }
@@ -87,8 +86,15 @@ Scope {
             if (b) b.openMenu(id, null, true);
         }
         function close(): void { ctl.close(true); }
+        // Simule un glisser bouton enfoncé depuis un titre (repère écran)
+        function drag(x: real, y: real, release: bool): void {
+            const b = root.firstBar();
+            if (b) b.dragAt(Qt.point(x, y), release);
+        }
         function state(): string {
-            return JSON.stringify({ open: ctl.openId, screen: ctl.screenName, closing: ctl.closing });
+            const l = ctl.layers[ctl.screenName];
+            return JSON.stringify({ open: ctl.openId, screen: ctl.screenName, closing: ctl.closing,
+                                    latencyMs: l ? l.snapshotLatency : -1 });
         }
         // Simule une touche dans le menu ouvert
         function key(name: string): void {
@@ -143,8 +149,8 @@ Scope {
         function dark(on: bool): void { Theme.dark = on; }
         // Alerte de test (le bouton de confirmation ne fait rien ici)
         function testAlert(): void {
-            alert.show({ title: "Voulez-vous vraiment supprimer définitivement les 3 éléments de la corbeille ?",
-                message: "Vous ne pouvez pas annuler cette action.", confirmText: "Vider la corbeille",
+            alert.show({ title: "Are you sure you want to permanently erase the items in the Trash?",
+                message: "You can’t undo this action.", confirmText: "Empty Trash",
                 iconSource: Quickshell.iconPath("user-trash-full", "user-trash") });
         }
         function hideAlert(): void { alert.cancel(); }

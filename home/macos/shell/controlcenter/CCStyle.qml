@@ -24,16 +24,21 @@ Singleton {
     // ---- Rayons ----
     // Tahoe arrondit fort : ~0,35 x la hauteur pour les modules 4x1 (40 px pour
     // 113 px), ~0,18 x le côté pour le 2x2.
-    readonly property int radiusTile: 22       // modules rectangulaires (Écran, Son)
-    readonly property int radiusLarge: 25      // module 2x2 (Lecture en cours)
-    readonly property int radiusCard: 26       // module déplié (Wi-Fi, Bluetooth, ...)
-    readonly property int radiusHud: 22        // HUD volume / luminosité (même dessin que "Son")
+    // Ajustement d'un cercle sur le coin des modules de la capture Apple :
+    // 40 px (21 pt) pour Display / Sound, 55 px (28,5 pt) pour Now Playing.
+    readonly property int radiusTile: 21       // modules rectangulaires (Display, Sound)
+    readonly property int radiusLarge: 28      // module 2x2 (Now Playing)
+    readonly property int radiusCard: 28       // module déplié (Wi-Fi, Bluetooth, ...)
+    readonly property int radiusHud: 21        // HUD volume / luminosité (même dessin que "Sound")
     readonly property int radiusRow: 8         // survol d'une ligne de liste
 
     // ---- Typographie ----
-    readonly property int titleSize: 12        // "Wi-Fi", "Bluetooth", "Pas de lecture" (semibold)
-    readonly property int sliderTitleSize: 13  // "Écran", "Son", titre du HUD (cap 9,3 pt mesurée)
-    readonly property int subtitleSize: 11     // "Maison", "Activé"
+    // Mesuré sur la capture Apple (support.apple.com, Tahoe 26, 1,92 px/pt) :
+    // hauteur de capitale 9,4 pt pour « Wi-Fi », « Display », « Not Playing »
+    // (13 pt), 7,8 pt pour « Home » (11 pt). Idem sur le HUD.
+    readonly property int titleSize: 13        // "Wi-Fi", "Bluetooth", "Not Playing" (semibold)
+    readonly property int sliderTitleSize: 13  // "Display", "Sound", titre du HUD
+    readonly property int subtitleSize: 11     // "Home", "On"
     readonly property int headerSize: 13       // en-tête d'un module déplié
     readonly property int rowSize: 13          // lignes de liste
     readonly property int captionSize: 11      // "Réseaux connus"
@@ -48,28 +53,49 @@ Singleton {
     readonly property color text: "#FFFFFF"
     // Texte secondaire en "vibrancy" : blanc translucide, qui prend donc la teinte
     // du fond flouté (bleuté sur un fond bleu, comme « TidBITS Mesh » sur Tahoe).
-    readonly property color textSecondary: Qt.rgba(1, 1, 1, 0.66)
+    // (capture Apple : « Home » sous « Wi-Fi » est presque aussi blanc que le titre)
+    readonly property color textSecondary: Qt.rgba(1, 1, 1, 0.80)
     readonly property color textTertiary: Qt.rgba(1, 1, 1, 0.42)
     readonly property real disabledOpacity: 0.42
 
     // Contrôles "vibrancy" (commandes de lecture, « Modifier les commandes ») :
     // blanc translucide, éteint plus transparent.
-    readonly property color vibrant: Qt.rgba(1, 1, 1, 0.80)
-    readonly property color vibrantDim: Qt.rgba(1, 1, 1, 0.42)
+    readonly property color vibrant: Qt.rgba(1, 1, 1, 0.85)
+    readonly property color vibrantDim: Qt.rgba(1, 1, 1, 0.40)
 
-    // Verre des modules : en mode clair, version plus CLAIRE du fond (voile blanc
-    // léger) ; en mode sombre, voile gris foncé. Toujours au-dessus du seuil
-    // ignore_alpha de Hyprland (Theme.layerBlurIgnoreAlpha = 0.05), sinon pas de flou.
-    readonly property color tile: Theme.glassModule
-    readonly property color tileHover: Theme.glassModuleHover
-    // Module déplié : un peu plus dense que les modules pour la lisibilité des listes
-    readonly property color card: Theme.dark ? Qt.rgba(0.13, 0.13, 0.14, 0.58) : Qt.rgba(1, 1, 1, 0.16)
+    // Verre des modules (réfraction de la capture d'écran, LiquidGlass) :
+    //  - clair : la capture Apple montre l'intérieur d'un module au même niveau
+    //    que le fond qui l'entoure (beige 114/101/95 dans l'interstice, 109-120
+    //    dedans) : verre quasi incolore, seuls le liseré, la bande d'épaisseur,
+    //    la lentille de bord et un flou léger le dessinent ;
+    //  - sombre : verre fumé (le fond est assombri, le contenu reste blanc).
+    // La teinte est une cible de luminance (cf. liquidglass.frag) : blanc à
+    // faible alpha en clair (jamais du noir à alpha nul : la teinte adaptative
+    // tirerait alors vers le noir sur un fond sombre).
+    readonly property color tile: Theme.dark ? Qt.rgba(0.07, 0.07, 0.08, 0.38) : Qt.rgba(1, 1, 1, 0.04)
+    readonly property color tileHover: Theme.dark ? Qt.rgba(0.20, 0.20, 0.21, 0.36) : Qt.rgba(1, 1, 1, 0.12)
+    // Module déplié : plus dense pour la lisibilité des listes (en clair, verre
+    // assombri comme le HUD : le contenu reste blanc sur un fond clair)
+    readonly property color card: Theme.dark ? Qt.rgba(0.08, 0.08, 0.09, 0.56) : Qt.rgba(0, 0, 0, 0.24)
+    // Réglages du verre des modules (LiquidGlass) : flou léger (fond « presque
+    // net » sur Tahoe), saturation neutre, teinte adaptative modérée.
+    readonly property real glassBlur: 2.5
+    readonly property real glassSaturation: Theme.dark ? 1.08 : 1.05
+    readonly property real glassAdaptive: Theme.dark ? 0.45 : 0.30
+    readonly property real cardBlur: 9
+    // HUD volume / luminosité : verre nettement plus sombre et plus saturé que
+    // les modules (capture Tahoe, fond bleu 93/160/210 -> 22/125/188 dans le
+    // HUD : luminance 0,58 -> 0,42, chrominance x 1,45), pour le contenu blanc.
+    readonly property color hudTint: Theme.dark ? Qt.rgba(0, 0, 0, 0.40) : Qt.rgba(0, 0, 0, 0.27)
+    readonly property real hudSaturation: Theme.dark ? 1.40 : 1.50
+    // Liseré des modules : flancs à 30 % (capture Apple : liseré net partout)
+    readonly property real rimBase: 0.30
 
     // Cercle d'icône éteint / allumé (dans les pilules)
     readonly property color circleOff: Qt.rgba(1, 1, 1, 0.20)
     readonly property color circleOffHover: Qt.rgba(1, 1, 1, 0.28)
     readonly property color circleOn: "#FFFFFF"
-    readonly property color blue: "#0A84FF"     // Wi-Fi, Bluetooth, AirDrop allumés
+    readonly property color blue: "#007AFF"     // Wi-Fi, Bluetooth, AirDrop allumés (capture : #007BFF)
     readonly property color indigo: "#5E5CE6"   // Concentration
     readonly property color glyphOnDark: "#1C1C1E"
 

@@ -10,7 +10,7 @@ Column {
 
     width: CCStyle.width
 
-    DetailHeader { title: "Son" }
+    DetailHeader { title: "Sound" }
 
     Item {
         width: parent.width
@@ -38,7 +38,7 @@ Column {
         }
     }
 
-    DetailCaption { text: "Sortie" }
+    DetailCaption { text: "Output" }
     Repeater {
         model: Audio.outputs
         DetailRow {
@@ -51,7 +51,7 @@ Column {
     }
 
     DetailFooter {
-        text: "Réglages Son…"
+        text: "Sound Settings…"
         onClicked: {
             CCActions.openSettings("sound");
             ShellState.close();

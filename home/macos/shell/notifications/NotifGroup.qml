@@ -4,8 +4,8 @@ import qs.common
 
 // Pile de notifications d'une application dans le Centre de notifications.
 //  - 1 notification : carte simple (× = effacer).
-//  - plusieurs : pile repliée (lamelles) ; clic = déplier ; × survolé = « Tout effacer ».
-//  - dépliée : en-tête « Nom de l'app      [Afficher moins] (×) » puis les cartes.
+//  - plusieurs : pile repliée (lamelles) ; clic = déplier ; × survolé = « Clear All ».
+//  - dépliée : en-tête « Nom de l'app      [Show less] (×) » puis les cartes.
 Item {
     id: grp
 
@@ -54,7 +54,7 @@ Item {
         visible: grp.expanded
         spacing: 8
 
-        // En-tête : nom de l'app + « Afficher moins » + ×
+        // En-tête : nom de l'app + « Show less » + ×
         Item {
             width: parent.width
             height: 28
@@ -74,7 +74,7 @@ Item {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 8
-                // Capsule « Afficher moins »
+                // Capsule « Show less »
                 Item {
                     width: lessLabel.implicitWidth + 30
                     height: 24
@@ -97,7 +97,8 @@ Item {
                         Text {
                             id: lessLabel
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "Afficher moins"
+                            // Libellé exact de l'aide Apple (macOS 26) : « Show less »
+                            text: "Show less"
                             color: Theme.label
                             font.family: Theme.font
                             font.pixelSize: 11

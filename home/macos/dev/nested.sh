@@ -75,6 +75,9 @@ start)
         H keyword monitor "MAC,${SIZE}@60,0x0,1"
         sleep 0.3
         H keyword monitor "WAYLAND-1,disable"
+        # Avertissements de Hyprland imbriqué (XDG_CURRENT_DESKTOP, start-hyprland…) :
+        # sans objet dans le banc, ils masqueraient le coin haut-droit des captures
+        H dismissnotify || true
         cat "$STATE/env"
         exit 0
       fi
@@ -94,6 +97,8 @@ shell)
   fi
   export XDG_DATA_DIRS="$ICON_PKG/share:${XDG_DATA_DIRS:-/run/current-system/sw/share}"
   export QS_ICON_THEME="${QS_ICON_THEME:-$(cat "$HERE/icon-theme" 2>/dev/null || echo MacTahoe-Apple-dark)}"
+  # Comme le service de prod : formats d'image supplémentaires (WebP…)
+  QT_PLUGIN_PATH="$(P qt6.qtimageformats)/lib/qt-6/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}" \
   nohup "$QS/bin/quickshell" -p "$SHELL_DIR" > "$STATE/qs.log" 2>&1 &
   echo $! > "$STATE/qs.pid"
   sleep "${WAIT:-3}"

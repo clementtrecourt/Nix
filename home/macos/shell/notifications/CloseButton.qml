@@ -3,7 +3,7 @@ import qs.common
 
 // Bouton × des notifications macOS : pastille de verre ronde qui apparaît au
 // survol de la carte. En mode `clearAll` (pile de notifications), survoler le ×
-// l'allonge en capsule « Tout effacer », comme sur macOS.
+// l'allonge en capsule « Clear All », comme sur macOS.
 Item {
     id: btn
 
@@ -40,15 +40,16 @@ Item {
     Symbol {
         anchors.centerIn: parent
         name: "xmark"
-        size: Math.round(btn.size * 0.42)
-        color: Theme.dark ? Qt.rgba(1, 1, 1, 0.8) : Qt.rgba(0, 0, 0, 0.65)
+        // Croix de ~8 pt pour une pastille de 20 pt (image Apple, macOS 26)
+        size: Math.round(16 + (btn.size - 20) * 0.25)
+        color: Theme.dark ? Qt.rgba(1, 1, 1, 0.75) : Qt.rgba(0, 0, 0, 0.62)
         opacity: btn.expanded ? 0 : 1
         Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
     }
     Text {
         id: label
         anchors.centerIn: parent
-        text: "Tout effacer"
+        text: "Clear All"
         color: Theme.label
         font.family: Theme.font
         font.pixelSize: 11

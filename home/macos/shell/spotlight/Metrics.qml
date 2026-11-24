@@ -15,6 +15,15 @@ import Quickshell
 //   ligne de résultat            ≈ 1,0 H (deux lignes : titre + détail)
 //   icône de résultat            ≈ 0,58 H
 //   vue Applications             : 5 colonnes, icônes ≈ 1,08 H, rangées ≈ 1,9 H
+//
+// Recalage (captures finales macOS 26 : MacRumors « Do More With Spotlight »,
+// Cult of Mac « Spotlight-Applications / Spotlight-Actions ») :
+//   texte du champ : hauteur de capitale ≈ 0,375 H  -> 28 px
+//   titre de résultat ≈ 0,72 x texte du champ (20 px), détail ≈ 0,58 (16 px)
+//   pas des lignes ≈ 1,02 H (57 pt), sélection grise neutre (pas d'accent)
+//   boutons : écart champ/bouton et entre boutons ≈ 0,22 H (12 pt) ; avec les
+//   boutons, le groupe dépasse le panneau seul de ≈ 31 pt vers la droite
+//   pastilles : 24 pt de haut, texte ≈ 0,58 x champ (16 px)
 Singleton {
     // Champ de recherche : capsule Liquid Glass
     readonly property int barHeight: 56
@@ -23,35 +32,39 @@ Singleton {
     readonly property int groupWidth: 646
     // Boutons de mode ronds à droite du champ
     readonly property int buttonSize: 56
-    readonly property int buttonSpacing: 10
-    readonly property int buttonGap: 10          // entre le champ et le 1er bouton
+    readonly property int buttonSpacing: 12
+    readonly property int buttonGap: 12          // entre le champ et le 1er bouton
     readonly property int buttonsWidth: buttonGap + 4 * buttonSize + 3 * buttonSpacing
+    // Débord à droite du groupe quand les boutons sont sortis
+    readonly property int buttonsOverhang: 31
+    // Largeur de la capsule quand les boutons sont sortis (≈ 405 pt)
+    readonly property int barWidthWithButtons: groupWidth + buttonsOverhang - buttonsWidth
     // Position verticale : haut du champ à ~23 % de la hauteur d'écran
     readonly property real topRatio: 0.23
 
-    readonly property int fieldFontSize: 26
+    readonly property int fieldFontSize: 28
     // Loupe / symbole du mode dans le champ (≈ 0,45 H de large une fois
     // dessiné : les SVG occupent ~70 % de leur cadre) et symboles des boutons
     readonly property int glyphSize: 30
     readonly property int buttonGlyphSize: 27
-    readonly property int leadCenter: 31         // centre de la loupe depuis le bord
-    readonly property int textX: 59              // début du texte du champ
+    readonly property int leadCenter: 32         // centre de la loupe depuis le bord
+    readonly property int textX: 62              // début du texte du champ
     readonly property int sidePad: 19            // retrait des séparateurs / pastilles
 
     // Liste de résultats (lignes à deux niveaux : titre + détail)
-    readonly property int rowHeight: 54
+    readonly property int rowHeight: 57
     readonly property int rowIcon: 32
-    readonly property int rowInset: 8
+    readonly property int rowInset: 9
     readonly property int rowRadius: 14
-    readonly property int titleSize: 15
-    readonly property int detailSize: 13
+    readonly property int titleSize: 20
+    readonly property int detailSize: 16
     readonly property int listPadTop: 6
     readonly property int listPadBottom: 8
 
     // Pastilles de filtre (sous le champ)
-    readonly property int chipHeight: 26
-    readonly property int chipFontSize: 13
-    readonly property int chipSpacing: 8
+    readonly property int chipHeight: 24
+    readonly property int chipFontSize: 16
+    readonly property int chipSpacing: 9
     readonly property int chipsTop: 10           // sous le séparateur
     readonly property int chipsBottom: 8
 
@@ -59,7 +72,11 @@ Singleton {
     readonly property int gridIcon: 60
     readonly property int gridColumns: 5
     readonly property int gridCellHeight: 106
-    readonly property int gridLabelSize: 13
+    readonly property int gridLabelSize: 14
     // Hauteur max du panneau de la vue Applications (≈ carré, comme Tahoe)
     readonly property int appsPanelHeight: 560
+
+    // En-têtes de section de la liste (vue Actions : « Suggestions », nom d'app)
+    readonly property int headerHeight: 40
+    readonly property int headerFontSize: 15
 }

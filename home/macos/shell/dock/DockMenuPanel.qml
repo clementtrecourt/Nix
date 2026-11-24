@@ -1,11 +1,12 @@
 import QtQuick
 import Quickshell
-import Quickshell.Widgets
 import qs.common
 
-// Contenu d'un menu du Dock (même style que les menus de la barre Tahoe) :
-// plaque de verre, lignes de 24 pt, surbrillance accent arrondie en retrait de
-// 5 pt, colonne de coche, chevron de sous-menu, clignotement avant l'action.
+// Contenu d'un menu du Dock, au style des menus de la barre Tahoe
+// (menubar/MenuRow.qml, mesurés sur captures 2x) : plaque Liquid Glass de rayon
+// 14 pt, lignes de 24 pt, surbrillance accent arrondie en retrait de 5 pt,
+// coche centrée à 23 pt, texte à 37 pt (16 pt sans colonne de coche), filets
+// et chevron à 16 pt des bords, clignotement avant l'action.
 //
 // entries : [{ text, checked?, minimized?, enabled?, separator?, submenu?: [...], action?: fn }]
 Item {
@@ -13,58 +14,71 @@ Item {
 
     property var entries: []
     property int highlighted: -1
-    property int minWidth: 170
     // Marge transparente autour de la plaque pour laisser déborder l'ombre
     readonly property int margin: 24
     readonly property int padding: 5
     readonly property int rowH: 24
+    readonly property int edge: 16
+    readonly property real radius: 14
     readonly property bool hasLead: entries.some(e => e.checked !== undefined || e.minimized)
 
     signal triggered(var entry)
     signal hoveredRow(int row, var item)
 
-    readonly property real textX: hasLead ? 30 : 14
-    readonly property real contentW: Math.max(minWidth, measure.w + textX + 14 + (entries.some(e => !!e.submenu) ? 22 : 0))
+    readonly property real textX: hasLead ? 37 : 16
+
+    FontMetrics {
+        id: fm
+        font.family: Theme.font
+        font.pixelSize: Theme.fontSize
+    }
+    // Largeur : texte le plus long + 24 pt de respiration (+16 pt de chevron),
+    // au moins 140 pt, au plus ~400 pt (titres de fenêtre élidés)
+    readonly property real contentW: {
+        let w = 0;
+        for (const e of entries) {
+            if (e.separator) continue;
+            w = Math.max(w, textX + Math.min(fm.advanceWidth(e.text ?? ""), 340) + 24 + (e.submenu ? 16 : 0));
+        }
+        return Math.ceil(Math.max(140, w));
+    }
     readonly property real contentH: col.implicitHeight + 2 * padding
 
     implicitWidth: contentW + 2 * margin
     implicitHeight: contentH + 2 * margin
 
-    Item {
-        id: measure
-        visible: false
-        property real w: {
-            let m = 0;
-            for (let i = 0; i < rep.count; i++) {
-                const it = rep.itemAt(i);
-                if (it && it.textW > m) m = it.textW;
-            }
-            return Math.min(m, 360);
-        }
-    }
-
     // Plaque (zone d'entrée de la fenêtre)
     Item {
         id: plate
-        objectName: "plate"
         x: root.margin
         y: root.margin
         width: root.contentW
         height: root.contentH
 
-        Glass {
+        // Sans réfraction (capture indisponible) : voile posé par un Rectangle
+        // (alpha correct), le flou venant alors de Hyprland
+        Rectangle {
             anchors.fill: parent
-            radius: Theme.radiusMenu
-            tint: Theme.menuBackground
-            shadowBlur: 0.9
-            shadowOffset: 6
+            radius: root.radius
+            color: Theme.menuBackground
+            antialiasing: true
+            visible: !glass.refracting
+        }
+        Glass {
+            id: glass
+            anchors.fill: parent
+            radius: root.radius
+            // Avec réfraction, le verre est opaque : la teinte devient son voile
+            overlay: refracting ? Theme.menuBackground : "transparent"
+            tint: "transparent"
+            shadowBlur: 0.5
+            shadowOffset: 4
         }
 
         Column {
             id: col
-            x: root.padding
             y: root.padding
-            width: parent.width - 2 * root.padding
+            width: parent.width
 
             Repeater {
                 id: rep
@@ -77,7 +91,6 @@ Item {
                     readonly property bool sep: !!modelData.separator
                     readonly property bool on: !sep && modelData.enabled !== false
                     readonly property bool lit: on && root.highlighted === index && !blink.off
-                    readonly property real textW: label.implicitWidth
                     readonly property color fg: lit ? Theme.menuHighlightText : (on ? Theme.label : Theme.labelTertiary)
                     width: col.width
                     height: sep ? 11 : root.rowH
@@ -85,39 +98,41 @@ Item {
                     Rectangle {
                         visible: row.sep
                         anchors.verticalCenter: parent.verticalCenter
-                        x: 9
-                        width: parent.width - 18
+                        x: root.edge
+                        width: parent.width - 2 * root.edge
                         height: 1
                         color: Theme.separator
                     }
                     Rectangle {
                         anchors.fill: parent
+                        anchors.leftMargin: 5
+                        anchors.rightMargin: 5
                         radius: Theme.radiusMenuItem
                         color: Theme.menuHighlight
                         visible: row.lit
                     }
                     Symbol {
                         visible: !row.sep && !!row.modelData.checked
-                        x: 9 + 8 - size / 2
+                        x: 23 - size / 2
                         anchors.verticalCenter: parent.verticalCenter
                         name: "checkmark"
                         size: 12
                         color: row.fg
                     }
+                    // Fenêtre minimisée : losange (◆) comme dans le menu Fenêtre
                     Text {
                         visible: !row.sep && !row.modelData.checked && !!row.modelData.minimized
-                        x: 9 + 8 - width / 2
+                        x: 23 - width / 2
                         anchors.verticalCenter: parent.verticalCenter
                         text: "◆"
                         font.pixelSize: 9
                         color: row.fg
                     }
                     Text {
-                        id: label
                         visible: !row.sep
-                        x: root.textX - root.padding
-                        width: Math.min(implicitWidth, 360)
-                        elide: Text.ElideRight
+                        x: root.textX
+                        width: Math.min(implicitWidth, parent.width - root.textX - root.edge - (row.modelData.submenu ? 16 : 0))
+                        elide: Text.ElideMiddle
                         anchors.verticalCenter: parent.verticalCenter
                         text: row.modelData.text ?? ""
                         textFormat: Text.PlainText
@@ -128,11 +143,11 @@ Item {
                     Symbol {
                         visible: !row.sep && !!row.modelData.submenu
                         anchors.right: parent.right
-                        anchors.rightMargin: 9
+                        anchors.rightMargin: root.edge - 2
                         anchors.verticalCenter: parent.verticalCenter
                         name: "chevron.right"
                         size: 10
-                        color: row.lit ? Theme.menuHighlightText : Theme.labelSecondary
+                        color: row.lit ? Theme.menuHighlightText : (row.on ? Theme.label : Theme.labelTertiary)
                     }
                     MouseArea {
                         anchors.fill: parent

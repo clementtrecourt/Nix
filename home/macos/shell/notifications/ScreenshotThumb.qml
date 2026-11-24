@@ -27,7 +27,23 @@ PanelWindow {
     readonly property int thumbW: Math.round(ratio >= maxW / maxH ? maxW : maxH * ratio)
     readonly property int thumbH: Math.round(ratio >= maxW / maxH ? maxW / ratio : maxH)
 
-    WlrLayershell.namespace: "macos-screenshot-thumb"
+    // Liquid Glass (cadre de la vignette) : capture de l'écran prise juste avant
+    // l'apparition. La vignette disparaît dès qu'une nouvelle capture démarre
+    // (comme macOS : elle n'apparaît jamais dans la capture suivante).
+    property Item glassBackdrop: backdrop
+    GlassBackdrop {
+        id: backdrop
+        mode: "snapshot"
+        screen: win.screen
+        want: (win.shown || thumb.x < win.width) && !Shots.busy
+    }
+    Connections {
+        target: Shots
+        function onBusyChanged() { if (Shots.busy) win.shown = false; }
+    }
+
+    // "macos-lg-*" : pas de flou Hyprland (le verre floute et réfracte lui-même)
+    WlrLayershell.namespace: "macos-lg-screenshot-thumb"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
@@ -35,7 +51,7 @@ PanelWindow {
     implicitWidth: maxW + margin + 40
     implicitHeight: maxH + margin + 40
     color: "transparent"
-    visible: shown || thumb.x < width
+    visible: backdrop.pass
 
     mask: Region { item: thumb }
 
@@ -50,14 +66,20 @@ PanelWindow {
         path = p;
         shown = true;
         thumb.dragX = 0;
-        hideTimer.restart();
+        elapsed = 0;
     }
 
+    // ~5 s d'affichage, en pause au survol / pendant un glissement (temps compté
+    // par pas : Timer.restart() casserait la liaison `running`)
+    property int elapsed: 0
     Timer {
-        id: hideTimer
-        interval: 5000
+        interval: 100
+        repeat: true
         running: win.shown && !hover.hovered && !drag.active
-        onTriggered: win.shown = false
+        onTriggered: {
+            win.elapsed += interval;
+            if (win.elapsed >= 5000) win.shown = false;
+        }
     }
 
     Item {

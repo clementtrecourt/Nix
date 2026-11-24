@@ -2,8 +2,10 @@ import QtQuick
 import qs.common
 
 // Pastille de filtre sous le champ (Tahoe) : groupes de résultats, catégories
-// de la vue Applications, types de fichiers. Capsule grise discrète au texte
-// secondaire ; choisie, elle prend la couleur d'accent.
+// de la vue Applications, types de fichiers. Capsule discrète (voile blanc
+// léger) au texte secondaire, 24 pt de haut, texte ≈ 16 px (captures Cult of
+// Mac « Spotlight-Applications » en clair, MacRumors « spotlight-categories »
+// en sombre) ; choisie, elle prend la couleur d'accent.
 Item {
     id: root
 
@@ -13,13 +15,15 @@ Item {
 
     signal clicked()
 
-    implicitWidth: label.implicitWidth + 22
+    implicitWidth: label.implicitWidth + 18
     implicitHeight: Metrics.chipHeight
 
     Rectangle {
         anchors.fill: parent
         radius: height / 2
-        color: root.checked ? Theme.accent : (mouse.containsMouse ? Theme.fillHover : Theme.fill)
+        color: root.checked ? Theme.accent
+             : Theme.dark ? Qt.rgba(1, 1, 1, mouse.containsMouse ? 0.14 : 0.08)
+                          : Qt.rgba(1, 1, 1, mouse.containsMouse ? 0.55 : 0.36)
         border.width: root.focusRing ? 2 : 0
         border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.6)
         Behavior on color { ColorAnimation { duration: 120 } }
@@ -30,7 +34,9 @@ Item {
         text: root.text
         font.family: Theme.font
         font.pixelSize: Metrics.chipFontSize
-        color: root.checked ? "white" : (mouse.containsMouse ? Theme.label : Theme.labelSecondary)
+        color: root.checked ? "white"
+             : mouse.containsMouse ? Theme.label
+             : Theme.dark ? Qt.rgba(1, 1, 1, 0.62) : Qt.rgba(0.24, 0.24, 0.26, 0.55)
     }
     MouseArea {
         id: mouse

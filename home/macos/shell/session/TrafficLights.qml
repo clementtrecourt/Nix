@@ -1,8 +1,9 @@
 import QtQuick
 import qs.common
 
-// Boutons de fenêtre macOS (fermer / réduire / plein écran), 12 px, espacés de
-// 8 px. Les glyphes (×, −, flèches) n'apparaissent qu'au survol du groupe,
+// Boutons de fenêtre macOS Tahoe (fermer / réduire / plein écran) : 14 pt,
+// pas de 23 pt (relevé sur les captures Tahoe 26 de 512pixels : À propos de ce
+// Mac, Forcer à quitter). Les glyphes (×, −, flèches) n'apparaissent qu'au survol du groupe,
 // comme dans AppKit. Un bouton désactivé est gris.
 Row {
     id: root
@@ -17,11 +18,11 @@ Row {
     signal minimizeClicked()
     signal zoomClicked()
 
-    spacing: 8
+    spacing: 9
 
     readonly property bool groupHovered: h1.containsMouse || h2.containsMouse || h3.containsMouse
-    readonly property color off: Theme.dark ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(0, 0, 0, 0.12)
-    readonly property color offStroke: Theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.08)
+    readonly property color off: Theme.dark ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(0, 0, 0, 0.14)
+    readonly property color offStroke: Theme.dark ? Qt.rgba(1, 1, 1, 0.04) : Qt.rgba(0, 0, 0, 0.03)
 
     component Light: Rectangle {
         id: light
@@ -32,9 +33,9 @@ Row {
         property alias mouse: ma
         default property alias glyph: glyphItem.data
         signal clicked()
-        width: 12
-        height: 12
-        radius: 6
+        width: 14
+        height: 14
+        radius: 7
         color: enabledButton && root.active ? fill : root.off
         border.width: 0.5
         border.color: enabledButton && root.active ? stroke : root.offStroke
@@ -66,7 +67,9 @@ Row {
         enabledButton: root.closeEnabled
         onClicked: root.closeClicked()
         Canvas {
-            anchors.fill: parent
+            anchors.centerIn: parent
+            width: 12
+            height: 12
             onPaint: {
                 const c = getContext("2d");
                 c.reset();
@@ -88,8 +91,8 @@ Row {
         onClicked: root.minimizeClicked()
         Rectangle {
             anchors.centerIn: parent
-            width: 6.4
-            height: 1.3
+            width: 7.4
+            height: 1.4
             radius: 0.6
             color: Qt.rgba(0.6, 0.34, 0, 0.9)
         }
@@ -101,7 +104,9 @@ Row {
         enabledButton: root.zoomEnabled
         onClicked: root.zoomClicked()
         Canvas {
-            anchors.fill: parent
+            anchors.centerIn: parent
+            width: 12
+            height: 12
             onPaint: {
                 const c = getContext("2d");
                 c.reset();

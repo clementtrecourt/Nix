@@ -5,11 +5,11 @@ import Quickshell.Services.Mpris
 import qs.common
 import qs.services
 
-// Module 2x2 "Lecture en cours" : pochette, titre, artiste, précédent /
-// lecture-pause / suivant. Cotes relevées sur une capture de macOS 26.0
-// (module 139 pt) : pochette 39 pt à 14 pt du bord, « Pas de lecture » 12 pt
-// (ligne de base à 86 pt), commandes centrées à 33,5 pt des bords et à 27 pt
-// du bas ; ⏮/⏭ ~22 pt de large, ▶ ~19 pt de haut, en "vibrancy".
+// Module 2x2 "Now Playing" : pochette, titre, artiste, précédent /
+// lecture-pause / suivant. Cotes relevées sur la capture Apple de Tahoe 26
+// (module 139 pt) : vignette 40 pt à 13,5 pt du bord, « Not Playing » 13 pt
+// semibold (haut des capitales à 74 pt), commandes centrées à 29 pt des bords
+// et à 29 pt du bas ; ⏮/⏭ ~21 pt de large, ▶ ~19 pt de haut, en "vibrancy".
 CCTile {
     id: np
 
@@ -28,15 +28,25 @@ CCTile {
     radius: CCStyle.radiusLarge
     interactive: false
 
-    // Pochette (ou vignette vide)
+    // Vignette vide (verre plus clair) et pochette par-dessus. La vignette est
+    // un simple Rectangle : un ClippingRectangle translucide rend ici un carré
+    // sombre aux coins crénelés.
+    Rectangle {
+        x: art.x
+        y: art.y
+        width: art.width
+        height: art.height
+        radius: art.radius
+        color: Qt.rgba(1, 1, 1, 0.13)
+    }
     ClippingRectangle {
         id: art
-        x: 14
-        y: 14
-        width: 39
-        height: 39
+        x: 13.5
+        y: 13.5
+        width: 40
+        height: 40
         radius: 8
-        color: Qt.rgba(1, 1, 1, 0.14)
+        color: "transparent"
 
         Image {
             anchors.fill: parent
@@ -55,13 +65,13 @@ CCTile {
 
     Column {
         x: 15
-        y: np.hasTrack ? 64 : 74
+        y: np.hasTrack ? 62 : 71
         width: parent.width - 2 * x
         spacing: 1
         Text {
             renderType: Text.CurveRendering
             width: parent.width
-            text: np.hasTrack ? np.player.trackTitle : "Pas de lecture"
+            text: np.hasTrack ? np.player.trackTitle : "Not Playing"
             color: CCStyle.text
             font.family: Theme.font
             font.letterSpacing: CCStyle.tracking
@@ -91,13 +101,14 @@ CCTile {
         width: 40
         height: 34
         // Vibrancy : blanc translucide (prend la teinte du fond), atténué
-        // quand la commande est indisponible
+        // quand la commande est indisponible. Symbol ignore l'alpha de sa
+        // couleur (colorisation MultiEffect) : la transparence passe par opacity.
         Symbol {
             anchors.centerIn: parent
             name: ctl.symbol
             size: ctl.glyph
-            color: ctl.active ? CCStyle.vibrant : CCStyle.vibrantDim
-            opacity: cma.pressed ? 0.6 : 1
+            color: CCStyle.text
+            opacity: (ctl.active ? CCStyle.vibrant.a : CCStyle.vibrantDim.a) * (cma.pressed ? 0.6 : 1)
         }
         MouseArea {
             id: cma
@@ -110,8 +121,8 @@ CCTile {
     }
 
     Ctl {
-        x: 33.5 - width / 2
-        y: np.height - 27 - height / 2
+        x: 29 - width / 2
+        y: np.height - 29 - height / 2
         symbol: "backward.fill"
         glyph: 26
         active: np.hasTrack && np.player.canGoPrevious
@@ -119,7 +130,7 @@ CCTile {
     }
     Ctl {
         x: np.width / 2 - width / 2
-        y: np.height - 27 - height / 2
+        y: np.height - 29 - height / 2
         symbol: np.player?.isPlaying ? "pause.fill" : "play.fill"
         glyph: 27
         // Sans lecteur, Tahoe garde ▶ actif (il lance Musique) : ici, le
@@ -132,8 +143,8 @@ CCTile {
         }
     }
     Ctl {
-        x: np.width - 33.5 - width / 2
-        y: np.height - 27 - height / 2
+        x: np.width - 29 - width / 2
+        y: np.height - 29 - height / 2
         symbol: "forward.fill"
         glyph: 26
         active: np.hasTrack && np.player.canGoNext

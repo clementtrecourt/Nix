@@ -5,9 +5,13 @@ import Quickshell.Hyprland
 import Quickshell.Io
 import qs.common
 
-// Barre d'outils « Capture d'écran » de macOS (Cmd+Maj+5) :
-//  (×) | écran entier · fenêtre · portion | enregistrer écran · enregistrer portion | Options ⌄  [Capturer]
-// Capsule de verre centrée au-dessus du Dock. Échap ferme, Entrée capture.
+// Barre d'outils « Screenshot » de macOS Tahoe (Maj+Cmd+5), d'après l'image Apple
+// « Take a screenshot on Mac » (macOS 26, 572 × 53 pt) :
+//  (×) | Capture Entire Screen · Selected Window · Selected Portion |
+//        Record Entire Screen · Selected Window · Selected Portion | Options ⌄  [Capture]
+// Plaque de verre arrondie (~12 pt) centrée au-dessus du Dock ; outil choisi sur
+// fond gris arrondi ; bouton bleu « Capture » / « Record ». Échap ferme, Entrée
+// capture. La barre disparaît AVANT la capture (jamais dans l'image).
 // Pendant un enregistrement : pastille « ● 00:12 ■ » en haut de l'écran.
 Scope {
     id: root
@@ -15,7 +19,7 @@ Scope {
     GlobalShortcut {
         appid: "macos"
         name: "screenshot-ui"
-        description: "Barre d'outils de capture d'écran"
+        description: "Screenshot toolbar"
         onPressed: {
             if (Shots.recording) Shots.stopRecording();
             else Shots.toolbarOpen = !Shots.toolbarOpen;
@@ -28,6 +32,7 @@ Scope {
         function options(on: bool): void { win.optionsOpen = on; }
         function mode(m: string): void { win.mode = m; }
         function commit(): void { win.commit(); }
+        function tip(i: int): void { win.debugTip = i; }
     }
 
     PanelWindow {
@@ -35,23 +40,42 @@ Scope {
 
         screen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0]
 
-        property string mode: Shots.lastMode     // screen | window | area | rec-screen | rec-area
+        // screen | window | area | rec-screen | rec-window | rec-area
+        property string mode: Shots.lastMode
         property bool optionsOpen: false
-        property real progress: Shots.toolbarOpen ? 1 : 0
-        Behavior on progress { NumberAnimation { duration: Shots.toolbarOpen ? 320 : 180; easing.type: Easing.OutCubic } }
+        property int debugTip: -1
+        property real progress: Shots.toolbarOpen && backdrop.pass ? 1 : 0
+        Behavior on progress { NumberAnimation { duration: Shots.toolbarOpen ? 260 : 160; easing.type: Easing.OutCubic } }
 
-        visible: Shots.toolbarOpen || progress > 0
+        // Liquid Glass : capture de l'écran prise juste avant l'ouverture. Pendant
+        // une capture (Shots.busy) ou un enregistrement, la fenêtre est démappée
+        // immédiatement, sans fondu : elle n'apparaît jamais dans l'image.
+        property Item glassBackdrop: backdrop
+        GlassBackdrop {
+            id: backdrop
+            mode: "snapshot"
+            screen: win.screen
+            want: (Shots.toolbarOpen || win.progress > 0) && !Shots.busy && !Shots.recording
+        }
+        visible: backdrop.pass
         onVisibleChanged: if (visible) { mode = Shots.lastMode; optionsOpen = false; }
 
-        WlrLayershell.namespace: "macos-screenshot-toolbar"
+        // "macos-lg-*" : pas de flou Hyprland (le verre floute et réfracte lui-même)
+        WlrLayershell.namespace: "macos-lg-screenshot-toolbar"
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: Shots.toolbarOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         exclusionMode: ExclusionMode.Ignore
         anchors { bottom: true }
         margins.bottom: 104
-        implicitWidth: 620
-        implicitHeight: 460
+        implicitWidth: 680
+        implicitHeight: 560
         color: "transparent"
+
+        // Seuls la barre, l'infobulle et le menu captent la souris
+        mask: Region {
+            item: bar
+            Region { item: menu }
+        }
 
         function commit() {
             if (mode.startsWith("rec-")) Shots.record(mode.substring(4));
@@ -70,101 +94,125 @@ Scope {
             Keys.onEnterPressed: win.commit()
         }
 
-        // ---- Capsule ----
+        // ---- Barre ----
         Item {
             id: bar
-            width: barRow.implicitWidth + 12
-            height: 50
+            width: barRow.implicitWidth + 8 + 9
+            height: 52
             anchors.horizontalCenter: parent.horizontalCenter
-            y: parent.height - height - 8 + (1 - win.progress) * 16
+            y: parent.height - height - 24 + (1 - win.progress) * 12
             opacity: win.progress
-            scale: 0.96 + 0.04 * win.progress
+            scale: 0.97 + 0.03 * win.progress
 
             NotifGlass {
                 anchors.fill: parent
-                radius: height / 2
-                tint: Theme.glassThick
+                radius: 13
+                tint: Theme.dark ? Qt.rgba(0.15, 0.15, 0.16, 0.78) : Qt.rgba(0.94, 0.945, 0.945, 0.80)
+                shadowOffset: 6
+                shadowBlur: 1.0
             }
 
             Row {
                 id: barRow
-                anchors.centerIn: parent
-                spacing: 2
+                x: 8
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 5
 
-                // (×) fermer
-                ToolButton {
-                    symbol: "xmark"
-                    symbolSize: 10
-                    round: true
-                    tip: "Fermer"
-                    onClicked: Shots.toolbarOpen = false
+                // (×) : disque gris plein, croix blanche
+                Item {
+                    id: closeBtn
+                    readonly property bool hovered: closeMouse.containsMouse
+                    readonly property string tip: ""
+                    width: 30
+                    height: 37
+                    anchors.verticalCenter: parent.verticalCenter
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 17
+                        height: 17
+                        radius: 8.5
+                        color: Theme.dark ? Qt.rgba(1, 1, 1, closeMouse.pressed ? 0.62 : 0.48)
+                                          : Qt.rgba(0, 0, 0, closeMouse.pressed ? 0.62 : 0.50)
+                        Symbol {
+                            anchors.centerIn: parent
+                            name: "xmark"
+                            size: 15
+                            color: Theme.dark ? "#1c1c1e" : "white"
+                        }
+                    }
+                    MouseArea {
+                        id: closeMouse
+                        anchors.fill: parent
+                        onClicked: Shots.toolbarOpen = false
+                    }
                 }
                 Sep {}
-                ToolButton { symbol: "rectangle.inset.filled"; tip: "Capturer l'écran entier"; selected: win.mode === "screen"; onClicked: win.mode = "screen" }
-                ToolButton { symbol: "macwindow.on.rectangle"; tip: "Capturer la fenêtre sélectionnée"; selected: win.mode === "window"; onClicked: win.mode = "window" }
-                ToolButton { symbol: "rectangle.dashed"; tip: "Capturer la portion sélectionnée"; selected: win.mode === "area"; onClicked: win.mode = "area" }
+                ToolButton { symbol: "screenshot.screen"; tip: "Capture Entire Screen"; m: "screen" }
+                ToolButton { symbol: "screenshot.window"; tip: "Capture Selected Window"; m: "window" }
+                ToolButton { symbol: "screenshot.selection"; tip: "Capture Selected Portion"; m: "area" }
                 Sep {}
-                ToolButton { symbol: "rectangle.inset.filled.badge.record"; tip: "Enregistrer l'écran entier"; selected: win.mode === "rec-screen"; onClicked: win.mode = "rec-screen" }
-                ToolButton { symbol: "rectangle.dashed.badge.record"; tip: "Enregistrer la portion sélectionnée"; selected: win.mode === "rec-area"; onClicked: win.mode = "rec-area" }
+                ToolButton { symbol: "screenshot.screen.record"; tip: "Record Entire Screen"; m: "rec-screen"; width: 55 }
+                ToolButton { symbol: "screenshot.window.record"; tip: "Record Selected Window"; m: "rec-window"; width: 55 }
+                ToolButton { symbol: "screenshot.selection.record"; tip: "Record Selected Portion"; m: "rec-area"; width: 55 }
                 Sep {}
 
-                // Options ⌄
+                // Options ⌄ (texte gris, sans fond)
                 Item {
                     id: optBtn
-                    width: optRow.implicitWidth + 22
-                    height: 38
+                    readonly property bool hovered: false
+                    readonly property string tip: ""
+                    width: optRow.implicitWidth + 16
+                    height: 37
                     anchors.verticalCenter: parent.verticalCenter
                     Rectangle {
                         anchors.fill: parent
-                        radius: height / 2
-                        color: win.optionsOpen ? Qt.rgba(1, 1, 1, Theme.dark ? 0.16 : 0.5)
-                             : optMouse.containsMouse ? Theme.fill : "transparent"
+                        radius: 8
+                        color: win.optionsOpen ? (Theme.dark ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(0, 0, 0, 0.09))
+                                               : "transparent"
                     }
                     Row {
                         id: optRow
                         anchors.centerIn: parent
-                        spacing: 5
+                        spacing: 4
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: "Options"
-                            color: Theme.label
+                            color: win.inkColor
                             font.family: Theme.font
                             font.pixelSize: 13
                         }
                         Symbol {
                             anchors.verticalCenter: parent.verticalCenter
+                            anchors.verticalCenterOffset: 1
                             name: "chevron.down"
                             size: 9
-                            color: Theme.label
+                            color: win.inkColor
                         }
                     }
                     MouseArea {
                         id: optMouse
                         anchors.fill: parent
-                        hoverEnabled: true
                         onClicked: win.optionsOpen = !win.optionsOpen
                     }
                 }
 
-                // [Capturer] / [Enregistrer]
+                // [Capture] / [Record] : bouton bleu
                 Item {
-                    width: capLabel.implicitWidth + 30
-                    height: 38
+                    readonly property bool hovered: false
+                    readonly property string tip: ""
+                    width: Math.max(81, capLabel.implicitWidth + 32)
+                    height: 37
                     anchors.verticalCenter: parent.verticalCenter
                     Rectangle {
                         anchors.fill: parent
-                        radius: height / 2
-                        color: capMouse.pressed ? Qt.rgba(1, 1, 1, Theme.dark ? 0.30 : 0.7)
-                             : capMouse.containsMouse ? Qt.rgba(1, 1, 1, Theme.dark ? 0.22 : 0.6)
-                             : Qt.rgba(1, 1, 1, Theme.dark ? 0.14 : 0.45)
-                        border.width: 1
-                        border.color: Theme.glassStroke
+                        radius: 9
+                        color: capMouse.pressed ? Qt.darker(Theme.accent, 1.15) : Theme.accent
                     }
                     Text {
                         id: capLabel
                         anchors.centerIn: parent
-                        text: win.mode.startsWith("rec-") ? "Enregistrer" : "Capturer"
-                        color: Theme.label
+                        text: win.mode.startsWith("rec-") ? "Record" : "Capture"
+                        color: "white"
                         font.family: Theme.font
                         font.pixelSize: 13
                         font.weight: Font.Medium
@@ -172,31 +220,35 @@ Scope {
                     MouseArea {
                         id: capMouse
                         anchors.fill: parent
-                        hoverEnabled: true
                         onClicked: win.commit()
                     }
                 }
             }
         }
 
-        // Infobulle du bouton survolé (au-dessus de la capsule)
+        // Gris des pictogrammes et de « Options » (image Apple : 119/255 sur 238)
+        readonly property color inkColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.62) : Qt.rgba(0, 0, 0, 0.53)
+
+        // Bulle d'aide (help tag) du bouton survolé, au-dessus de la barre
         Item {
             id: tipBox
             readonly property Item btn: {
-                for (const c of barRow.children) if (c.hovered && c.tip) return c;
+                const l = barRow.children.filter(c => c.tip);
+                if (win.debugTip >= 0) return l[win.debugTip] ?? null;
+                for (const c of l) if (c.hovered) return c;
                 return null;
             }
             readonly property string text: btn ? btn.tip : ""
             readonly property real cx: btn ? bar.x + barRow.x + btn.x + btn.width / 2 : 0
-            visible: text !== "" && !win.optionsOpen
+            visible: text !== "" && !win.optionsOpen && win.progress > 0.99
             width: tipLabel.implicitWidth + 16
             height: 22
-            x: Math.max(0, Math.min(win.width - width, cx - width / 2))
+            x: Math.round(Math.max(0, Math.min(win.width - width, cx - width / 2)))
             y: bar.y - height - 8
             NotifGlass {
                 anchors.fill: parent
                 radius: 7
-                tint: Theme.glassThick
+                tint: Theme.dark ? Qt.rgba(0.17, 0.17, 0.18, 0.85) : Qt.rgba(0.97, 0.97, 0.97, 0.88)
                 shadowOffset: 2
                 shadowBlur: 0.4
             }
@@ -214,9 +266,10 @@ Scope {
         Item {
             id: menu
             visible: win.optionsOpen && Shots.toolbarOpen
-            width: 260
-            height: menuCol.implicitHeight + 12
-            x: Math.min(win.width - width - 4, bar.x + barRow.x + optBtn.x - 8)
+            // Taille nulle quand il est fermé : il sert aussi de masque d'entrée
+            width: visible ? 240 : 0
+            height: visible ? menuCol.implicitHeight + 12 : 0
+            x: Math.round(Math.min(win.width - width - 4, bar.x + barRow.x + optBtn.x - 8))
             y: bar.y - height - 8
 
             NotifGlass {
@@ -231,78 +284,79 @@ Scope {
                 y: 6
                 width: parent.width - 12
 
-                MenuHeader { text: "Enregistrer dans" }
+                MenuHeader { text: "Save to" }
                 // Ordre de macOS : Bureau, Documents, Presse-papiers, (Mail, Messages :
                 // sans équivalent ici), Aperçu, emplacements choisis, Autre emplacement…
-                MenuItem { text: "Bureau"; checked: Shots.saveTo === "desktop"; onTriggered: Shots.saveTo = "desktop" }
+                MenuItem { text: "Desktop"; checked: Shots.saveTo === "desktop"; onTriggered: Shots.saveTo = "desktop" }
                 MenuItem { text: "Documents"; checked: Shots.saveTo === "documents"; onTriggered: Shots.saveTo = "documents" }
-                MenuItem { text: "Presse-papiers"; checked: Shots.saveTo === "clipboard"; onTriggered: Shots.saveTo = "clipboard" }
-                MenuItem { text: "Aperçu"; checked: Shots.saveTo === "preview"; onTriggered: Shots.saveTo = "preview" }
-                MenuItem { text: "Captures d’écran"; checked: Shots.saveTo === "screenshots"; onTriggered: Shots.saveTo = "screenshots" }
+                MenuItem { text: "Clipboard"; checked: Shots.saveTo === "clipboard"; onTriggered: Shots.saveTo = "clipboard" }
+                MenuItem { text: "Preview"; checked: Shots.saveTo === "preview"; onTriggered: Shots.saveTo = "preview" }
+                MenuItem { text: "Screenshots"; checked: Shots.saveTo === "screenshots"; onTriggered: Shots.saveTo = "screenshots" }
                 MenuItem {
                     visible: !!Shots.customDir
                     text: Shots.customDir.split("/").pop() || Shots.customDir
                     checked: Shots.saveTo === "custom"
                     onTriggered: Shots.saveTo = "custom"
                 }
-                MenuItem { text: "Autre emplacement…"; onTriggered: Shots.chooseFolder() }
+                MenuItem { text: "Other Location…"; onTriggered: Shots.chooseFolder() }
                 MenuSep {}
-                MenuHeader { text: "Minuteur" }
-                MenuItem { text: "Aucun"; checked: Shots.delay === 0; onTriggered: Shots.delay = 0 }
-                MenuItem { text: "5 secondes"; checked: Shots.delay === 5; onTriggered: Shots.delay = 5 }
-                MenuItem { text: "10 secondes"; checked: Shots.delay === 10; onTriggered: Shots.delay = 10 }
+                MenuHeader { text: "Timer" }
+                MenuItem { text: "None"; checked: Shots.delay === 0; onTriggered: Shots.delay = 0 }
+                MenuItem { text: "5 Seconds"; checked: Shots.delay === 5; onTriggered: Shots.delay = 5 }
+                MenuItem { text: "10 Seconds"; checked: Shots.delay === 10; onTriggered: Shots.delay = 10 }
+                MenuSep {}
+                MenuHeader { text: "Microphone" }
+                MenuItem { text: "None"; checked: !Shots.microphone; onTriggered: Shots.microphone = false }
+                MenuItem { text: "Default Microphone"; checked: Shots.microphone; onTriggered: Shots.microphone = true }
                 MenuSep {}
                 MenuHeader { text: "Options" }
-                MenuItem { text: "Afficher la vignette flottante"; checked: Shots.showThumbnail; onTriggered: Shots.showThumbnail = !Shots.showThumbnail }
-                MenuItem { text: "Afficher le pointeur de la souris"; checked: Shots.showPointer; onTriggered: Shots.showPointer = !Shots.showPointer }
+                MenuItem { text: "Show Floating Thumbnail"; checked: Shots.showThumbnail; onTriggered: Shots.showThumbnail = !Shots.showThumbnail }
+                MenuItem { text: "Show Mouse Pointer"; checked: Shots.showPointer; onTriggered: Shots.showPointer = !Shots.showPointer }
             }
         }
 
         // ---- Composants locaux ----
-        component Sep: Rectangle {
-            width: 13
+        component Sep: Item {
+            width: 11
             height: 24
-            color: "transparent"
             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
             Rectangle {
                 anchors.centerIn: parent
                 width: 1
                 height: parent.height
-                color: Theme.separator
+                color: Theme.dark ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(0, 0, 0, 0.12)
             }
         }
 
+        // Outil : pictogramme gris ; choisi = fond gris arrondi (45 × 37 pt)
         component ToolButton: Item {
             id: tb
             property string symbol
-            property int symbolSize: 22
-            property bool selected: false
-            property bool round: false
             property string tip: ""
+            property string m: ""
+            readonly property bool selected: win.mode === m
             readonly property bool hovered: tbMouse.containsMouse
-            signal clicked()
-            width: round ? 38 : 44
-            height: 38
+            width: 45
+            height: 37
             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
             Rectangle {
                 anchors.fill: parent
-                anchors.margins: tb.round ? 7 : 0
-                radius: height / 2
-                color: tb.selected ? Qt.rgba(1, 1, 1, Theme.dark ? 0.18 : 0.55)
-                     : tb.round ? (tbMouse.containsMouse ? Theme.fillHover : Theme.fill)
-                     : tbMouse.containsMouse ? Theme.fill : "transparent"
+                radius: 8
+                color: tb.selected ? (Theme.dark ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(0, 0, 0, 0.095))
+                     : tbMouse.pressed ? (Theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.05))
+                     : "transparent"
             }
             Symbol {
                 anchors.centerIn: parent
                 name: tb.symbol
-                size: tb.symbolSize
-                color: Theme.label
+                size: 32
+                color: win.inkColor
             }
             MouseArea {
                 id: tbMouse
                 anchors.fill: parent
                 hoverEnabled: true
-                onClicked: tb.clicked()
+                onClicked: win.mode = tb.m
             }
         }
 

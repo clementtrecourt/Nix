@@ -22,7 +22,29 @@ PanelWindow {
     readonly property int leftRoom: 24        // place pour le × (à cheval) et l'ombre
     readonly property int topGap: 17          // espace sous la barre des menus
 
-    WlrLayershell.namespace: "macos-notifications"
+    // Liquid Glass : les cartes réfractent une capture de l'écran prise juste
+    // avant l'apparition de la première bannière. La fenêtre n'est mappée que
+    // s'il y a des bannières (ou pendant l'animation de sortie de la dernière) :
+    // sinon la capture la contiendrait elle-même.
+    readonly property bool hasBanners: NotifStore.bannerModel.count > 0
+    onHasBannersChanged: if (!hasBanners) exitHold.restart()
+    Timer {
+        id: exitHold
+        interval: 420 * NotifStore.slow
+    }
+    property Item glassBackdrop: backdrop
+    GlassBackdrop {
+        id: backdrop
+        mode: "snapshot"
+        screen: win.screen
+        // Ouverture du Centre de notifications : bannières retirées sans animation
+        // (sinon elles apparaîtraient dans la capture de fond du Centre)
+        want: (win.hasBanners || exitHold.running) && !NotifStore.centerOpen
+    }
+    visible: backdrop.pass
+
+    // "macos-lg-*" : pas de flou Hyprland (le verre floute et réfracte lui-même)
+    WlrLayershell.namespace: "macos-lg-notifications"
     WlrLayershell.layer: WlrLayer.Overlay
     // Clavier seulement pendant une réponse en ligne
     WlrLayershell.keyboardFocus: NotifStore.replying && NotifStore.replying.popup
@@ -122,17 +144,23 @@ PanelWindow {
                     shown = items[0];
                 }
             }
-            // Minuterie relancée seulement quand une notification rejoint ou met à
-            // jour CETTE bannière (pas à l'arrivée d'une notification d'une autre app)
-            onRevChanged: timer.restart()
+            // Minuterie remise à zéro seulement quand une notification rejoint ou met
+            // à jour CETTE bannière (pas à l'arrivée d'une notification d'une autre app).
+            // Temps écoulé compté par pas : la pause (survol, glissement) garde la
+            // liaison `running` intacte (Timer.restart() la casserait).
+            onRevChanged: elapsed = 0
+            property int elapsed: 0
             readonly property bool isAlert: items.some(e => e.urgency >= 2)
 
             // Minuteur d'affichage (pause au survol / pendant un glissement)
             Timer {
-                id: timer
-                interval: NotifStore.bannerDuration
+                interval: 100
+                repeat: true
                 running: !del.isAlert && !card.hovered && !drag.active && del.items.length > 0
-                onTriggered: NotifStore.hideBanner(del.key)
+                onTriggered: {
+                    del.elapsed += interval;
+                    if (del.elapsed >= NotifStore.bannerDuration) NotifStore.hideBanner(del.key);
+                }
             }
 
             NotificationCard {

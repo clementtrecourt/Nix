@@ -4,7 +4,7 @@
 // à descente récursive). Renvoie null si la requête n'est pas un calcul.
 //
 //   evaluate("2*(3+4)^2")      -> { kind: "calc", value: 98, expr: "2*(3+4)^2" }
-//   evaluate("10 km en mi")    -> { kind: "convert", value: 6.2137, unit: "mi", ... }
+//   evaluate("10 km in mi")    -> { kind: "convert", value: 6.2137, unit: "mi", ... }
 //   evaluate("72 °F")          -> { kind: "convert", ... vers °C }
 
 // ---------------------------------------------------------------- Expressions
@@ -26,7 +26,7 @@ function tokenize(src) {
     while (i < src.length) {
         const c = src[i];
         if (c === " " || c === " " || c === " ") { i++; continue; }
-        // Nombre : "3.5", "3,5" (virgule décimale française), "1e3"
+        // Nombre (format US) : "3.5", "1,234.5" (virgule = milliers), "1e3"
         if (/[0-9.,]/.test(c)) {
             let j = i;
             while (j < src.length && /[0-9.,]/.test(src[j])) j++;
@@ -36,9 +36,10 @@ function tokenize(src) {
                 while (j < src.length && /[0-9]/.test(src[j])) j++;
             }
             let txt = src.slice(i, j);
-            // "1,234.5" -> séparateur de milliers ; "3,5" -> décimale
-            if (txt.includes(",") && txt.includes(".")) txt = txt.replace(/,/g, "");
-            else txt = txt.replace(",", ".");
+            // "1,234.5" -> séparateur de milliers (US) ; une virgule hors
+            // groupes de 3 chiffres ("3,5") est tolérée comme décimale
+            if (/^\d{1,3}(,\d{3})+(\.\d*)?$/.test(txt)) txt = txt.replace(/,/g, "");
+            else if (!txt.includes(".")) txt = txt.replace(",", ".");
             const v = Number(txt);
             if (isNaN(v)) return null;
             out.push({ t: "num", v: v });
@@ -179,8 +180,8 @@ def("len", ["mm", "millimètre", "millimètres", "millimetre", "millimetres"], 0
 def("len", ["cm", "centimètre", "centimètres", "centimetre", "centimetres"], 0.01, "cm");
 def("len", ["m", "mètre", "mètres", "metre", "metres", "meter", "meters"], 1, "m");
 def("len", ["km", "kilomètre", "kilomètres", "kilometre", "kilometres", "kilometer", "kilometers"], 1000, "km");
-def("len", ["in", "inch", "inches", "pouce", "pouces", "\""], 0.0254, "po");
-def("len", ["ft", "foot", "feet", "pied", "pieds", "'"], 0.3048, "pi");
+def("len", ["in", "inch", "inches", "pouce", "pouces", "\""], 0.0254, "in");
+def("len", ["ft", "foot", "feet", "pied", "pieds", "'"], 0.3048, "ft");
 def("len", ["yd", "yard", "yards"], 0.9144, "yd");
 def("len", ["mi", "mile", "miles"], 1609.344, "mi");
 def("len", ["nmi", "mille", "milles"], 1852, "nmi");
@@ -192,14 +193,14 @@ def("mass", ["t", "tonne", "tonnes"], 1000, "t");
 def("mass", ["lb", "lbs", "livre", "livres", "pound", "pounds"], 0.45359237, "lb");
 def("mass", ["oz", "once", "onces", "ounce", "ounces"], 0.028349523125, "oz");
 // Volume (l)
-def("vol", ["ml", "millilitre", "millilitres"], 0.001, "ml");
-def("vol", ["cl", "centilitre", "centilitres"], 0.01, "cl");
-def("vol", ["dl", "décilitre", "décilitres"], 0.1, "dl");
-def("vol", ["l", "litre", "litres", "liter", "liters"], 1, "l");
+def("vol", ["ml", "millilitre", "millilitres"], 0.001, "mL");
+def("vol", ["cl", "centilitre", "centilitres"], 0.01, "cL");
+def("vol", ["dl", "décilitre", "décilitres"], 0.1, "dL");
+def("vol", ["l", "litre", "litres", "liter", "liters"], 1, "L");
 def("vol", ["m3", "m³"], 1000, "m³");
 def("vol", ["gal", "gallon", "gallons"], 3.785411784, "gal");
 def("vol", ["floz"], 0.0295735, "fl oz");
-def("vol", ["cup", "cups", "tasse", "tasses"], 0.2365882365, "tasses");
+def("vol", ["cup", "cups", "tasse", "tasses"], 0.2365882365, "cups");
 // Surface (m²)
 def("area", ["m2", "m²"], 1, "m²");
 def("area", ["km2", "km²"], 1e6, "km²");
@@ -211,24 +212,24 @@ def("time", ["ms", "milliseconde", "millisecondes"], 0.001, "ms");
 def("time", ["s", "sec", "seconde", "secondes", "second", "seconds"], 1, "s");
 def("time", ["min", "minute", "minutes"], 60, "min");
 def("time", ["h", "heure", "heures", "hour", "hours"], 3600, "h");
-def("time", ["j", "jour", "jours", "d", "day", "days"], 86400, "jours");
-def("time", ["sem", "semaine", "semaines", "week", "weeks"], 604800, "semaines");
-def("time", ["an", "ans", "année", "années", "year", "years"], 31557600, "ans");
+def("time", ["j", "jour", "jours", "d", "day", "days"], 86400, "days");
+def("time", ["sem", "semaine", "semaines", "week", "weeks"], 604800, "weeks");
+def("time", ["an", "ans", "année", "années", "year", "years"], 31557600, "years");
 // Vitesse (m/s)
 def("speed", ["m/s"], 1, "m/s");
 def("speed", ["km/h", "kmh"], 1 / 3.6, "km/h");
 def("speed", ["mph"], 0.44704, "mph");
-def("speed", ["kn", "nœud", "nœuds", "noeud", "noeuds", "knot", "knots"], 0.514444, "nœuds");
+def("speed", ["kn", "nœud", "nœuds", "noeud", "noeuds", "knot", "knots"], 0.514444, "knots");
 // Données (octets)
-def("data", ["o", "octet", "octets", "b", "byte", "bytes"], 1, "o");
-def("data", ["ko", "kb"], 1e3, "Ko");
-def("data", ["mo", "mb"], 1e6, "Mo");
-def("data", ["go", "gb"], 1e9, "Go");
-def("data", ["to", "tb"], 1e12, "To");
-def("data", ["kio", "kib"], 1024, "Kio");
-def("data", ["mio", "mib"], 1048576, "Mio");
-def("data", ["gio", "gib"], 1073741824, "Gio");
-def("data", ["tio", "tib"], 1099511627776, "Tio");
+def("data", ["o", "octet", "octets", "b", "byte", "bytes"], 1, "bytes");
+def("data", ["ko", "kb"], 1e3, "KB");
+def("data", ["mo", "mb"], 1e6, "MB");
+def("data", ["go", "gb"], 1e9, "GB");
+def("data", ["to", "tb"], 1e12, "TB");
+def("data", ["kio", "kib"], 1024, "KiB");
+def("data", ["mio", "mib"], 1048576, "MiB");
+def("data", ["gio", "gib"], 1073741824, "GiB");
+def("data", ["tio", "tib"], 1099511627776, "TiB");
 // Température (traitée à part)
 def("temp", ["°c", "c", "celsius", "degrés", "degres"], 0, "°C");
 def("temp", ["°f", "f", "fahrenheit"], 0, "°F");
@@ -236,15 +237,15 @@ def("temp", ["k", "kelvin", "kelvins"], 0, "K");
 
 // Cible par défaut quand on tape "10 km" sans "en …" (comme Spotlight).
 const DEFAULT_TARGET = {
-    "km": "mi", "mi": "km", "m": "pi", "pi": "m", "cm": "po", "po": "cm", "mm": "po",
+    "km": "mi", "mi": "km", "m": "ft", "ft": "m", "cm": "in", "in": "cm", "mm": "in",
     "yd": "m", "nmi": "km",
     "kg": "lb", "lb": "kg", "g": "oz", "oz": "g", "t": "lb", "mg": "oz",
-    "l": "gal", "gal": "l", "ml": "fl oz", "cl": "fl oz", "dl": "tasses", "tasses": "ml", "m³": "l", "fl oz": "ml",
+    "L": "gal", "gal": "L", "mL": "fl oz", "cL": "fl oz", "dL": "cups", "cups": "mL", "m³": "L", "fl oz": "mL",
     "°C": "°F", "°F": "°C", "K": "°C",
-    "km/h": "mph", "mph": "km/h", "m/s": "km/h", "nœuds": "km/h",
+    "km/h": "mph", "mph": "km/h", "m/s": "km/h", "knots": "km/h",
     "m²": "ft²", "ft²": "m²", "ha": "acres", "acres": "ha", "km²": "ha",
-    "h": "min", "min": "s", "s": "min", "jours": "h", "semaines": "jours", "ans": "jours", "ms": "s",
-    "Go": "Mo", "Mo": "Ko", "Ko": "o", "To": "Go", "o": "Ko", "Gio": "Go", "Mio": "Mo", "Kio": "Ko", "Tio": "To"
+    "h": "min", "min": "s", "s": "min", "days": "h", "weeks": "days", "years": "days", "ms": "s",
+    "GB": "MB", "MB": "KB", "KB": "bytes", "TB": "GB", "bytes": "KB", "GiB": "GB", "MiB": "MB", "KiB": "KB", "TiB": "TB"
 };
 
 function unitByLabel(label) {
@@ -274,7 +275,8 @@ function fromBase(u, v) {
 function convert(q) {
     const m = q.trim().match(/^(-?[0-9][0-9.,\s]*)\s*([^\s0-9][^\s]*?)(?:\s+(?:en|in|to|vers|→|->|=)\s+([^\s]+))?\s*$/i);
     if (!m) return null;
-    const num = Number(m[1].replace(/\s/g, "").replace(",", "."));
+    const raw = m[1].replace(/\s/g, "");
+    const num = Number(/^-?\d{1,3}(,\d{3})+(\.\d*)?$/.test(raw) ? raw.replace(/,/g, "") : raw.replace(",", "."));
     if (isNaN(num)) return null;
     const from = lookupUnit(m[2]);
     if (!from) return null;
@@ -290,22 +292,22 @@ function convert(q) {
 
 // ---------------------------------------------------------------- Formatage
 
-// Format français : espace fine insécable pour les milliers, virgule décimale.
+// Format US : virgule pour les milliers, point décimal (« 1,234.5 »).
 // maxDecimals : arrondi optionnel (conversions : 4 décimales au plus).
 function format(v, maxDecimals) {
     if (!isFinite(v)) return String(v);
     if (v !== 0 && (Math.abs(v) >= 1e15 || Math.abs(v) < 1e-9)) {
-        return v.toExponential(6).replace(/\.?0+e/, "e").replace(".", ",");
+        return v.toExponential(6).replace(/\.?0+e/, "e");
     }
     if (maxDecimals !== undefined && Math.abs(v) >= Math.pow(10, -maxDecimals))
         v = Number(v.toFixed(maxDecimals));
     let s = Number(v.toPrecision(12)).toString();
-    if (s.includes("e")) return s.replace(".", ",");
+    if (s.includes("e")) return s;
     const neg = s.startsWith("-");
     if (neg) s = s.slice(1);
     const parts = s.split(".");
-    const int = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-    return (neg ? "−" : "") + int + (parts[1] ? "," + parts[1] : "");
+    const int = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return (neg ? "-" : "") + int + (parts[1] ? "." + parts[1] : "");
 }
 
 function evaluate(q) {

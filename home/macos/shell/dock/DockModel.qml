@@ -99,12 +99,15 @@ Item {
     // ---- Correspondances classe de fenêtre <-> id d'app ----
     function norm(s) { return (s ?? "").toLowerCase(); }
     function idForClass(cls) {
+        if (norm(cls) === shellClass) return finderId;
         const e = Apps.entryFor(cls);
         return e ? e.id : cls;
     }
     function sameApp(id, cls) {
         if (!id || !cls) return false;
         if (norm(id) === norm(cls)) return true;
+        // Fenêtres du Finder du shell (classe org.quickshell) -> tuile Finder
+        if (norm(cls) === shellClass) return isFinder(id);
         const a = Apps.entryFor(id), b = Apps.entryFor(cls);
         return !!a && !!b && norm(a.id) === norm(b.id);
     }
@@ -115,25 +118,28 @@ Item {
     // (point permanent), jamais « Quitter », impossible à retirer du Dock.
     readonly property var finderIds: ["nemo", "org.gnome.nautilus", "nautilus", "thunar", "org.kde.dolphin", "pcmanfm", "pcmanfm-qt", "caja"]
     function isFinder(id) { return finderIds.includes(norm(cleanId(id))); }
+    // Fenêtres du shell lui-même (Finder QML de finder/, About This Mac…) :
+    // classe Wayland de Quickshell, rattachées au Finder
+    readonly property string shellClass: "org.quickshell"
+    // Ouvre un chemin dans le Finder du shell (même instance Quickshell, IPC
+    // « finder open <chemin> » : dossier -> fenêtre, fichier -> révélé), sinon
+    // commande de repli (gestionnaire de fichiers externe).
+    function finderOpen(path, fallback) {
+        Quickshell.execDetached(["sh", "-c",
+            // « ipc call » renvoie 0 même sans cible : on vérifie qu'elle existe
+            'if quickshell ipc -p "$1" show 2>/dev/null | grep -qx "target finder"; then exec quickshell ipc -p "$1" call finder open "$2"; fi; [ -n "$3" ] && exec sh -c "$3" sh "$2"',
+            "sh", Quickshell.shellDir, path, fallback ?? ""]);
+    }
+    // Id du Finder par défaut (premier gestionnaire de fichiers des apps par défaut)
+    readonly property string finderId: Array.from(Apps.pinned).find(p => isFinder(p)) ?? "nemo"
 
     // ---- Noms affichés (bulle, menus) ----
-    // Quelques apps portent leur nom macOS ; une app introuvable garde un nom lisible.
-    readonly property var macNames: ({
-        "org.gnome.settings": "Réglages Système",
-        "gnome-control-center": "Réglages Système",
-        "systemsettings": "Réglages Système",
-        "org.kde.systemsettings": "Réglages Système",
-        "kitty": "Terminal"
-    })
+    // Nom macOS anglais (services/Apps.displayName) ; le gestionnaire de
+    // fichiers est toujours « Finder ».
     function displayName(id, cls) {
-        const k = norm(cleanId(id || cls));
-        if (isFinder(k)) return "Finder";
-        if (macNames[k] !== undefined && k !== "kitty") return macNames[k];
-        const e = Apps.entryFor(id || cls);
-        if (e) return e.name;
-        // « org.gnome.Foo-bar » -> « Foo bar »
-        const last = cleanId(id || cls).split(".").pop() ?? "";
-        return last.replace(/[-_]+/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, c => c.toUpperCase());
+        if (id === appsTileId) return "Apps";
+        if (isFinder(id || cls)) return "Finder";
+        return Apps.displayName(id || cls);
     }
     // App épinglée dont l'entrée .desktop n'existe pas (désinstallée) : « ? » de macOS
     function isMissing(id, cls) {
@@ -202,7 +208,9 @@ Item {
         const used = new Set();
 
         const keys = new Set();
-        for (const id of root.pinned) {
+        // Le Finder est toujours la première icône (macOS ne permet pas de le retirer)
+        const pins = root.pinned.some(p => isFinder(p)) ? root.pinned : [finderId].concat(root.pinned);
+        for (const id of pins) {
             if (keys.has("app:" + norm(id))) continue;
             keys.add("app:" + norm(id));
             let cls = "";
@@ -367,6 +375,12 @@ Item {
     // ---- Actions ----
     function launch(id) {
         if (id === appsTileId) { ShellState.toggle("apps"); return; }
+        // Finder sans fenêtre : nouvelle fenêtre (dossier personnel)
+        if (isFinder(id)) {
+            markLaunching(id);
+            finderOpen(Quickshell.env("HOME"), 'exec nemo "$1"');
+            return;
+        }
         markLaunching(id);
         Apps.launch(id);
     }
@@ -393,6 +407,7 @@ Item {
     }
 
     function setPinned(id, keep) {
+        if (!keep && isFinder(id)) return;
         let l = root.pinned.filter(p => norm(p) !== norm(id));
         if (keep) {
             // Placé là où l'app apparaît déjà (fin des épinglées)
@@ -447,13 +462,15 @@ Item {
         autostart = a;
     }
 
-    // « Afficher dans le Finder » : révèle le .desktop dans le gestionnaire de fichiers
+    // « Show in Finder » : révèle le .desktop de l'app dans le Finder
     function showInFinder(id) {
-        const script = 'for d in $(printf %s "$HOME/.local/share:${XDG_DATA_DIRS:-/run/current-system/sw/share}" | tr : " "); do f="$d/applications/$1.desktop"; if [ -e "$f" ]; then f=$(readlink -f "$f"); exec gdbus call --session --dest org.freedesktop.FileManager1 --object-path /org/freedesktop/FileManager1 --method org.freedesktop.FileManager1.ShowItems "[\'file://$f\']" ""; fi; done';
-        Quickshell.execDetached(["sh", "-c", script, "sh", id]);
+        const script = 'for d in $(printf %s "$HOME/.local/share:${XDG_DATA_DIRS:-/run/current-system/sw/share}" | tr : " "); do f="$d/applications/$1.desktop"; if [ -e "$f" ]; then f=$(readlink -f "$f"); quickshell ipc -p "$2" show 2>/dev/null | grep -qx "target finder" && exec quickshell ipc -p "$2" call finder open "$f"; exec gdbus call --session --dest org.freedesktop.FileManager1 --object-path /org/freedesktop/FileManager1 --method org.freedesktop.FileManager1.ShowItems "[\'file://$f\']" ""; exit 0; fi; done';
+        Quickshell.execDetached(["sh", "-c", script, "sh", id, Quickshell.shellDir]);
     }
 
-    function openPath(p) { Quickshell.execDetached(["xdg-open", p]); }
+    // Dossier : Finder ; fichier : app par défaut
+    function openPath(p) { finderOpen(p, 'exec xdg-open "$1"'); }
+    function openFile(p) { Quickshell.execDetached(["xdg-open", p]); }
     // Dossier Téléchargements de l'utilisateur (xdg-user-dirs, localisé)
     property string downloadsDir: Quickshell.env("XDG_DOWNLOAD_DIR") || (Quickshell.env("HOME") + "/Downloads")
     Process {
@@ -467,6 +484,8 @@ Item {
         }
     }
     readonly property string trashDir: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/Trash/files"
-    function openTrash() { Quickshell.execDetached(["sh", "-c", "nemo trash:/// || gio open trash:///"]); }
+    // Corbeille dans le Finder. NB : finder.openPath ne reconnaît pas encore
+    // « trash:// » (sa vue Corbeille) : on lui passe le dossier des fichiers.
+    function openTrash() { finderOpen(trashDir, 'nemo trash:/// || gio open trash:///'); }
     function emptyTrash() { Quickshell.execDetached(["gio", "trash", "--empty"]); }
 }

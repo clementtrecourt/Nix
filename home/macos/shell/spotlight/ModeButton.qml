@@ -22,10 +22,12 @@ Item {
         id: glass
         anchors.fill: parent
         radius: width / 2
-        // Pas d'ombre propre : les ombres de boutons voisins s'additionneraient
-        // au-delà du seuil ignore_alpha de Hyprland (0.05) et l'espace entre
-        // les gouttes serait flouté. L'ombre diffuse de la capsule suffit.
-        shadowEnabled: false
+        // Même verre que la capsule (cf. Spotlight.glassTint)
+        tint: Theme.dark ? Qt.rgba(0.09, 0.09, 0.10, 0.64) : Qt.rgba(1, 1, 1, 0.62)
+        // Ombre propre légère (gouttes détachées de la capsule)
+        shadowBlur: 0.9
+        shadowOffset: 6
+        shadowColor: Qt.rgba(0, 0, 0, Theme.dark ? 0.24 : 0.10)
         // Le bouton s'enfonce légèrement à l'appui (ressort)
         scale: mouse.pressed ? 0.92 : 1.0
         Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 2.2 } }
@@ -35,14 +37,14 @@ Item {
             anchors.fill: parent
             radius: width / 2
             color: "white"
-            opacity: root.hovered ? (Theme.dark ? 0.14 : 0.45) : 0
+            opacity: root.hovered ? (Theme.dark ? 0.12 : 0.40) : 0
             Behavior on opacity { NumberAnimation { duration: 140 } }
         }
         Symbol {
             anchors.centerIn: parent
             name: root.symbol
             size: Metrics.buttonGlyphSize
-            color: Theme.dark ? "#ececf0" : "#3c3c41"
+            color: Theme.dark ? "#e6e6eb" : "#46464b"
         }
     }
 

@@ -1,9 +1,11 @@
 import QtQuick
 import qs.common
 
-// Bouton poussoir Tahoe : capsule (rayon = demi-hauteur), bouton par défaut en
-// couleur d'accent, bouton secondaire en remplissage neutre translucide, liseré
-// lumineux en haut (verre), assombri à l'appui.
+// Bouton poussoir Tahoe : bouton par défaut en couleur d'accent, bouton
+// secondaire en remplissage neutre translucide, assombri à l'appui.
+// Forme (captures Tahoe 26) : capsule dans les alertes (28 pt), rectangle aux
+// coins de 6 pt pour les boutons « regular » des fenêtres (24 pt : More Info…,
+// Force Quit) -> `radius`.
 Item {
     id: root
 
@@ -12,36 +14,27 @@ Item {
     property bool destructive: false
     property bool enabled: true
     property int fontSize: 13
+    property real radius: height / 2
     signal clicked()
 
     implicitHeight: 28
-    implicitWidth: Math.max(84, label.implicitWidth + 32)
+    implicitWidth: Math.max(80, label.implicitWidth + 32)
     opacity: enabled ? 1 : 0.45
 
     readonly property color base: isDefault
-        ? (destructive ? Theme.red : Theme.accent)
+        // Bleu des boutons par défaut Tahoe (#3478F6 mesuré sur les alertes)
+        ? (destructive ? Theme.red : (Theme.dark ? "#2F7BF5" : "#3478F6"))
         : (Theme.dark ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(0, 0, 0, 0.07))
 
     Rectangle {
         id: bg
         anchors.fill: parent
-        radius: height / 2
+        radius: root.radius
         color: root.base
-        // Reflet supérieur du verre
-        Rectangle {
-            anchors.fill: parent
-            radius: parent.radius
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, root.isDefault ? 0.16 : (Theme.dark ? 0.06 : 0.35)) }
-                GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
-            }
-        }
-        border.width: root.isDefault ? 0 : 0.5
-        border.color: Theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.06)
     }
     Rectangle {
         anchors.fill: parent
-        radius: height / 2
+        radius: root.radius
         color: "black"
         opacity: ma.pressed ? (root.isDefault ? 0.18 : 0.10) : 0
     }
@@ -52,7 +45,7 @@ Item {
         text: root.text
         font.family: Theme.font
         font.pixelSize: root.fontSize
-        font.weight: root.isDefault ? Font.DemiBold : Font.Medium
+        font.weight: root.isDefault ? Font.Medium : Font.Normal
         color: root.isDefault ? "white" : Theme.label
     }
 

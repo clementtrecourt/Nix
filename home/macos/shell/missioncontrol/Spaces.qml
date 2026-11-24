@@ -31,15 +31,15 @@ Singleton {
         return out;
     }
 
-    // Libellé : "Bureau N", ou le nom de l'app pour un bureau occupé par une
+    // Libellé : "Desktop N", ou le nom de l'app pour un bureau occupé par une
     // fenêtre plein écran (comme les Spaces plein écran de macOS)
     function label(id) {
         const ws = Hyprland.workspaces.values.find(w => w.id === id);
         if (ws?.hasFullscreen) {
             const t = Hyprland.toplevels.values.find(t => t.workspace?.id === id && (t.lastIpcObject?.fullscreen ?? 0) > 0);
-            if (t) return Apps.name(t.lastIpcObject?.class ?? "");
+            if (t) return Apps.displayName(t.lastIpcObject?.class ?? "");
         }
-        return "Bureau " + id;
+        return "Desktop " + id;
     }
 
     // Fenêtres (HyprlandToplevel) d'un bureau, hors fenêtres minimisées

@@ -12,6 +12,9 @@ Item {
     property real tipX: 0
     property real tipY: 0
     property bool shown: false
+    // Disparition immédiate (ouverture d'un menu : la capture du fond du menu
+    // ne doit pas contenir la bulle)
+    property bool instant: false
 
     readonly property int bodyH: 24
     readonly property int tailW: 14
@@ -25,9 +28,11 @@ Item {
 
     opacity: shown && text !== "" ? 1 : 0
     visible: opacity > 0
-    Behavior on opacity { NumberAnimation { duration: root.shown ? 60 : 90 } }
+    Behavior on opacity { enabled: !root.instant; NumberAnimation { duration: root.shown ? 60 : 90 } }
 
-    readonly property color fill: Theme.dark ? Qt.rgba(0.17, 0.17, 0.18, 0.80) : Qt.rgba(0.96, 0.96, 0.97, 0.84)
+    // Surface du Dock non floutée par Hyprland (namespace macos-lg-*) : bulle
+    // quasi opaque, comme le verre épais des bulles de Tahoe
+    readonly property color fill: Theme.dark ? Qt.rgba(0.17, 0.17, 0.18, 0.93) : Qt.rgba(0.96, 0.96, 0.97, 0.95)
     readonly property color stroke: Theme.dark ? Qt.rgba(1, 1, 1, 0.20) : Qt.rgba(0, 0, 0, 0.10)
 
     Shape {

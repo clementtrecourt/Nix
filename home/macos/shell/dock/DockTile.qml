@@ -40,8 +40,9 @@ Item {
     // Pas entre deux icônes et toile de l'icône (voir les mesures dans Dock.qml)
     readonly property real tsz: dock.tile
     readonly property real canvas: dock.canvas
-    // Largeur de base : un pas, ou la fente du séparateur (0,42 pas, mesuré sur Tahoe)
-    readonly property real baseW: isSeparator ? Math.round(tsz * 0.42) : tsz
+    // Largeur de base : un pas, ou la fente du séparateur (0,47 pas : entraxe de
+    // part et d'autre du séparateur = 1,47 pas, mesuré sur la capture Newsroom)
+    readonly property real baseW: isSeparator ? Math.round(tsz * 0.47) : tsz
 
     // ---- Apparition / disparition (les voisines s'écartent / se resserrent) ----
     property real presence: fresh ? 0 : 1
@@ -70,18 +71,20 @@ Item {
 
     // ---- État ----
     readonly property var windows: isApp ? dock.model.windowsFor(cls) : []
-    readonly property bool running: isApp && (windows.length > 0)
+    // Le Finder est toujours ouvert sur macOS : point permanent
+    readonly property bool running: isApp && (windows.length > 0 || dock.model.isFinder(appId))
     readonly property var launchState: isApp ? (dock.model.launching[appId] ?? null) : null
     readonly property bool urgent: isApp && cls !== "" && dock.model.urgentClasses.includes(cls)
     readonly property var toplevel: isWindow ? dock.model.toplevelByAddress(address) : null
     property bool pressed: false
 
+    // Nom affiché dans la bulle (libellés de macOS en anglais US)
     readonly property string label: {
-        if (isWindow) return toplevel?.title || Apps.name(cls);
-        if (kind === "folder") return "Téléchargements";
-        if (kind === "trash") return "Corbeille";
+        if (isWindow) return toplevel?.title || dock.model.displayName("", cls);
+        if (kind === "folder") return "Downloads";
+        if (kind === "trash") return "Trash";
         if (appId === dock.model.appsTileId) return "Apps";
-        return Apps.name(appId || cls);
+        return dock.model.displayName(appId, cls);
     }
     // ---- Icône : surcharge utilisateur > PNG du thème > thème (voir DockIcons) ----
     // Clé de surcharge : id .desktop sans extension, sinon classe en minuscules.
@@ -95,9 +98,10 @@ Item {
         return e ? e.id : (cls || appId).toLowerCase();
     }
     // Nom d'icône dans le thème
+    // « @ » : chercher d'abord dans MacTahoe clair (voir DockIcons)
     readonly property string themeIcon: {
-        if (kind === "folder") return "folder-download";
-        if (kind === "trash") return iconKey;
+        if (kind === "folder") return "@folder-download";
+        if (kind === "trash") return "@" + iconKey;
         if (appId === dock.model.appsTileId) return "macos-apps";
         const e = Apps.entryFor(appId || cls);
         // Sans entrée .desktop : l'id tel quel (les noms d'icônes sont sensibles à la casse)
@@ -152,14 +156,16 @@ Item {
     readonly property real vTop: vBottom - vSize - bounce
     readonly property real centerX: width / 2
 
-    // ---- Séparateur : trait de 1 pt, 0,95 tuile de haut ----
+    // ---- Séparateur : trait d'un pixel, 74 % de la hauteur de la plaque, centré
+    // sur elle ; blanc à ~30 % en sombre, sombre à ~30 % en clair (relevés Ars
+    // Technica sombre / Newsroom clair) ----
     Rectangle {
         visible: tile.isSeparator
         width: 1
-        height: Math.round(tile.tsz * 0.95)
+        height: Math.round(tile.dock.platterH * 0.74)
         x: Math.round(tile.width / 2 - 0.5)
-        y: tile.dock.baseY - tile.canvas / 2 - height / 2
-        color: Theme.dark ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(0, 0, 0, 0.28)
+        y: Math.round(tile.dock.platterTop + (tile.dock.platterH - height) / 2)
+        color: Theme.dark ? Qt.rgba(1, 1, 1, 0.30) : Qt.rgba(0, 0, 0, 0.30)
         opacity: tile.presence
     }
 
@@ -198,8 +204,30 @@ Item {
             layer.effect: MultiEffect { brightness: -0.35 }
         }
 
+        // Pile ouverte : la tuile devient un carré de verre avec un chevron
+        // (Tahoe, capture 9to5Mac de la pile en grille)
+        readonly property bool stackOpen: tile.kind === "folder" && tile.dock.stackOpen
+        Rectangle {
+            visible: iconBox.stackOpen
+            anchors.centerIn: parent
+            width: tile.vSize * 0.805
+            height: width
+            radius: width * 0.225
+            color: Theme.dark ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.26)
+            border.width: 1
+            border.color: Theme.dark ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(1, 1, 1, 0.55)
+            Symbol {
+                anchors.centerIn: parent
+                anchors.verticalCenterOffset: 1
+                name: "chevron.down"
+                size: Math.round(parent.width * 0.5)
+                color: Theme.dark ? Qt.rgba(1, 1, 1, 0.85) : Qt.rgba(0, 0, 0, 0.72)
+            }
+        }
+
         Image {
             id: icon
+            visible: !iconBox.stackOpen
             anchors.centerIn: parent
             width: tile.boxed ? box.width * 0.66 : tile.vSize * tile.iconScale
             height: width
@@ -274,7 +302,8 @@ Item {
         }
     }
 
-    // ---- Point d'app ouverte (4 pt, centré 4,5 pt au-dessus du bord bas de la plaque) ----
+    // ---- Point d'app ouverte (4 pt, centré 4,5 pt au-dessus du bord bas de la
+    // plaque ; noir ~85 % en clair, blanc ~70 % en sombre) ----
     Rectangle {
         visible: tile.isApp
         width: 4
@@ -282,7 +311,7 @@ Item {
         radius: 2
         x: tile.centerX - 2
         y: tile.dock.platterBottom - 4.5 - 2
-        color: Theme.dark ? Qt.rgba(1, 1, 1, 0.78) : Qt.rgba(0, 0, 0, 0.82)
+        color: Theme.dark ? Qt.rgba(1, 1, 1, 0.70) : Qt.rgba(0, 0, 0, 0.85)
         opacity: (tile.running || (tile.launchState !== null)) ? tile.presence : 0
         Behavior on opacity { NumberAnimation { duration: 200 } }
     }

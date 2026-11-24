@@ -1,9 +1,10 @@
 import QtQuick
 import qs.common
 
-// Menu du bouton « ⋯ » de la vue Applications (Tahoe) : « Afficher le
-// contenu sous forme de » Grille / Liste. Plaque de verre façon menu AppKit : lignes de 24 pt,
-// colonne de coche, surbrillance accent arrondie en retrait de 5 pt.
+// Menu du bouton « ⋯ » (More) de la vue Applications (Tahoe) : « Grid » /
+// « List » (Apple Support mh35840 : « Click the More button, then choose Grid
+// or List »). Plaque de verre façon menu AppKit : lignes de 24 pt, colonne de
+// coche, surbrillance accent arrondie en retrait de 5 pt.
 Item {
     id: root
 
@@ -14,12 +15,11 @@ Item {
     signal picked(bool asList)
 
     readonly property var entries: [
-        { text: "Afficher le contenu sous forme de", title: true },
-        { text: "Grille", list: false },
-        { text: "Liste", list: true }
+        { text: "Grid", list: false },
+        { text: "List", list: true }
     ]
 
-    width: 236
+    width: 150
     height: col.implicitHeight + 10
     visible: opacity > 0
     opacity: open ? 1 : 0
@@ -33,12 +33,12 @@ Item {
     Glass {
         anchors.fill: parent
         radius: Theme.radiusMenu
-        // Quasi opaque : le flou de Hyprland ne s'applique qu'à ce qui est
-        // DERRIÈRE la surface, pas aux pastilles du panneau sous le menu.
-        tint: Theme.dark ? Qt.rgba(0.16, 0.16, 0.17, 0.97) : Qt.rgba(0.96, 0.96, 0.97, 0.97)
-        shadowBlur: 0.6
-        shadowOffset: 4
-        shadowMax: 0.045      // sous le seuil ignore_alpha de Hyprland
+        // Le verre réfracte la capture d'écran prise AVANT l'ouverture : le
+        // panneau de Spotlight sous le menu n'y figure pas. Voile dense par-
+        // dessus (menus AppKit de Tahoe) pour que ce décalage ne se voie pas.
+        overlay: Theme.dark ? Qt.rgba(0.17, 0.17, 0.18, 0.90) : Qt.rgba(0.97, 0.97, 0.98, 0.90)
+        shadowBlur: 0.8
+        shadowOffset: 6
     }
 
     Column {

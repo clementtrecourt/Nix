@@ -374,14 +374,16 @@
       #   full    Cmd+Maj+3      chaque écran (un fichier par écran, comme macOS)
       #   region  Cmd+Maj+4      sélection d'une zone ; Espace bascule en mode fenêtre
       #   window  (Espace)       clic sur une fenêtre (garde le --clipboard de region)
-      # Fichiers : ~/Pictures/Screenshots/Capture d’écran AAAA-MM-JJ à HH.MM.SS.png
+      # Fichiers (nommés comme macOS en anglais US, espace fine insécable U+202F
+      # avant AM/PM) : ~/Pictures/Screenshots/Screenshot 2026-11-24 at 9.12.11 AM.png
       # (« … (2).png » pour le 2e écran), puis vignette flottante :
       #   quickshell -c macos ipc call screenshot show <chemin>
       mode="''${1:-region}"
       clip="''${2:-}"
       dir="''${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"
       mkdir -p "$dir"
-      base="$dir/Capture d’écran $(date '+%Y-%m-%d à %H.%M.%S')"
+      ts="$(LC_ALL=C date '+%Y-%m-%d at %-I.%M.%S %p')"
+      base="$dir/Screenshot ''${ts% *}"$'\u202f'"''${ts##* }"
       out="$base.png"
       run="''${XDG_RUNTIME_DIR:-/tmp}/macos-screenshot"
       mkdir -p "$run"
@@ -389,6 +391,14 @@
 
       # Apparence de la sélection façon macOS (réticule blanc, voile gris, cotes affichées)
       slurp_style=(-d -b 00000000 -c ffffffe6 -s ffffff1f -B 00000000 -w 1 -F Inter)
+
+      # La vignette de la capture précédente (et la barre ⇧⌘5) ne doivent pas
+      # apparaître dans l'image : le shell les cache le temps de la capture.
+      qs_ipc() { quickshell -c macos ipc call screenshot "$@" >/dev/null 2>&1 || true; }
+      qs_ipc prepare
+      qs_restore() { qs_ipc "done"; }
+      trap qs_restore EXIT
+      sleep 0.08
 
       finish() {
         # $1 = fichier capturé (vignette) ; les suivants : autres écrans
@@ -399,7 +409,7 @@
           exit 0
         fi
         quickshell -c macos ipc call screenshot show "$1" >/dev/null 2>&1 ||
-          notify-send -a "Capture d’écran" -i "$1" "Capture d’écran" "$(basename "$1")"
+          notify-send -a "Screenshot" -i "$1" "Screenshot" "$(basename "$1")"
       }
 
       case "$mode" in

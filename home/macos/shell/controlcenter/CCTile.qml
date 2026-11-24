@@ -10,8 +10,14 @@ Item {
     property real radius: CCStyle.radiusTile
     property bool interactive: true
     property bool glassVisible: true
+    // Verre (valeurs du Control Center par défaut ; le HUD a les siennes)
+    property color tint: CCStyle.tile
+    property color hoverTint: CCStyle.tileHover
+    property real glassSaturation: CCStyle.glassSaturation
     readonly property alias hovered: ma.containsMouse
     readonly property alias pressed: ma.pressed
+    // Contenu du module (le dépliage en fait un fondu sortant dans la carte)
+    readonly property alias contentLayer: inner
     signal clicked()
     default property alias content: inner.data
 
@@ -19,7 +25,12 @@ Item {
         id: glass
         anchors.fill: parent
         radius: tile.radius
-        tint: ma.containsMouse && tile.interactive ? CCStyle.tileHover : CCStyle.tile
+        tint: ma.containsMouse && tile.interactive ? tile.hoverTint : tile.tint
+        blur: CCStyle.glassBlur
+        saturation: tile.glassSaturation
+        adaptive: CCStyle.glassAdaptive
+        // Liseré visible sur tout le pourtour (plus vif sur les arcs éclairés)
+        rimBase: CCStyle.rimBase
         shadowBlur: 0.3
         shadowOffset: 1
         shadowColor: Qt.rgba(0, 0, 0, 0.22)

@@ -22,11 +22,13 @@ CCTile {
     interactive: !disabled
     onClicked: pill.expand()
 
+    // Pastille de 37 pt concentrique à l'extrémité du module (13 pt de marge),
+    // texte à 55,5 pt du bord : relevé sur la capture Apple (Wi-Fi « Home »).
     IconCircle {
         id: circle
-        x: 13.5
+        x: (pill.height - size) / 2
         anchors.verticalCenter: parent.verticalCenter
-        size: 35
+        size: 37
         symbol: pill.symbol
         glyphSize: pill.glyphSize
         on: pill.on
@@ -38,10 +40,10 @@ CCTile {
 
     // Largeur disponible pour le texte (calculée sur la géométrie du module, pas
     // sur la mise en page, pour éviter toute boucle de liaison)
-    readonly property real textLeft: 13.5 + 35 + 7
+    readonly property real textLeft: 55.5
     readonly property real textWidth: width - textLeft - 9
-    // Mot le plus long du titre : s'il ne tient pas à 12 pt ("Concentration"),
-    // on réduit le corps (11 puis 10 pt), avec au besoin un léger resserrement
+    // Mot le plus long du titre : s'il ne tient pas à 13 pt,
+    // on réduit le corps (12 puis 11 pt), avec au besoin un léger resserrement
     // (0,4 px max par lettre), plutôt que de couper le mot.
     FontMetrics {
         id: titleMetrics
@@ -53,21 +55,21 @@ CCTile {
     readonly property real longestWidth: titleMetrics.advanceWidth(longestWord)
     readonly property int titleFitSize: {
         const n = Math.max(1, longestWord.length);
-        for (let px = CCStyle.titleSize; px > 10; px--)
+        for (let px = CCStyle.titleSize; px > 11; px--)
             if (longestWidth * px / CCStyle.titleSize - 0.4 * n <= textWidth) return px;
-        return 10;
+        return 11;
     }
     readonly property real titleSpacing: {
         const w = longestWidth * titleFitSize / CCStyle.titleSize;
         return w <= textWidth ? CCStyle.tracking : Math.max(-0.4, (textWidth - w) / Math.max(1, longestWord.length));
     }
 
+    // Lignes de base relevées : titre à 28 pt du haut, sous-titre 16,4 pt plus bas
     Column {
         x: pill.textLeft
         width: pill.textWidth
         anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: -0.5
-        spacing: 0
+        spacing: 2.5
         opacity: pill.disabled ? CCStyle.disabledOpacity : 1
 
         Text {
@@ -82,7 +84,7 @@ CCTile {
             // Sans sous-titre, un titre long passe sur deux lignes ("Ne pas / déranger")
             wrapMode: pill.subtitle === "" ? Text.WordWrap : Text.NoWrap
             maximumLineCount: pill.subtitle === "" ? 2 : 1
-            lineHeight: 0.92
+            lineHeight: pill.subtitle === "" ? 0.92 : 1
             elide: Text.ElideRight
         }
         Text {
@@ -94,6 +96,7 @@ CCTile {
             font.family: Theme.font
             font.letterSpacing: CCStyle.tracking
             font.pixelSize: CCStyle.subtitleSize
+            font.weight: Font.Medium
             // Un nom de réseau long passe sur deux lignes ("TidBITS / Mesh"), comme sur Tahoe
             wrapMode: Text.WordWrap
             maximumLineCount: 2

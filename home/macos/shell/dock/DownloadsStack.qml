@@ -1,12 +1,21 @@
 import QtQuick
+import QtQuick.Shapes
 import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Widgets
 import qs.common
 
-// Pile « Téléchargements » affichée en grille (Tahoe : présentation Grille) :
-// plaque de verre au-dessus de l'icône avec petite pointe, fichiers les plus
-// récents d'abord (miniatures pour les images), bouton « Ouvrir dans le Finder ».
+// Pile « Downloads » en grille (Tahoe), relevée sur une capture 9to5Mac de
+// macOS 26 (pile « Applications » en grille, 2x) :
+//  - grande plaque Liquid Glass claire (le fond reste bien visible), rayon
+//    ~18 pt, petite pointe arrondie centrée sur l'icône du Dock, à ~10 pt
+//    au-dessus de la plaque du Dock ;
+//  - titre centré en haut (13 pt, normal), filet pleine largeur dessous ;
+//  - grandes icônes (squircle ≈ 1,86 x celui du Dock) et nom sur une ligne,
+//    élidé au milieu (« OldTweet…kChrome ») ; plus récents d'abord ;
+//  - filet au-dessus du pied, puis « Open in Finder ».
+// Pendant que la pile est ouverte, sa tuile du Dock devient un carré de verre
+// avec un chevron (voir DockTile).
 Scope {
     id: root
 
@@ -17,10 +26,15 @@ Scope {
     property real anchorX: 0
     property bool grab: true
 
+    readonly property var screen: dockWindow.screen
+    readonly property real screenW: screen?.width ?? 0
+    readonly property real screenH: screen?.height ?? 0
+
     function toggleFor(t) {
         if (open) { close(); return; }
         anchorX = t.x + t.width / 2;
         refreshCount();
+        grid.positionViewAtBeginning();
         popup.anchor.updateAnchor();
         open = true;
     }
@@ -38,9 +52,37 @@ Scope {
         function onModelReset() { root.refreshCount(); }
         function onStatusChanged() { root.refreshCount(); }
     }
-    readonly property int cols: Math.min(5, Math.max(3, Math.ceil(Math.sqrt(fileCount))))
-    readonly property int cell: 88
-    readonly property int maxRows: 4
+
+    // ---- Géométrie (pt) ----
+    // Cellule et icône proportionnelles à la toile du Dock (48 pt -> 114 / 88)
+    readonly property int cellW: Math.round(dock.canvas * 2.38)
+    readonly property int cellH: Math.round(dock.canvas * 2.38)
+    readonly property int iconBox: Math.round(dock.canvas * 1.84)
+    readonly property int headerH: 30
+    readonly property int footerH: 34
+    readonly property int sidePad: 14
+    readonly property int radius: 18
+    readonly property int tailW: 18
+    readonly property int tailH: 9
+    // Colonnes : grille presque carrée, 3 à 7 colonnes, dans la largeur de l'écran
+    readonly property int cols: Math.max(1, Math.min(Math.floor((screenW - 80) / cellW),
+                                                     Math.min(7, Math.max(3, Math.ceil(Math.sqrt(fileCount * 1.3))))))
+    // Lignes visibles : au plus ce qui tient entre la barre de menus et le Dock
+    readonly property int maxRows: Math.max(1, Math.floor((screenH - Theme.menuBarHeight - dockWindow.height + dock.platterTop - 10 - 40 - headerH - footerH - tailH) / cellH))
+    readonly property int rows: Math.max(1, Math.min(maxRows, Math.ceil(fileCount / cols)))
+
+    readonly property real plateW: cols * cellW + 2 * sidePad
+    readonly property real plateH: headerH + rows * cellH + footerH
+    readonly property int margin: 24
+
+    // ---- Position sur l'écran (repère de la capture du verre) ----
+    readonly property real popupW: plateW + 2 * margin
+    readonly property real popupH: plateH + tailH + 2 * margin
+    readonly property real dockY: screenH - dockWindow.height
+    readonly property real popupX: Math.max(0, Math.min(screenW - popupW, Math.round(anchorX + 0.5 - popupW / 2)))
+    readonly property real popupY: dockY + popup.anchor.rect.y - popupH
+    // Abscisse de la pointe dans la plaque (suit l'icône si la plaque a glissé)
+    readonly property real tailX: Math.max(radius + tailW / 2, Math.min(plateW - radius - tailW / 2, anchorX - popupX - margin))
 
     FolderListModel {
         id: files
@@ -64,6 +106,7 @@ Scope {
             wav: "audio-x-wav", mp3: "audio-mpeg", flac: "audio-flac", ogg: "audio-x-vorbis+ogg",
             mp4: "video-mp4", mkv: "video-x-matroska", webm: "video-webm", mov: "video-quicktime",
             iso: "application-x-cd-image", deb: "application-x-deb", rpm: "application-x-rpm",
+            dmg: "application-x-apple-diskimage",
             doc: "x-office-document", docx: "x-office-document", odt: "x-office-document",
             xls: "x-office-spreadsheet", xlsx: "x-office-spreadsheet", ods: "x-office-spreadsheet",
             ppt: "x-office-presentation", pptx: "x-office-presentation", odp: "x-office-presentation",
@@ -78,182 +121,225 @@ Scope {
 
     PopupWindow {
         id: popup
-        visible: root.open
+        // Visible dès que la capture du fond est arrivée (~50 ms)
+        visible: stackBackdrop.pass
         color: "transparent"
         grabFocus: root.grab
         anchor.window: root.dockWindow
         anchor.rect.x: root.anchorX
-        anchor.rect.y: root.dock.platterTop - 4 + body.margin
+        // Pointe à 10 pt au-dessus de la plaque du Dock
+        anchor.rect.y: root.dock.platterTop - 10 + root.margin
         anchor.rect.width: 1
         anchor.rect.height: 1
         anchor.edges: Edges.Top
         anchor.gravity: Edges.Top
-        implicitWidth: body.width
-        implicitHeight: body.height
+        anchor.adjustment: PopupAdjustment.Slide
+        implicitWidth: root.popupW
+        implicitHeight: root.popupH
         mask: Region { item: plate }
+        // Fermée par le compositeur (clic hors de la pile)
         onVisibleChanged: if (!visible && root.open) root.close()
 
+        property Item glassBackdrop: stackBackdrop
+        GlassBackdrop {
+            id: stackBackdrop
+            mode: "snapshot"
+            screen: root.screen
+            want: root.open
+            origin: Qt.point(root.popupX, root.popupY)
+        }
+
+        // Voile du verre : clair et transparent (le fond reste lisible)
+        readonly property color veil: Theme.dark ? Qt.rgba(0.13, 0.13, 0.14, 0.50) : Qt.rgba(1, 1, 1, 0.36)
+        readonly property color rim: Theme.dark ? Qt.rgba(1, 1, 1, 0.30) : Qt.rgba(1, 1, 1, 0.75)
+
         Item {
-            id: body
-            readonly property int margin: 24
-            readonly property int tail: 9
-            width: plate.width + 2 * margin
-            height: plate.height + tail + 2 * margin
+            id: plate
+            x: root.margin
+            y: root.margin
+            width: root.plateW
+            height: root.plateH
 
-            Item {
-                id: plate
-                x: body.margin
-                y: body.margin
-                width: root.cols * root.cell + 24
-                height: header.height + grid.height + footer.height + 8
+            // Repli sans réfraction : voile simple (flou Hyprland)
+            Rectangle {
+                anchors.fill: parent
+                radius: root.radius
+                color: Theme.menuBackground
+                visible: !glass.refracting
+            }
+            Glass {
+                id: glass
+                anchors.fill: parent
+                radius: root.radius
+                tint: "transparent"
+                overlay: refracting ? popup.veil : "transparent"
+                rimColor: popup.rim
+                shadowBlur: 0.9
+                shadowOffset: 6
+            }
 
-                Glass {
-                    anchors.fill: parent
-                    radius: 22
-                    tint: Theme.menuBackground
-                    shadowBlur: 0.9
-                    shadowOffset: 8
+            // ---- Pointe : triangle arrondi sous la plaque, liseré sur ses flancs.
+            // Elle n'est pas réfractante (9 pt de haut) : voile du verre posé
+            // directement sur le fond (la surface n'est pas floutée par Hyprland),
+            // un peu plus dense pour rejoindre la teinte de la plaque.
+            Shape {
+                x: root.tailX - root.tailW / 2
+                y: root.plateH - 2
+                width: root.tailW
+                height: root.tailH + 2
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    fillColor: glass.refracting ? Qt.rgba(popup.veil.r, popup.veil.g, popup.veil.b, Math.min(1, popup.veil.a + 0.12))
+                                                : Theme.menuBackground
+                    strokeColor: "transparent"
+                    startX: 0; startY: 2
+                    PathLine { x: root.tailW; y: 2 }
+                    PathQuad { x: root.tailW / 2 + 1.6; y: root.tailH + 1.2; controlX: root.tailW / 2 + 3; controlY: 4.5 }
+                    PathQuad { x: root.tailW / 2 - 1.6; y: root.tailH + 1.2; controlX: root.tailW / 2; controlY: root.tailH + 2.6 }
+                    PathQuad { x: 0; y: 2; controlX: root.tailW / 2 - 3; controlY: 4.5 }
                 }
-
-                Text {
-                    id: header
-                    width: parent.width
-                    height: 36
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    text: "Téléchargements"
-                    font.family: Theme.font
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                    color: Theme.label
+            }
+            // Liseré des flancs de la pointe
+            Shape {
+                x: root.tailX - root.tailW / 2
+                y: root.plateH - 2
+                width: root.tailW
+                height: root.tailH + 2
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    fillColor: "transparent"
+                    strokeColor: popup.rim
+                    strokeWidth: 1
+                    capStyle: ShapePath.RoundCap
+                    startX: -1.5; startY: 2
+                    PathQuad { x: root.tailW / 2 - 1.6; y: root.tailH + 1.2; controlX: root.tailW / 2 - 3; controlY: 4.5 }
+                    PathQuad { x: root.tailW / 2 + 1.6; y: root.tailH + 1.2; controlX: root.tailW / 2; controlY: root.tailH + 2.6 }
+                    PathQuad { x: root.tailW + 1.5; y: 2; controlX: root.tailW / 2 + 3; controlY: 4.5 }
                 }
+            }
 
-                GridView {
-                    id: grid
-                    x: 12
-                    y: header.height
-                    width: root.cols * root.cell
-                    height: Math.max(1, Math.min(root.maxRows, Math.ceil(root.fileCount / root.cols))) * (root.cell + 8)
-                    cellWidth: root.cell
-                    cellHeight: root.cell + 8
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-                    model: files
+            // ---- En-tête : nom du dossier, filet ----
+            Text {
+                id: header
+                width: parent.width
+                height: root.headerH
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                text: "Downloads"
+                font.family: Theme.font
+                font.pixelSize: 13
+                color: Theme.label
+            }
+            Rectangle {
+                y: root.headerH - 1
+                x: 1
+                width: parent.width - 2
+                height: 1
+                color: Theme.separator
+            }
 
-                    delegate: Item {
-                        id: cellItem
-                        required property string fileName
-                        required property string filePath
-                        required property bool fileIsDir
-                        width: root.cell
-                        height: root.cell + 8
+            GridView {
+                id: grid
+                x: root.sidePad
+                y: root.headerH
+                width: root.cols * root.cellW
+                height: root.rows * root.cellH
+                cellWidth: root.cellW
+                cellHeight: root.cellH
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: files
 
-                        Rectangle {
-                            anchors.fill: parent
-                            anchors.margins: 2
-                            radius: 10
-                            color: Theme.fillHover
-                            visible: hov.containsMouse
-                        }
-                        Item {
-                            id: thumb
-                            width: 52
-                            height: 52
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            y: 6
-                            Image {
-                                anchors.fill: parent
-                                visible: root.isImage(cellItem.fileName)
-                                source: visible ? "file://" + cellItem.filePath : ""
-                                sourceSize: Qt.size(104, 104)
-                                fillMode: Image.PreserveAspectFit
-                                asynchronous: true
-                            }
-                            IconImage {
-                                anchors.fill: parent
-                                visible: !root.isImage(cellItem.fileName)
-                                source: root.iconFor(cellItem.fileName, cellItem.fileIsDir)
-                            }
-                        }
-                        Text {
-                            anchors.top: thumb.bottom
-                            anchors.topMargin: 4
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: root.cell - 8
-                            horizontalAlignment: Text.AlignHCenter
-                            text: cellItem.fileName
-                            elide: Text.ElideMiddle
-                            maximumLineCount: 2
-                            wrapMode: Text.WrapAnywhere
-                            font.family: Theme.font
-                            font.pixelSize: 11
-                            color: Theme.label
-                        }
-                        MouseArea {
-                            id: hov
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: {
-                                root.close();
-                                Quickshell.execDetached(["xdg-open", cellItem.filePath]);
-                            }
-                        }
-                    }
-                }
+                delegate: Item {
+                    id: cellItem
+                    required property string fileName
+                    required property string filePath
+                    required property bool fileIsDir
+                    width: root.cellW
+                    height: root.cellH
 
-                Item {
-                    id: footer
-                    anchors.bottom: parent.bottom
-                    width: parent.width
-                    height: 40
+                    // Survol : pastille discrète derrière l'icône
                     Rectangle {
-                        anchors.top: parent.top
-                        x: 12
-                        width: parent.width - 24
-                        height: 1
-                        color: Theme.separator
-                    }
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: openLabel.implicitWidth + 24
-                        height: 24
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        y: thumb.y - 4
+                        width: root.iconBox + 8
+                        height: root.iconBox + 8
                         radius: 12
-                        color: openHov.containsMouse ? Theme.fillHover : Theme.fill
-                        Text {
-                            id: openLabel
+                        color: Theme.fill
+                        visible: hov.containsMouse
+                    }
+                    Item {
+                        id: thumb
+                        width: root.iconBox
+                        height: root.iconBox
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        y: 6
+                        // Image : miniature ; autre fichier : icône du thème
+                        Image {
                             anchors.centerIn: parent
-                            text: "Ouvrir dans le Finder"
-                            font.family: Theme.font
-                            font.pixelSize: 12
-                            color: Theme.label
+                            width: parent.width * 0.82
+                            height: width
+                            visible: root.isImage(cellItem.fileName)
+                            source: visible ? "file://" + cellItem.filePath : ""
+                            sourceSize: Qt.size(root.iconBox * 2, root.iconBox * 2)
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
                         }
-                        MouseArea {
-                            id: openHov
+                        IconImage {
                             anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: { root.close(); Quickshell.execDetached(["xdg-open", root.folder]); }
+                            visible: !root.isImage(cellItem.fileName)
+                            source: root.iconFor(cellItem.fileName, cellItem.fileIsDir)
+                        }
+                    }
+                    Text {
+                        anchors.top: thumb.bottom
+                        anchors.topMargin: 2
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: root.cellW - 8
+                        horizontalAlignment: Text.AlignHCenter
+                        text: cellItem.fileName
+                        elide: Text.ElideMiddle
+                        maximumLineCount: 1
+                        font.family: Theme.font
+                        font.pixelSize: 12
+                        color: Theme.label
+                    }
+                    MouseArea {
+                        id: hov
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            root.close();
+                            // Dossier : Finder ; fichier : app par défaut
+                            if (cellItem.fileIsDir) root.dock.model.openPath(cellItem.filePath);
+                            else root.dock.model.openFile(cellItem.filePath);
                         }
                     }
                 }
             }
 
-            // Pointe vers l'icône du Dock
-            Canvas {
-                id: tailShape
-                width: 22
-                height: body.tail + 1
-                x: body.width / 2 - width / 2
-                y: plate.y + plate.height - 1
-                onPaint: {
-                    const c = getContext("2d");
-                    c.reset();
-                    c.fillStyle = Theme.menuBackground;
-                    c.beginPath();
-                    c.moveTo(0, 0);
-                    c.quadraticCurveTo(width / 2 - 3, 1, width / 2, height - 1);
-                    c.quadraticCurveTo(width / 2 + 3, 1, width, 0);
-                    c.closePath();
-                    c.fill();
+            // ---- Pied : filet, « Open in Finder » ----
+            Rectangle {
+                y: root.plateH - root.footerH
+                x: 1
+                width: parent.width - 2
+                height: 1
+                color: Theme.separator
+            }
+            Text {
+                id: openLabel
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: root.plateH - root.footerH + (root.footerH - height) / 2
+                text: "Open in Finder"
+                font.family: Theme.font
+                font.pixelSize: 13
+                color: openHov.containsMouse ? Theme.accent : Theme.label
+                MouseArea {
+                    id: openHov
+                    anchors.fill: parent
+                    anchors.margins: -6
+                    hoverEnabled: true
+                    onClicked: { root.close(); root.dock.model.openPath(root.folder); }
                 }
             }
         }

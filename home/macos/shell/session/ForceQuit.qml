@@ -5,9 +5,12 @@ import Quickshell.Io
 import qs.common
 import qs.services
 
-// "Forcer à quitter des applications" (Cmd+Opt+Échap) : liste des apps
-// ouvertes (icône + nom), sélection accent, bouton "Forcer à quitter" qui
-// demande confirmation puis envoie SIGKILL aux processus de l'app.
+// « Force Quit Applications » (Cmd+Opt+Échap) : liste des apps ouvertes
+// (icône + nom), sélection accent, bouton « Force Quit » (« Relaunch » pour le
+// Finder) qui demande confirmation puis envoie SIGKILL aux processus de l'app.
+// Mise en page relevée sur la capture Tahoe 26 de 512pixels : fenêtre de
+// 338 x 320 pt, barre de titre de 31 pt avec séparateur, liste carrée encadrée
+// (lignes de 22 pt), indice 11 pt en bas à gauche, bouton 24 pt en bas à droite.
 Scope {
     id: root
 
@@ -34,19 +37,32 @@ Scope {
         return set;
     }
 
+    // Le Finder (gestionnaire de fichiers du Dock) se « relance » au lieu de quitter
+    function isFinder(cls) { return /^(nemo|org\.gnome\.nautilus|nautilus|finder)$/i.test(cls ?? ""); }
+    readonly property bool finderSelected: isFinder(apps[selected])
+
     function forceQuit(cls) {
         const pids = pidsOf(cls);
         confirmClass = "";
         if (pids.length === 0) return;
         const cmd = ["kill", "-9"].concat(pids.map(String));
-        if (dryRun) console.info("[session] (simulation) " + cmd.join(" "));
-        else Quickshell.execDetached(cmd);
+        if (dryRun) {
+            console.info("[session] (simulation) " + cmd.join(" "));
+            return;
+        }
+        Quickshell.execDetached(cmd);
+        if (isFinder(cls)) relaunch.restart();
+    }
+    Timer {
+        id: relaunch
+        interval: 600
+        onTriggered: Apps.launch(Apps.pinned[0] ?? "nemo")
     }
 
     GlobalShortcut {
         appid: "macos"
         name: "forcequit"
-        description: "Forcer à quitter des applications"
+        description: "Force Quit Applications"
         onPressed: root.shown ? (root.shown = false) : root.open()
     }
 
@@ -71,9 +87,11 @@ Scope {
     TahoeWindow {
         id: win
         shown: root.shown
-        title: "Forcer à quitter des applications"
-        cardWidth: 352
-        cardHeight: 430
+        title: "Force Quit Applications"
+        titleSeparator: true
+        zoomEnabled: true
+        cardWidth: 338
+        cardHeight: 320
         onCloseRequested: root.shown = false
 
         Item {
@@ -91,35 +109,31 @@ Scope {
             Text {
                 id: intro
                 x: 20
-                y: 4
+                y: 21
                 width: parent.width - 40
                 wrapMode: Text.Wrap
-                text: "Si une app ne répond pas pendant un certain temps, sélectionnez son nom et cliquez sur Forcer à quitter."
+                text: "If an app doesn’t respond for a while, select its name and click " + (root.finderSelected ? "Relaunch." : "Force Quit.")
                 font.family: Theme.font
-                font.pixelSize: 11
-                lineHeight: 1.1
+                font.pixelSize: 13
                 color: Theme.label
             }
 
-            // Liste encadrée
+            // Liste encadrée (coins droits, liseré d'un demi-point)
             Rectangle {
                 id: listBox
                 x: 20
-                anchors.top: intro.bottom
-                anchors.topMargin: 12
+                y: 61
                 width: parent.width - 40
-                anchors.bottom: hint.top
-                anchors.bottomMargin: 12
-                radius: 10
-                color: Theme.dark ? Qt.rgba(1, 1, 1, 0.05) : "white"
+                height: 168
+                color: Theme.dark ? Qt.rgba(0, 0, 0, 0.22) : "white"
                 border.width: 0.5
-                border.color: Theme.dark ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.12)
+                border.color: Theme.dark ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(0, 0, 0, 0.12)
                 clip: true
 
                 ListView {
                     id: list
                     anchors.fill: parent
-                    anchors.margins: 5
+                    anchors.margins: 1
                     model: root.apps
                     currentIndex: root.selected
                     boundsBehavior: Flickable.StopAtBounds
@@ -129,16 +143,16 @@ Scope {
                         required property int index
                         readonly property bool sel: index === root.selected
                         width: list.width
-                        height: 24
+                        height: 22
 
+                        // Sélection pleine largeur (#2A62D9 mesuré)
                         Rectangle {
                             anchors.fill: parent
-                            radius: 6
-                            color: Theme.accent
+                            color: Theme.dark ? "#0F5BD6" : "#2A62D9"
                             visible: row.sel
                         }
                         Image {
-                            x: 6
+                            x: 9
                             anchors.verticalCenter: parent.verticalCenter
                             width: 16
                             height: 16
@@ -146,11 +160,11 @@ Scope {
                             source: Apps.icon(row.modelData)
                         }
                         Text {
-                            x: 28
+                            x: 32
                             anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - 34
+                            width: parent.width - 38
                             elide: Text.ElideRight
-                            text: Apps.name(row.modelData)
+                            text: Apps.displayName(row.modelData)
                             font.family: Theme.font
                             font.pixelSize: 13
                             color: row.sel ? "white" : Theme.label
@@ -166,7 +180,7 @@ Scope {
                 Text {
                     anchors.centerIn: parent
                     visible: root.apps.length === 0
-                    text: "Aucune app ouverte"
+                    text: "No Apps Open"
                     font.family: Theme.font
                     font.pixelSize: 13
                     color: Theme.labelTertiary
@@ -176,14 +190,13 @@ Scope {
             Text {
                 id: hint
                 x: 20
-                anchors.bottom: btn.top
-                anchors.bottomMargin: 14
-                width: parent.width - 40
+                y: 243
+                width: btn.x - x - 8
                 wrapMode: Text.Wrap
-                text: "Vous pouvez ouvrir cette fenêtre en appuyant sur Commande + Option + Échap."
+                text: "You can open this window by pressing Command-Option-Escape."
                 font.family: Theme.font
-                font.pixelSize: 10
-                color: Theme.labelSecondary
+                font.pixelSize: 11
+                color: Theme.label
             }
 
             TahoeButton {
@@ -191,20 +204,21 @@ Scope {
                 anchors.right: parent.right
                 anchors.rightMargin: 20
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 18
+                anchors.bottomMargin: 20
                 implicitHeight: 24
-                text: "Forcer à quitter"
+                radius: 6
+                text: root.finderSelected ? "Relaunch" : "Force Quit"
                 isDefault: true
                 enabled: root.apps.length > 0
                 onClicked: root.confirmClass = root.apps[root.selected] ?? ""
             }
 
-            // Feuille de confirmation (assombrit la fenêtre, carte centrée en haut)
+            // Feuille de confirmation (alerte Tahoe accrochée en haut de la fenêtre)
             Rectangle {
                 anchors.fill: parent
                 anchors.topMargin: -win.titleBarHeight
                 radius: win.radius
-                color: Qt.rgba(0, 0, 0, 0.18)
+                color: Qt.rgba(0, 0, 0, 0.12)
                 opacity: root.confirmClass !== "" ? 1 : 0
                 visible: opacity > 0
                 Behavior on opacity { NumberAnimation { duration: 160 } }
@@ -213,59 +227,62 @@ Scope {
                 Item {
                     id: sheet
                     anchors.horizontalCenter: parent.horizontalCenter
-                    y: root.confirmClass !== "" ? 46 : 20
+                    y: root.confirmClass !== "" ? 30 : 10
                     Behavior on y { NumberAnimation { duration: 260; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveSpring } }
-                    width: 284
-                    height: sheetCol.implicitHeight + 40
+                    width: 260
+                    height: sheetCol.implicitHeight + 36
 
                     SessionGlass {
                         anchors.fill: parent
-                        radius: 22
-                        tint: Theme.dark ? Qt.rgba(0.17, 0.17, 0.18, 0.97) : Qt.rgba(0.98, 0.98, 0.98, 0.98)
+                        radius: 24
+                        tint: Theme.dark ? Qt.rgba(0.16, 0.16, 0.17, 0.97) : Qt.rgba(0.96, 0.96, 0.965, 0.98)
                         shadowOffset: 10
                     }
                     Column {
                         id: sheetCol
-                        x: 20
+                        x: 16
                         y: 20
-                        width: parent.width - 40
+                        width: parent.width - 32
                         Image {
-                            width: 56
-                            height: 56
-                            sourceSize: Qt.size(112, 112)
+                            x: 4
+                            width: 64
+                            height: 64
+                            sourceSize: Qt.size(128, 128)
                             source: root.confirmClass ? Apps.icon(root.confirmClass) : ""
                         }
-                        Item { width: 1; height: 12 }
+                        Item { width: 1; height: 14 }
                         Text {
-                            width: parent.width
+                            x: 4
+                            width: parent.width - 8
                             wrapMode: Text.Wrap
-                            text: "Voulez-vous forcer « " + Apps.name(root.confirmClass) + " » à quitter ?"
+                            text: "Do you want to force “" + Apps.displayName(root.confirmClass) + "” to quit?"
                             font.family: Theme.font
                             font.pixelSize: 13
                             font.weight: Font.Bold
                             color: Theme.label
                         }
-                        Item { width: 1; height: 6 }
+                        Item { width: 1; height: 9 }
                         Text {
-                            width: parent.width
+                            x: 4
+                            width: parent.width - 8
                             wrapMode: Text.Wrap
-                            text: "Vous perdrez toutes les modifications non enregistrées."
+                            text: "You will lose any unsaved changes."
                             font.family: Theme.font
-                            font.pixelSize: 11
+                            font.pixelSize: 13
                             color: Theme.label
                         }
-                        Item { width: 1; height: 16 }
+                        Item { width: 1; height: 18 }
                         Row {
                             width: parent.width
                             spacing: 8
                             TahoeButton {
                                 width: (parent.width - 8) / 2
-                                text: "Annuler"
+                                text: "Cancel"
                                 onClicked: root.confirmClass = ""
                             }
                             TahoeButton {
                                 width: (parent.width - 8) / 2
-                                text: "Forcer à quitter"
+                                text: "Force Quit"
                                 isDefault: true
                                 onClicked: root.forceQuit(root.confirmClass)
                             }

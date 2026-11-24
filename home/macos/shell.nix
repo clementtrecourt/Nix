@@ -86,6 +86,9 @@ in {
         "QT_QPA_PLATFORM=wayland"
         "QT_QUICK_CONTROLS_STYLE=Basic"
         "QS_NO_RELOAD_POPUP=1"
+        # Formats d'image supplémentaires (WebP, AVIF, TIFF…) : fonds d'écran et
+        # vignettes du Finder
+        "QT_PLUGIN_PATH=${pkgs.qt6.qtimageformats}/lib/qt-6/plugins"
       ];
     };
     Install.WantedBy = ["hyprland-session.target"];

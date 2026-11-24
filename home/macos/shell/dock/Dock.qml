@@ -11,15 +11,18 @@ import qs.services
 // agrandissement au survol, rebond au lancement, bulles de nom, menu contextuel,
 // fenêtres minimisées (effet génie), Téléchargements et Corbeille.
 //
-// Proportions mesurées au pixel sur les captures officielles Tahoe (Newsroom
-// « Apple Music » à ≈ 1 px/pt et support.apple.com « Use the Dock ») :
-//   squircle visible 46 px, pas 60 px  -> squircle / pas = 0,77 (0,75 sur l'autre)
-//   toile C (1024 px, squircle 824 px = 0,805 C) -> pas = 1,06 C (≈ 3 pt entre toiles)
-//   plaque : bord à 0,195 C de la toile en haut, en bas et aux extrémités
-//            (hauteur = 1,39 C ; 79 px pour C = 57), rayon = 0,33 × hauteur,
-//            4 pt au-dessus du bord de l'écran
-//   séparateur : fente de 0,42 pas, trait 1 pt, 0,95 pas de haut
-//   point d'app ouverte : 4 pt, centre à 4,5 pt du bas de la plaque.
+// Proportions mesurées au pixel sur deux captures Tahoe 26 : Newsroom
+// « Apple Music » (3840 px, 2,27 px/pt, Dock par défaut : toile 48 pt) et Ars
+// Technica (2560 px, Dock sombre) ; toile C (1024 px, squircle 824 = 0,805 C) :
+//   squircle 87-88 px, pas 118 px (Newsroom) ; 78 / 108 (Ars)
+//     -> pas = 1,36 squircle = 1,10 C (≈ 5 pt entre toiles pour C = 48)
+//   plaque : 152 px (Newsroom), 138 (Ars) = 1,75 squircle = 1,42 C ; bord à
+//            0,21 C de la toile en haut, en bas et aux extrémités ; rayon
+//            ≈ 0,33 × hauteur (arc ajusté : 53 px / 152) ; 5 pt au-dessus du
+//            bord de l'écran
+//   séparateur : entraxe de 1,47 pas de part et d'autre (fente de 0,47 pas),
+//            trait d'un pixel, 74 % de la hauteur de la plaque
+//   point d'app ouverte : 4 pt, centre à ~4 pt du bas de la plaque.
 //
 // IPC : quickshell -c macos ipc call dock minimize      (Cmd+M : minimise la fenêtre active)
 //       quickshell -c macos ipc call dock toggleAutohide
@@ -50,6 +53,7 @@ Scope {
                 root.minimizeGenie = g("minimizeEffect", "genie") === "genie";
                 const p = g("pinned", null);
                 if (Array.isArray(p)) dockModel.setBasePinned(p);
+                if (dockModel.stateLoaded) root.applyPrefs();
             } catch (e) {}
         }
     }
@@ -57,7 +61,19 @@ Scope {
     DockModel {
         id: dockModel
         onWindowMinimized: (t) => genie.animateMinimized(t)
+        // Réglages changés à l'exécution (IPC, raccourci) : persistés dans l'état
+        // du shell et appliqués par-dessus settings.json
+        onStateLoadedChanged: if (stateLoaded) root.applyPrefs()
     }
+    function applyPrefs() {
+        const p = dockModel.prefs;
+        if (p.autohide !== undefined) root.autohide = p.autohide;
+        if (p.magnification !== undefined) root.magnification = p.magnification;
+        if (p.showRecents !== undefined) dockModel.showRecents = p.showRecents;
+    }
+    function setAutohide(on) { root.autohide = on; dockModel.setPref("autohide", on); }
+    function setMagnification(on) { root.magnification = on; dockModel.setPref("magnification", on); }
+    function setShowRecents(on) { dockModel.showRecents = on; dockModel.setPref("showRecents", on); }
     DockIcons { id: iconResolver; maxPixels: dockArea.iconPixels }
 
     // Écran focalisé (macOS : écran principal / celui où se trouve le pointeur)
@@ -83,8 +99,41 @@ Scope {
         screen: root.targetScreen
         color: "transparent"
 
-        WlrLayershell.namespace: "macos-dock"
+        // "macos-lg-*" : pas de flou Hyprland, la plaque réfracte elle-même le
+        // fond d'écran (seul élément derrière le Dock grâce à sa zone exclusive)
+        WlrLayershell.namespace: "macos-lg-dock"
         WlrLayershell.layer: WlrLayer.Top
+        property Item glassBackdrop: dockBackdrop
+        GlassBackdrop {
+            id: dockBackdrop
+            mode: "wallpaper"
+            screen: win.screen
+            want: true
+        }
+
+        // Mission Control / App Exposé : sur macOS le Dock reste visible par-dessus.
+        // Dans une même couche, Hyprland empile les surfaces dans l'ordre où elles
+        // sont mappées : Mission Control (mappé à l'ouverture) passerait au-dessus.
+        // On re-mappe donc le Dock juste après son ouverture.
+        property bool remapping: false
+        visible: !remapping
+        Connections {
+            target: ShellState
+            function onOpenPanelChanged() {
+                if (ShellState.openPanel === "missioncontrol" || ShellState.openPanel === "appexpose")
+                    remapTimer.restart();
+            }
+        }
+        Timer {
+            id: remapTimer
+            interval: 40          // Mission Control est mappé dans l'intervalle
+            onTriggered: { win.remapping = true; remapBack.restart(); }
+        }
+        Timer {
+            id: remapBack
+            interval: 16          // une image : laisse le compositeur démapper
+            onTriggered: win.remapping = false
+        }
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
         anchors { left: true; right: true; bottom: true }
@@ -102,26 +151,27 @@ Scope {
 
             readonly property var model: dockModel
             readonly property bool trashFull: root.trashFull
+            readonly property bool stackOpen: stack.open
 
             // ---- Géométrie ----
             // Le Dock rétrécit ses tuiles s'il ne tient plus dans la largeur de l'écran.
             readonly property real fitScale: {
                 let w = 0;
                 for (let i = 0; i < dockModel.items.count; i++)
-                    w += dockModel.items.get(i).kind === "separator" ? 0.42 : 1;
+                    w += dockModel.items.get(i).kind === "separator" ? 0.47 : 1;
                 const avail = win.width - 24;
-                const need = w * root.tileSize * 1.06 + 2 * root.tileSize * 0.165;
+                const need = w * root.tileSize * 1.10 + 2 * root.tileSize * 0.16;
                 return need > avail ? avail / need : 1;
             }
             // Toile de l'icône (pt) et pas entre deux icônes
             readonly property real canvas: Math.floor(root.tileSize * fitScale)
-            readonly property real tile: canvas * 1.06
-            readonly property int padV: Math.round(canvas * 0.195)
+            readonly property real tile: canvas * 1.10
+            readonly property int padV: Math.round(canvas * 0.21)
             // Du bord de la plaque au bord de la première fente (la toile y est centrée)
             readonly property real padH: padV - (tile - canvas) / 2
             readonly property int platterH: canvas + 2 * padV
             readonly property int platterRadius: Math.round(platterH * 0.33)
-            readonly property int bottomGap: 4
+            readonly property int bottomGap: 5
             readonly property real maxScale: root.magnification ? Math.max(1, root.largeSize / root.tileSize) : 1
             // Rastérisation des icônes : une seule fois, à la taille maximale affichée
             // (agrandissement inclus) × densité de l'écran ; jamais pendant l'animation.
@@ -276,7 +326,9 @@ Scope {
             property real dragScale: 1
             property string dragIcon: ""
             // Assez loin au-dessus de la plaque : « Supprimer » (comme macOS)
-            readonly property bool dragOut: dragKey !== "" && dragY < platterTop - tile * 1.2
+            // (le Finder ne se retire pas du Dock)
+            property bool dragFinder: false
+            readonly property bool dragOut: dragKey !== "" && !dragFinder && dragY < platterTop - tile * 1.2
             property var pressTile: null
             property real pressX: 0
             property real pressY: 0
@@ -287,6 +339,7 @@ Scope {
                 dragSize = t.vSize;
                 dragScale = t.iconScale;
                 dragIcon = t.iconSource;
+                dragFinder = dockModel.isFinder(t.appId);
                 dockModel.frozen = true;
                 dragKey = t.key;
                 pressedIndex = -1;
@@ -422,10 +475,10 @@ Scope {
                 }
             }
             DockLabel {
-                // « Supprimer » au-dessus de l'icône sortie du Dock
+                // « Remove » au-dessus de l'icône sortie du Dock
                 z: 10
                 shown: dockArea.dragOut && dockModel.isPinned(dockArea.tileForKey(dockArea.dragKey)?.appId ?? "")
-                text: "Supprimer"
+                text: "Remove"
                 tipX: dockArea.dragX
                 tipY: dockArea.dragY - dockArea.dragSize / 2 - 6
             }
@@ -452,7 +505,8 @@ Scope {
             DockLabel {
                 id: bubble
                 readonly property var t: dockArea.tileAt(dockArea.hoveredIndex)
-                shown: dockArea.hovering && !menu.open && t !== null && !t.isSeparator && dockArea.pressedIndex < 0 && dockArea.dragKey === ""
+                instant: menu.open || stack.open
+                shown: dockArea.hovering && !menu.open && !stack.open && t !== null && !t.isSeparator && dockArea.pressedIndex < 0 && dockArea.dragKey === ""
                 text: t ? t.label : ""
                 tipX: t ? t.x + t.width / 2 : 0
                 tipY: t ? Math.min(dockArea.platterTop, t.vTop) - 10 : 0
@@ -489,24 +543,24 @@ Scope {
     GlobalShortcut {
         appid: "macos"
         name: "minimize"
-        description: "Minimiser la fenêtre active dans le Dock"
+        description: "Minimize the active window into the Dock"
         onPressed: genie.minimizeActive()
     }
     GlobalShortcut {
         appid: "macos"
         name: "dock-autohide"
-        description: "Masquer / afficher automatiquement le Dock"
-        onPressed: root.autohide = !root.autohide
+        description: "Turn Dock hiding on or off"
+        onPressed: root.setAutohide(!root.autohide)
     }
 
     IpcHandler {
         target: "dock"
         // Minimise la fenêtre active vers le Dock (à lier à Cmd+M)
         function minimize(): void { genie.minimizeActive(); }
-        function toggleAutohide(): void { root.autohide = !root.autohide; }
-        function setAutohide(on: bool): void { root.autohide = on; }
-        function setMagnification(on: bool): void { root.magnification = on; }
-        function setShowRecents(on: bool): void { dockModel.showRecents = on; }
+        function toggleAutohide(): void { root.setAutohide(!root.autohide); }
+        function setAutohide(on: bool): void { root.setAutohide(on); }
+        function setMagnification(on: bool): void { root.setMagnification(on); }
+        function setShowRecents(on: bool): void { root.setShowRecents(on); }
     }
 
     // Débogage (banc de test : pas de clic souris possible dans l'instance imbriquée)

@@ -50,7 +50,7 @@ Singleton {
     readonly property color menuHighlightText: "#FFFFFF"
 
     // ---- Géométrie ----
-    readonly property int menuBarHeight: 32       // Tahoe : barre plus haute, sans fond
+    readonly property int menuBarHeight: 24       // Tahoe sans encoche : 24 pt, sans fond
     readonly property int radiusMenu: 12
     readonly property int radiusMenuItem: 7
     readonly property int radiusPanel: 26         // Control Center, Notification Center

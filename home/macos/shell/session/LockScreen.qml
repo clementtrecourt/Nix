@@ -34,18 +34,20 @@ Scope {
     property string faceSource: ""
 
     // Source de saisie active (coin supérieur droit, comme macOS : « U.S. »,
-    // « Français »…), lue dans Hyprland puis suivie par l'événement activelayout.
+    // « French »…), lue dans Hyprland puis suivie par l'événement activelayout.
     property string layoutName: ""
     function layoutLabel(name) {
         const n = name ?? "";
         if (/^English \(US\)|^US\b/.test(n)) return "U.S.";
-        if (/^English \(UK\)/.test(n)) return "Britannique";
-        if (/^French/.test(n)) return "Français";
-        if (/^German/.test(n)) return "Allemand";
-        if (/^Spanish/.test(n)) return "Espagnol";
-        if (/^Italian/.test(n)) return "Italien";
-        if (/^Belgian/.test(n)) return "Belge";
-        if (/^Swiss/.test(n)) return "Suisse romand";
+        if (/^English \(UK\)/.test(n)) return "British";
+        // xkb « French » = AZERTY PC ; « French (Macintosh) » = AZERTY Mac
+        if (/^French \(Macintosh\)/.test(n)) return "French";
+        if (/^French/.test(n)) return "French - PC";
+        if (/^German/.test(n)) return "German";
+        if (/^Spanish/.test(n)) return "Spanish";
+        if (/^Italian/.test(n)) return "Italian";
+        if (/^Belgian/.test(n)) return "Belgian";
+        if (/^Swiss/.test(n)) return "Swiss French";
         // Nom inconnu : partie avant « - » ou « ( », pour rester court
         return n.split(/ - | \(/)[0];
     }
@@ -67,7 +69,7 @@ Scope {
         errorText = "";
         if (!pam.start()) {
             authenticating = false;
-            errorText = "Authentification indisponible";
+            errorText = "Authentication unavailable";
         }
     }
 
@@ -148,7 +150,7 @@ Scope {
                 root.failures += 1;
                 root.password = "";
                 root.shakeSerial += 1;
-                if (result === PamResult.MaxTries) root.errorText = "Trop de tentatives";
+                if (result === PamResult.MaxTries) root.errorText = "Too many attempts. Try again later.";
             }
         }
         // Erreur PAM (module refusé, service absent…) : comme un échec, mais
@@ -157,7 +159,7 @@ Scope {
             root.authenticating = false;
             root.password = "";
             root.shakeSerial += 1;
-            root.errorText = "Impossible de vérifier le mot de passe";
+            root.errorText = "Unable to verify password";
             console.info("lock: erreur PAM", PamError.toString(err));
         }
     }
@@ -191,7 +193,7 @@ Scope {
     GlobalShortcut {
         appid: "macos"
         name: "lock"
-        description: "Verrouiller l’écran"
+        description: "Lock Screen"
         onPressed: root.lock()
     }
 

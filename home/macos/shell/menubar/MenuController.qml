@@ -35,6 +35,14 @@ QtObject {
 
     signal closed()
 
+    // Couches de menu par écran (glisser-relâcher depuis un titre de la barre)
+    property var layers: ({})
+    function registerLayer(name, layer) {
+        const l = Object.assign({}, layers);
+        l[name] = layer;
+        layers = l;
+    }
+
     function registerBar(name, bar) {
         const b = Object.assign({}, bars);
         b[name] = bar;

@@ -11,7 +11,8 @@ import qs.services
 //  - sélection : carré arrondi de 121 pt (icône + 9 pt), rayon 33 pt, gris
 //    translucide ; coins du panneau concentriques (33 + 27 = 60 pt) ;
 //  - nom de l'app sous la sélection, 13 pt semi-gras ;
-//  - verre "clair" très transparent (flou Hyprland), sans ombre portée.
+//  - Liquid Glass très transparent (réfraction d'une capture de l'écran),
+//    sans ombre portée.
 PanelWindow {
     id: panel
 
@@ -32,11 +33,15 @@ PanelWindow {
     readonly property real panelW: count * pitch + 41 * k
     readonly property real panelH: 175 * k
     readonly property real artTop: pad
+    // Position du pointeur à l'apparition du panneau (survol sans mouvement ignoré)
+    property bool pointerAnchored: false
+    property point pointerAnchor: Qt.point(0, 0)
+    onContentShownChanged: pointerAnchored = false
 
     // Nom affiché : celui du .desktop, sinon la classe rendue lisible
     // ("org.gnome.Calculator" -> "Calculator", "kitty" -> "Kitty")
     function appName(cls) {
-        if (Apps.entryFor(cls)) return Apps.name(cls);
+        if (Apps.entryFor(cls)) return Apps.displayName(cls);
         const last = String(cls).split(".").pop();
         return last.charAt(0).toUpperCase() + last.slice(1);
     }
@@ -46,8 +51,25 @@ PanelWindow {
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "macos-appswitcher"
+    // "macos-lg-*" : pas de flou Hyprland (le verre réfracte lui-même la capture)
+    WlrLayershell.namespace: "macos-lg-appswitcher"
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+    // Fond du verre : capture de l'écran prise dès le premier Cmd+Tab. La
+    // surface est alors déjà mappée (pour le clavier) mais son contenu est à
+    // opacité 0 et son namespace n'est pas flouté : elle est invisible dans la
+    // capture. L'image arrive en ~50 ms, bien avant les 120 ms d'attente du
+    // panneau : aucun retard ajouté dans le cas normal.
+    property Item glassBackdrop: backdrop
+    GlassBackdrop {
+        id: backdrop
+        mode: "snapshot"
+        screen: panel.screen
+        want: panel.visible
+        timeout: 200
+    }
+    // Contenu affiché : 120 ms écoulées ET capture disponible
+    readonly property bool contentShown: switcher.shown && backdrop.pass
 
     // La surface est créée (invisible) dès le premier Cmd+Tab pour prendre le
     // clavier : on voit ainsi passer le relâchement de Cmd même si Hyprland ne
@@ -76,9 +98,9 @@ PanelWindow {
             }
         }
         Connections {
-            target: panel.switcher
-            function onShownChanged() {
-                if (panel.switcher.shown) fadeIn.restart();
+            target: panel
+            function onContentShownChanged() {
+                if (panel.contentShown) fadeIn.restart();
                 else { fadeIn.stop(); body.opacity = 0; }
             }
         }
@@ -87,9 +109,9 @@ PanelWindow {
             anchors.fill: parent
             radius: 60 * panel.k
             shadowEnabled: false
-            // Clair : sur un terminal sombre (~40) la capture de référence donne
-            // ~90-130, soit un voile blanc d'environ 40 %
-            tint: Theme.dark ? Qt.rgba(0.08, 0.08, 0.09, 0.38) : Qt.rgba(0.85, 0.85, 0.87, 0.40)
+            // Verre très transparent : le fond (flouté, réfracté au bord) reste
+            // bien lisible au travers, à peine assombri en mode sombre
+            tint: Theme.dark ? Qt.rgba(0.10, 0.10, 0.11, 0.30) : Qt.rgba(1, 1, 1, 0.14)
         }
 
         // Sélection
@@ -131,9 +153,21 @@ PanelWindow {
                     width: panel.pitch
                     height: panel.panelH
                     hoverEnabled: true
-                    enabled: panel.switcher.shown
-                    // Comme macOS : la sélection suit la souris seulement si elle bouge
-                    onPositionChanged: panel.switcher.select(cell.index)
+                    enabled: panel.contentShown
+                    // Comme macOS : la sélection suit la souris seulement si elle
+                    // bouge (le panneau qui apparaît sous un pointeur immobile
+                    // génère aussi un événement de position : ignoré)
+                    onPositionChanged: e => {
+                        const pt = mapToItem(body, e.x, e.y);
+                        if (!panel.pointerAnchored) {
+                            panel.pointerAnchored = true;
+                            panel.pointerAnchor = pt;
+                            return;
+                        }
+                        if (Math.hypot(pt.x - panel.pointerAnchor.x, pt.y - panel.pointerAnchor.y) < 3) return;
+                        panel.pointerAnchor = Qt.point(-1000, -1000);
+                        panel.switcher.select(cell.index);
+                    }
                     onClicked: { panel.switcher.select(cell.index); panel.switcher.commit(); }
                 }
             }

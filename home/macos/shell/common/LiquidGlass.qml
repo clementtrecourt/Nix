@@ -54,17 +54,27 @@ Item {
 
     // Valeurs relevées sur les captures Tahoe (Dock clair : liseré d'un demi-
     // point ~ +30 niveaux, lueur interne ~ +6 niveaux sur ~7 pt).
-    property color rimColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.42) : Qt.rgba(1, 1, 1, 0.55)
-    property real rimWidth: 1.0
-    property real rimBase: 0.35
-    property color glowColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.16)
-    property real glowWidth: Math.min(10, Math.min(width, height) * 0.2)
+    property color rimColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.62) : Qt.rgba(1, 1, 1, 0.92)
+    property real rimWidth: 1.4
+    property real rimBase: 0.14
+    property color glowColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.32)
+    property real glowWidth: Math.min(8, Math.min(width, height) * 0.14)
     property color shadeColor: Theme.dark ? Qt.rgba(0, 0, 0, 0.12) : Qt.rgba(0, 0, 0, 0.04)
     property real shadeWidth: Math.min(7, Math.min(width, height) * 0.14)
     property real lightAngle: 225
+    // Bande d'épaisseur (absorption) : largeur, assombrissement, saturation
+    property real edgeWidth: Math.max(2.5, Math.min(5, Math.min(width, height) * 0.08))
+    property real edgeDarken: clear ? 0.14 : (Theme.dark ? 0.34 : 0.26)
+    property real edgeSaturate: 0.6
     // Sans réfraction, l'ombre reste sous le seuil ignore_alpha de Hyprland
     // (cf. Glass.qml) ; avec réfraction (namespace sans flou), libre.
     property real shadowMax: refracting ? 1.0 : Theme.layerBlurIgnoreAlpha - 0.003
+
+    // Voile composé en alpha normal PAR-DESSUS le fond réfracté (avant le liseré).
+    // À utiliser pour les verres denses (menus, notifications, alertes) au lieu
+    // d'un Rectangle peint sous le verre : avec réfraction, le verre est opaque
+    // et masquerait ce Rectangle.
+    property color overlay: "transparent"
 
     // ---- Liquid Glass ----
     property string backdrop: "none"
@@ -83,7 +93,7 @@ Item {
     // Flou (sigma, px logiques) : Tahoe floute nettement moins que Big Sur ;
     // les grands verres diffusent un peu plus (WWDC25 « Meet Liquid Glass »)
     property real blur: clear ? 1.5 : Math.max(3, Math.min(8, Math.min(width, height) * 0.11))
-    property real saturation: clear ? 1.3 : (Theme.dark ? 1.25 : 1.7)
+    property real saturation: clear ? 1.2 : (Theme.dark ? 1.15 : 1.25)
     property real adaptive: clear ? 0.0 : 0.7
     // Voile sombre sous le contenu : Apple (HIG Materials) recommande ~0.35
     // pour la variante « clear » posée sur un fond clair
@@ -104,7 +114,7 @@ Item {
     readonly property color _defaultTint: clear
         ? (Theme.dark ? Qt.rgba(0, 0, 0, 0.22) : Qt.rgba(1, 1, 1, 0.08))
         : thick ? (Theme.dark ? Qt.rgba(0.11, 0.11, 0.12, 0.72) : Qt.rgba(0.94, 0.94, 0.95, 0.72))
-        : (Theme.dark ? Qt.rgba(0.10, 0.10, 0.11, 0.46) : Qt.rgba(0.66, 0.66, 0.67, 0.41))
+        : (Theme.dark ? Qt.rgba(0.10, 0.10, 0.11, 0.42) : Qt.rgba(1, 1, 1, 0.10))
 
     // ---- Position du verre sur l'écran ----
     readonly property var _win: QsWindow.window
@@ -237,6 +247,10 @@ Item {
         property real shadowMax: root.shadowMax
         property vector2d lightDir: Qt.vector2d(-Math.cos(root.lightAngle * Math.PI / 180),
                                                 -Math.sin(root.lightAngle * Math.PI / 180))
+        property real edgeWidth: root.edgeWidth
+        property real edgeDarken: root.edgeDarken
+        property real edgeSaturate: root.edgeSaturate
+        property color overlay: root.overlay
     }
 
     Item {

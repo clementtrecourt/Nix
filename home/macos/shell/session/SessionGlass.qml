@@ -19,13 +19,17 @@ Item {
     property int shadowOffset: 8
     property color shadowColor: Theme.shadow
 
+    // Avec réfraction, le verre est opaque : la teinte devient son voile (overlay)
     Rectangle {
         anchors.fill: parent
         radius: root.radius
         color: root.tint
+        visible: !glass.refracting
     }
     Glass {
+        id: glass
         anchors.fill: parent
+        overlay: refracting ? root.tint : "transparent"
         radius: root.radius
         tint: "transparent"
         shadowBlur: root.shadowBlur

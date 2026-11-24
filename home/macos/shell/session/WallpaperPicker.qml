@@ -4,7 +4,7 @@ import Quickshell.Widgets
 import qs.common
 import qs.services
 
-// Sélecteur de fond d'écran (menu du bureau "Changer le fond d'écran…" ou
+// Sélecteur de fond d'écran (menu du bureau « Change Wallpaper… » ou
 // ShellState "wallpaper") : aperçu courant en haut, puis vignettes arrondies
 // par section comme Réglages > Fond d'écran. Sélection = anneau accent.
 Scope {
@@ -32,7 +32,7 @@ Scope {
     TahoeWindow {
         id: win
         shown: root.shown
-        title: "Fond d’écran"
+        title: "Wallpaper"
         cardWidth: 660
         cardHeight: 520
         minimizeEnabled: true
@@ -81,7 +81,7 @@ Scope {
                     }
                     Text {
                         text: WallpaperService.source === ""
-                            ? "Dynamique : clair ou sombre selon l’apparence"
+                            ? "Dynamic Wallpaper · light or dark with your appearance"
                             : WallpaperService.realPath
                         width: header.width - preview.width - 52
                         elide: Text.ElideMiddle
@@ -111,7 +111,7 @@ Scope {
                     spacing: 8
 
                     Text {
-                        text: "Fonds d’écran"
+                        text: "Dynamic Wallpapers"
                         font.family: Theme.font
                         font.pixelSize: 13
                         font.weight: Font.Bold
@@ -130,7 +130,7 @@ Scope {
 
                     Item { width: 1; height: 6 }
                     Text {
-                        text: "Dossiers"
+                        text: "Your Photos"
                         font.family: Theme.font
                         font.pixelSize: 13
                         font.weight: Font.Bold
@@ -138,7 +138,7 @@ Scope {
                     }
                     Text {
                         visible: WallpaperService.images.length === 0
-                        text: "Ajoutez des images dans ~/Pictures/Wallpapers ou ~/.config/macos-shell/wallpapers pour les voir ici."
+                        text: "Add images to ~/Pictures/Wallpapers or ~/.config/macos-shell/wallpapers to see them here."
                         font.family: Theme.font
                         font.pixelSize: 11
                         color: Theme.labelSecondary

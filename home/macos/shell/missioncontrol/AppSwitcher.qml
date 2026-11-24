@@ -192,13 +192,13 @@ Scope {
     GlobalShortcut {
         appid: "macos"
         name: "switcher-next"
-        description: "Application suivante (Cmd+Tab)"
+        description: "Next application (Cmd+Tab)"
         onPressed: root.step(1)
     }
     GlobalShortcut {
         appid: "macos"
         name: "switcher-prev"
-        description: "Application précédente (Cmd+Maj+Tab)"
+        description: "Previous application (Cmd+Shift+Tab)"
         onPressed: root.step(-1)
     }
     // Relâchement de Cmd (bindrt) : selon la version d'Hyprland l'événement
@@ -206,7 +206,7 @@ Scope {
     GlobalShortcut {
         appid: "macos"
         name: "switcher-commit"
-        description: "Valider le sélecteur (relâchement de Cmd)"
+        description: "Commit the app switcher (Cmd release)"
         onPressed: root.commit()
         onReleased: root.commit()
     }
@@ -232,7 +232,7 @@ Scope {
         function commit(): void { root.commit(); }
         function cancel(): void { root.cancel(); }
         function state(): string {
-            return JSON.stringify({ active: root.active, shown: root.shown, index: root.index, items: root.items, mru: root.mru, apps: root.apps });
+            return JSON.stringify({ act: Hyprland.activeToplevel?.address ?? null, actCls: Windows.activeClass, active: root.active, shown: root.shown, index: root.index, items: root.items, mru: root.mru, apps: root.apps });
         }
     }
 }

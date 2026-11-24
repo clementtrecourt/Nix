@@ -13,12 +13,12 @@ Item {
 
     readonly property int year: today.getFullYear()
     readonly property int month: today.getMonth()
-    // Lundi = premier jour (locale française)
-    readonly property int firstOffset: (new Date(year, month, 1).getDay() + 6) % 7
+    // Dimanche = premier jour (locale anglaise US)
+    readonly property int firstOffset: new Date(year, month, 1).getDay()
     readonly property int daysInMonth: new Date(year, month + 1, 0).getDate()
     readonly property int rows: Math.ceil((firstOffset + daysInMonth) / 7)
-    readonly property var monthNames: ["JANVIER", "FÉVRIER", "MARS", "AVRIL", "MAI", "JUIN", "JUILLET",
-                                       "AOÛT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DÉCEMBRE"]
+    readonly property var monthNames: ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY",
+                                       "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"]
 
     WidgetTile { anchors.fill: parent }
 
@@ -46,7 +46,7 @@ Item {
 
         // Initiales des jours
         Repeater {
-            model: ["L", "M", "M", "J", "V", "S", "D"]
+            model: ["S", "M", "T", "W", "T", "F", "S"]
             Text {
                 required property string modelData
                 required property int index
@@ -55,7 +55,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 text: modelData
-                color: index >= 5 ? Theme.labelTertiary : Theme.labelSecondary
+                color: index === 0 || index === 6 ? Theme.labelTertiary : Theme.labelSecondary
                 font.family: Theme.font
                 font.pixelSize: 9
                 font.weight: Font.Bold
@@ -69,7 +69,7 @@ Item {
                 readonly property int day: index - w.firstOffset + 1
                 readonly property bool valid: day >= 1 && day <= w.daysInMonth
                 readonly property bool isToday: valid && day === w.today.getDate()
-                readonly property bool weekend: index % 7 >= 5
+                readonly property bool weekend: index % 7 === 0 || index % 7 === 6
                 width: grid.cellW
                 height: grid.cellH
                 Rectangle {

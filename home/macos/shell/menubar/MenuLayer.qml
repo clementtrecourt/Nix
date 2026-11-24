@@ -6,8 +6,9 @@ import qs.common
 // Couche plein écran (sous la barre) qui affiche le menu ouvert sur cet écran :
 // elle capte le clavier (↑ ↓ ← → Entrée Échap, saisie rapide) et les clics
 // hors du menu (qui ferment le menu sans atteindre l'app, comme sur macOS).
-// Hyprland floute ce qui est derrière le verre du menu (namespace macos-menu,
-// ignore_alpha : les zones transparentes ne sont pas floutées).
+// Le verre des menus (Liquid Glass) réfracte une capture de l'écran prise
+// juste avant l'ouverture (GlassBackdrop "snapshot") ; Hyprland ne floute donc
+// pas cette surface (namespace macos-lg-*).
 PanelWindow {
     id: menuLayer
 
@@ -15,21 +16,41 @@ PanelWindow {
     // Nom de l'écran (fixe : évite une boucle de liaison avec `screen`)
     property string screenName: ""
 
-    visible: controller.screenName === screenName && (controller.isOpen || controller.closing)
+    // Fond réfracté par tous les verres de la couche (menu et sous-menus)
+    property Item glassBackdrop: backdrop
+    GlassBackdrop {
+        id: backdrop
+        mode: "snapshot"
+        screen: menuLayer.screen
+        want: menuLayer.controller.screenName === menuLayer.screenName
+              && (menuLayer.controller.isOpen || menuLayer.controller.closing)
+        // Position de la couche sur l'écran (ancrée en haut, margins.top)
+        origin: Qt.point(0, menuLayer.top)
+    }
+    // Délai d'ouverture dû à la capture (debug : menubar-debug state)
+    property real snapshotLatency: 0
+    property double _t0: 0
+    Connections {
+        target: backdrop
+        function onWantChanged() { if (backdrop.want) menuLayer._t0 = Date.now(); }
+        function onPassChanged() { if (backdrop.pass) menuLayer.snapshotLatency = Date.now() - menuLayer._t0; }
+    }
+    // Visible dès que la capture du fond est arrivée (~50 ms)
+    visible: backdrop.pass
     color: "transparent"
 
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "macos-menu"
+    WlrLayershell.namespace: "macos-lg-menu"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-    // Respecte la zone exclusive de la barre : la couche commence sous elle, la
-    // barre reste survolable (bascule d'un menu à l'autre).
-    exclusionMode: ExclusionMode.Normal
+    // La couche commence juste sous la pastille du titre (Tahoe : le menu est
+    // collé à la pastille, ~1 pt plus bas) ; au-dessus, la barre reste
+    // survolable (bascule d'un menu à l'autre). Positionnée depuis le haut de
+    // l'écran (zones exclusives ignorées : un menu peut passer sur le Dock),
+    // à la même place en plein écran.
+    exclusionMode: ExclusionMode.Ignore
     exclusiveZone: 0
-    // En plein écran, la barre abandonne sa zone exclusive : on décale alors la
-    // couche nous-mêmes sous la barre révélée (sinon le menu la recouvre et on
-    // ne peut plus glisser d'un titre à l'autre).
-    readonly property var bar: controller.bars[screenName] ?? null
-    margins.top: bar && bar.fullscreen ? Theme.menuBarHeight : 0
+    readonly property int top: Math.round((Theme.menuBarHeight + 22) / 2) + 1
+    margins.top: top
     anchors {
         top: true
         bottom: true
@@ -43,6 +64,34 @@ PanelWindow {
         anchors.fill: parent
         acceptedButtons: Qt.AllButtons
         onPressed: menuLayer.controller.close(false)
+    }
+
+    Component.onCompleted: controller.registerLayer(screenName, menuLayer)
+
+    // Glisser-relâcher depuis un titre de la barre (le pointeur appartient
+    // encore à la barre) : (x, y) dans le repère de cette couche. Survole la
+    // ligne sous le pointeur ; au relâchement, la choisit ou ferme le menu.
+    function dragAt(x, y, release) {
+        const root = loader.item;
+        if (!root) return;
+        const chain = [];
+        for (let p = root; p; p = p.childPanel) chain.push(p);
+        for (let k = chain.length - 1; k >= 0; k--) {
+            const p = chain[k];
+            const pt = p.mapFromItem(keys, x, y);
+            if (pt.x < 0 || pt.y < 0 || pt.x >= p.width || pt.y >= p.height) continue;
+            const i = p.rowIndexAt(pt.y);
+            if (release) {
+                if (i >= 0 && p.selectable(i) && !p.model[i].hasSubmenu) p.activate(i, false);
+                else if (i < 0 || !p.selectable(i)) controller.close(false);
+            } else if (i >= 0 && p.currentIndex !== i) {
+                p.hover(i);
+            }
+            return;
+        }
+        // Hors des menus : plus de surbrillance ; relâché là, le menu se ferme
+        if (release) controller.close(false);
+        else if (chain[chain.length - 1].subIndex === -1) chain[chain.length - 1].currentIndex = -1;
     }
 
     // Saisie rapide : sélectionne l'élément suivant qui commence par la lettre
@@ -107,8 +156,9 @@ PanelWindow {
             Component.onCompleted: if (menuLayer.controller.keyboardOpened) selectFirst()
         }
 
-        x: Math.max(6, Math.min(menuLayer.controller.anchorX, menuLayer.width - (item?.width ?? 0) - 6))
-        y: 3
+        // (abscisse entière : texte et liseré nets)
+        x: Math.round(Math.max(6, Math.min(menuLayer.controller.anchorX, menuLayer.width - (item?.width ?? 0) - 6)))
+        y: 0
 
         NumberAnimation {
             id: fadeOut

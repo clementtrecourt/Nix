@@ -35,13 +35,21 @@ Scope {
 
     PanelWindow {
         id: win
-        visible: root.open
+        // Le verre réfracte une capture de l'écran prise juste avant l'ouverture
+        property Item glassBackdrop: backdrop
+        GlassBackdrop {
+            id: backdrop
+            mode: "snapshot"
+            screen: win.screen
+            want: root.open
+        }
+        visible: backdrop.pass
         color: "transparent"
         screen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0]
 
         readonly property int pad: 40
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.namespace: "macos-alert"
+        WlrLayershell.namespace: "macos-lg-alert"
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
         exclusionMode: ExclusionMode.Ignore
         anchors.top: true
@@ -64,6 +72,7 @@ Scope {
             radius: card.radius
             color: Theme.glassThick
             antialiasing: true
+            visible: !card.refracting
         }
         Glass {
             id: card
@@ -73,6 +82,8 @@ Scope {
             height: col.implicitHeight + 40
             radius: 24
             tint: "transparent"
+            // Avec réfraction, le verre est opaque : la teinte devient son voile
+            overlay: refracting ? Theme.glassThick : "transparent"
 
             MouseArea { anchors.fill: parent }
 
@@ -130,7 +141,7 @@ Scope {
                     AlertButton {
                         id: cancelBtn
                         width: buttons.stacked ? col.width : (col.width - 8) / 2
-                        text: "Annuler"; onClicked: root.cancel()
+                        text: "Cancel"; onClicked: root.cancel()
                     }
                     AlertButton {
                         visible: !buttons.stacked

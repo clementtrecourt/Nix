@@ -44,13 +44,14 @@ Column {
     DetailHeader {
         title: "Bluetooth"
         hasSwitch: true
+        switchEnabled: !!root.adapter
         checked: root.enabled_
         onToggled: on => { if (root.adapter) root.adapter.enabled = on; }
     }
 
     DetailCaption {
         visible: root.enabled_ && root.paired.length > 0
-        text: "Appareils"
+        text: "Devices"
     }
     Repeater {
         model: root.enabled_ ? root.paired : []
@@ -61,14 +62,14 @@ Column {
             text: modelData.name
             active: modelData.connected
             busy: root.busy(modelData)
-            detail: modelData.connected && modelData.batteryAvailable ? Math.round(modelData.battery * 100) + " %" : ""
+            detail: modelData.connected && modelData.batteryAvailable ? Math.round(modelData.battery * 100) + "%" : ""
             onClicked: modelData.connected ? modelData.disconnect() : modelData.connect()
         }
     }
 
     DetailCaption {
         visible: root.enabled_
-        text: "Autres appareils"
+        text: "Other Devices"
         collapsible: true
         expanded: root.nearbyOpen
         onToggled: root.nearbyOpen = !root.nearbyOpen
@@ -85,7 +86,7 @@ Column {
     }
 
     DetailFooter {
-        text: "Réglages Bluetooth…"
+        text: "Bluetooth Settings…"
         onClicked: {
             CCActions.openSettings("bluetooth");
             ShellState.close();

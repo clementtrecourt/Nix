@@ -4,10 +4,13 @@ import Quickshell.Hyprland
 import qs.common
 import qs.services
 
-// Alertes "Éteindre / Redémarrer / Fermer la session" de macOS Tahoe :
-// alerte centrée, icône et textes alignés à gauche (nouveauté Tahoe), case
-// "Rouvrir les fenêtres…", compte à rebours de 60 s, boutons capsule
-// Annuler / action (par défaut, Entrée). Échap annule.
+// Alertes « Shut Down / Restart / Log Out » de macOS Tahoe : alerte centrée,
+// icône et textes alignés à gauche (nouveauté Tahoe), case « Reopen windows
+// when logging back in », compte à rebours de 60 s, boutons capsule Cancel /
+// action (par défaut, Entrée). Échap annule.
+// Métriques (alertes Tahoe 26, captures 512pixels) : 260 pt de large, textes
+// à 20 pt du bord, titre gras 13 pt, texte 13 pt, boutons de 28 pt à 16 pt du
+// bord, 8 pt entre eux.
 Scope {
     id: root
 
@@ -17,21 +20,22 @@ Scope {
     // Banc de test : n'exécute rien de réel
     readonly property bool dryRun: Quickshell.env("QS_SESSION_DEBUG") === "1"
 
+    function seconds(n) { return n + (n === 1 ? " second." : " seconds."); }
     readonly property var texts: ({
         shutdown: {
-            title: "Voulez-vous vraiment éteindre votre ordinateur maintenant ?",
-            body: n => "Si vous ne faites rien, l’ordinateur s’éteindra automatiquement dans " + n + " seconde" + (n > 1 ? "s" : "") + ".",
-            button: "Éteindre"
+            title: "Are you sure you want to shut down your computer now?",
+            body: n => "If you do nothing, the computer will shut down automatically in " + root.seconds(n),
+            button: "Shut Down"
         },
         restart: {
-            title: "Voulez-vous vraiment redémarrer votre ordinateur maintenant ?",
-            body: n => "Si vous ne faites rien, l’ordinateur redémarrera automatiquement dans " + n + " seconde" + (n > 1 ? "s" : "") + ".",
-            button: "Redémarrer"
+            title: "Are you sure you want to restart your computer now?",
+            body: n => "If you do nothing, the computer will restart automatically in " + root.seconds(n),
+            button: "Restart"
         },
         logout: {
-            title: "Voulez-vous vraiment quitter toutes les apps et fermer la session maintenant ?",
-            body: n => "Si vous ne faites rien, votre session sera automatiquement fermée dans " + n + " seconde" + (n > 1 ? "s" : "") + ".",
-            button: "Fermer la session"
+            title: "Are you sure you want to quit all apps and log out now?",
+            body: n => "If you do nothing, you will be logged out automatically in " + root.seconds(n),
+            button: "Log Out"
         }
     })
     readonly property var t: texts[kind] ?? texts.shutdown
@@ -83,7 +87,7 @@ Scope {
         titleBar: false
         exclusiveKeyboard: true
         cardWidth: 260
-        cardHeight: col.implicitHeight + 40
+        cardHeight: col.implicitHeight + 36
 
         Item {
             anchors.fill: parent
@@ -94,14 +98,15 @@ Scope {
 
             Column {
                 id: col
-                x: 20
+                x: 16
                 y: 20
-                width: parent.width - 40
+                width: parent.width - 32
                 spacing: 0
 
                 // Icône Tahoe : disque gris "verre" + pictogramme d'alimentation
                 // (même icône pour Éteindre / Redémarrer / Fermer la session)
                 Item {
+                    x: 4
                     width: 64
                     height: 64
                     Rectangle {
@@ -124,7 +129,8 @@ Scope {
                 }
                 Item { width: 1; height: 14 }
                 Text {
-                    width: parent.width
+                    x: 4
+                    width: parent.width - 8
                     text: root.t.title
                     wrapMode: Text.Wrap
                     font.family: Theme.font
@@ -132,21 +138,23 @@ Scope {
                     font.weight: Font.Bold
                     color: Theme.label
                 }
-                Item { width: 1; height: 8 }
+                Item { width: 1; height: 9 }
                 Text {
-                    width: parent.width
+                    x: 4
+                    width: parent.width - 8
                     text: root.t.body(root.remaining)
                     wrapMode: Text.Wrap
                     font.family: Theme.font
-                    font.pixelSize: 11
-                    lineHeight: 1.1
+                    font.pixelSize: 13
                     color: Theme.label
                 }
                 Item { width: 1; height: 14 }
                 TahoeCheckbox {
                     id: reopen
-                    width: parent.width
-                    text: "Rouvrir les fenêtres lors de la prochaine connexion"
+                    x: 4
+                    width: parent.width - 8
+                    text: "Reopen windows when logging back in"
+                    fontSize: 13
                     checked: true
                 }
                 Item { width: 1; height: 18 }
@@ -163,7 +171,7 @@ Scope {
                         id: cancelBtn
                         width: buttons.stacked ? buttons.width : buttons.half
                         y: buttons.stacked ? okBtn.height + 8 : 0
-                        text: "Annuler"
+                        text: "Cancel"
                         onClicked: root.cancel()
                     }
                     TahoeButton {

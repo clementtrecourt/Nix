@@ -7,7 +7,7 @@ import Quickshell.Services.UPower
 import qs.services
 
 // Contenu des menus de la barre, construit à l'ouverture (libellés d'un Mac en
-// français, raccourcis et pictos comme dans macOS Tahoe).
+// anglais US, raccourcis et pictos comme dans macOS Tahoe).
 //
 // Un élément de menu est un objet JS :
 //   { text, icon: "<symbole>", iconSource: "<url>", shortcut: ["⇧⌘", "Z"],
@@ -37,7 +37,7 @@ Item {
         return (ws.name ?? "").startsWith("special:") && !Windows.isMinimized(w) ? w : null;
     }
     readonly property string cls: Windows.classOf(win)
-    readonly property string appName: cls ? Apps.name(cls) : "Finder"
+    readonly property string appName: cls ? Apps.displayName(cls) : "Finder"
     readonly property bool isFinder: cls === ""
 
     // Nom complet de l'utilisateur (champ GECOS), sinon identifiant capitalisé
@@ -57,7 +57,7 @@ Item {
         }
     }
 
-    // Documents récents (GTK) pour « Éléments récents »
+    // Documents récents (GTK) pour « Recent Items »
     FileView {
         id: recentFile
         path: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/recently-used.xbel"
@@ -198,38 +198,41 @@ Item {
     // Titres de la barre, dans l'ordre
     function titles() {
         return [
-            { id: "file", text: "Fichier" },
-            { id: "edit", text: "Édition" },
-            { id: "view", text: "Présentation" },
-            ...(isFinder ? [{ id: "go", text: "Aller" }] : []),
-            { id: "window", text: "Fenêtre" },
-            { id: "help", text: "Aide" }
+            { id: "file", text: "File" },
+            { id: "edit", text: "Edit" },
+            { id: "view", text: "View" },
+            ...(isFinder ? [{ id: "go", text: "Go" }] : []),
+            { id: "window", text: "Window" },
+            { id: "help", text: "Help" }
         ];
     }
 
-    // Menu  (ici le flocon NixOS)
+    // Menu Apple ()
     function logoMenu() {
+        // Tahoe : chaque élément du menu Apple a son picto (capture du menu
+        // Apple de macOS 26, jimnielsen.com « Tahoe's icons »)
+        const store = DesktopEntries.byId("org.gnome.Software");
         return [
-            it("À propos de ce Mac", { action: () => ShellState.open("about") }),
+            it("About This Mac", { icon: "laptopcomputer", action: () => ShellState.open("about") }),
             sep(),
-            it("Réglages Système…", { action: () => Apps.launch("org.gnome.Settings") }),
-            it("App Store…", { enabled: false }),
+            it("System Settings…", { icon: "gear", action: () => Apps.launch("org.gnome.Settings") }),
+            it("App Store", { icon: "appstore", enabled: !!store, action: () => Apps.launch("org.gnome.Software") }),
             sep(),
-            it("Éléments récents", { submenu: () => recentMenu() }),
+            it("Recent Items", { icon: "clock", submenu: () => recentMenu() }),
             sep(),
-            it("Forcer à quitter…", { shortcut: ["⌥⌘", "⎋"], action: () => ShellState.open("forcequit") }),
+            it("Force Quit…", { icon: "xmark.octagon", shortcut: ["⌥⌘", "⎋"], action: () => ShellState.open("forcequit") }),
             sep(),
-            it("Suspendre", { action: () => Quickshell.execDetached(["systemctl", "suspend"]) }),
-            it("Redémarrer…", { action: () => ShellState.open("restart") }),
-            it("Éteindre…", { action: () => ShellState.open("shutdown") }),
+            it("Sleep", { icon: "powersleep", action: () => Quickshell.execDetached(["systemctl", "suspend"]) }),
+            it("Restart…", { icon: "restart", action: () => ShellState.open("restart") }),
+            it("Shut Down…", { icon: "power", action: () => ShellState.open("shutdown") }),
             sep(),
-            it("Verrouiller l’écran", { shortcut: ["⌃⌘", "Q"], action: () => ShellState.open("lock") }),
-            it("Fermer la session de " + userName + "…", { shortcut: ["⇧⌘", "Q"], action: () => ShellState.open("logout") })
+            it("Lock Screen", { icon: "lock", shortcut: ["⌃⌘", "Q"], action: () => ShellState.open("lock") }),
+            it("Log Out " + userName + "…", { icon: "person.crop.circle", shortcut: ["⇧⌘", "Q"], action: () => ShellState.open("logout") })
         ];
     }
 
     // Apps utilisées pendant la session, de la plus récente à la plus ancienne
-    // (section « Applications » des Éléments récents)
+    // (section « Applications » des Recent Items)
     property var recentApps: []
     onClsChanged: {
         if (!cls) return;
@@ -242,9 +245,8 @@ Item {
         const apps = recentApps.concat(Windows.runningClasses.filter(c => !recentApps.some(r => r.toLowerCase() === c.toLowerCase()))).slice(0, 10);
         for (const c of apps) {
             const cc = c;
-            out.push(it(Apps.name(c), { iconSource: Apps.icon(c), action: () => Apps.launch(cc) }));
+            out.push(it(Apps.displayName(c), { iconSource: Apps.icon(c), action: () => Apps.launch(cc) }));
         }
-        if (apps.length === 0) out.push(it("Aucun élément", { enabled: false }));
 
         // Documents (et dossiers) récents de GTK, avec leur type MIME
         const txt = recentFile.text() ?? "";
@@ -257,11 +259,13 @@ Item {
             docs.push({ href: m[1], when: m[2], mime: mime ? mime[1] : "" });
         }
         docs.sort((a, b) => (a.when < b.when ? 1 : -1));
+        // (« Clear Menu » : seuls les documents ouverts depuis comptent)
+        const fresh = docs.filter(d => !clearedAt || d.when > clearedAt);
         out.push(sep());
         out.push(hdr("Documents"));
         const seen = {};
         let n = 0;
-        for (const d of docs) {
+        for (const d of fresh) {
             if (n >= 10) break;
             if (seen[d.href]) continue;
             seen[d.href] = true;
@@ -274,10 +278,19 @@ Item {
             }));
             n++;
         }
-        if (n === 0) out.push(it("Aucun élément", { enabled: false }));
         out.push(sep());
-        out.push(it("Effacer le menu", { enabled: false }));
+        out.push(hdr("Servers"));
+        out.push(sep());
+        out.push(it("Clear Menu", { enabled: n > 0 || apps.length > 0, action: () => root.clearRecent() }));
         return out;
+    }
+
+    // « Clear Menu » : vide les listes affichées sans toucher au fichier GTK
+    // partagé avec les autres apps (horodatage ISO, comparable aux dates xbel)
+    property string clearedAt: ""
+    function clearRecent() {
+        recentApps = [];
+        clearedAt = new Date().toISOString();
     }
 
     // Icône de type de fichier (thème d'icônes) : type MIME exact
@@ -335,38 +348,38 @@ Item {
         const mine = cls ? Windows.windowsOf(cls) : [];
         const c = cls;
         return [
-            // (un Mac en français dit « À propos du Finder »)
-            it(isFinder ? "À propos du Finder" : "À propos de " + appName, { icon: "info.circle", action: () => root.showAbout(c) }),
+            // (pictos du menu de l'app : capture du menu Safari de macOS 26)
+            it("About " + appName, { icon: "info.circle", action: () => root.showAbout(c) }),
             sep(),
-            it("Réglages…", {
-                icon: "gearshape", shortcut: ["⌘", ","], enabled: !isFinder,
+            it("Settings…", {
+                icon: "gear", shortcut: ["⌘", ","], enabled: !isFinder,
                 action: () => send("CTRL", "comma")
             }),
             ...(isFinder ? [
                 sep(),
-                it("Vider la corbeille…", {
+                it("Empty Trash…", {
                     icon: "trash", shortcut: ["⇧⌘", "⌫"], enabled: trashCount > 0,
                     action: () => root.emptyTrashRequested(trashCount)
                 })
             ] : []),
             sep(),
-            it("Services", { submenu: [it("Aucun service ne s’applique", { enabled: false }), sep(), it("Préférences des services…", { enabled: false })] }),
+            it("Services", { icon: "gearshape.2", submenu: [it("No Services Apply", { enabled: false }), it("Services Settings…", { enabled: false })] }),
             sep(),
-            it("Masquer " + appName, {
-                icon: "eye.slash", shortcut: ["⌘", "H"], enabled: mine.length > 0,
+            it("Hide " + appName, {
+                icon: "macwindow.dashed", shortcut: ["⌘", "H"], enabled: mine.length > 0,
                 action: () => { for (const t of mine) Windows.minimize(t); }
             }),
-            it("Masquer les autres", {
-                shortcut: ["⌥⌘", "H"], enabled: others.length > 0,
+            it("Hide Others", {
+                icon: "macwindow.on.rectangle.dashed", shortcut: ["⌥⌘", "H"], enabled: others.length > 0,
                 action: () => { for (const t of others) Windows.minimize(t); }
             }),
-            it("Tout afficher", {
-                enabled: hidden.length > 0,
+            it("Show All", {
+                icon: "macwindow.on.rectangle.solid", enabled: hidden.length > 0,
                 action: () => { for (const t of hidden) Windows.restore(t); }
             }),
             ...(isFinder ? [] : [
                 sep(),
-                it("Quitter " + appName, { icon: "xmark.rectangle", shortcut: ["⌘", "Q"], action: () => Windows.quitApp(c) })
+                it("Quit " + appName, { icon: "xmark.square", shortcut: ["⌘", "Q"], action: () => Windows.quitApp(c) })
             ])
         ];
     }
@@ -376,25 +389,51 @@ Item {
         const w = win;
         const mine = cls ? Windows.windowsOf(cls) : [];
         if (isFinder) {
+            // Menu Fichier du Finder de Tahoe (Macworld, comparaison 15 / 26) ;
+            // sans sélection sur le bureau, presque tout est grisé
+            const off = { enabled: false };
             return [
-                it("Nouvelle fenêtre Finder", { icon: "macwindow.badge.plus", shortcut: ["⌘", "N"], action: () => Apps.launch("nemo") }),
-                it("Nouveau dossier", { icon: "folder.badge.plus", shortcut: ["⇧⌘", "N"], enabled: false }),
-                it("Ouvrir", { shortcut: ["⌘", "O"], enabled: false }),
+                it("New Finder Window", { icon: "macwindow.badge.plus", shortcut: ["⌘", "N"], action: () => Quickshell.execDetached(["quickshell", "-p", Quickshell.shellDir, "ipc", "call", "finder", "newWindow"]) }),
+                it("New Folder", Object.assign({ icon: "folder.badge.plus", shortcut: ["⇧⌘", "N"] }, off)),
+                it("New Folder with Selection", Object.assign({ shortcut: ["⌃⌘", "N"] }, off)),
+                it("New Smart Folder", off),
+                it("New Tab", Object.assign({ icon: "plus.square.on.square", shortcut: ["⌘", "T"] }, off)),
+                it("Open", Object.assign({ shortcut: ["⌘", "O"] }, off)),
+                it("Open With", Object.assign({ submenu: [] }, off)),
+                it("Close Window", Object.assign({ icon: "xmark", shortcut: ["⌘", "W"] }, off)),
                 sep(),
-                it("Fermer la fenêtre", { icon: "xmark", shortcut: ["⌘", "W"], enabled: false })
+                it("Get Info", Object.assign({ icon: "info.circle", shortcut: ["⌘", "I"] }, off)),
+                it("Rename", Object.assign({ icon: "pencil" }, off)),
+                it("Compress", Object.assign({ icon: "doc.zipper" }, off)),
+                it("Duplicate", Object.assign({ icon: "plus.square.on.square", shortcut: ["⌘", "D"] }, off)),
+                it("Make Alias", Object.assign({ shortcut: ["⌃⌘", "A"] }, off)),
+                it("Quick Look", Object.assign({ icon: "eye", shortcut: ["⌘", "Y"] }, off)),
+                it("Print", Object.assign({ icon: "printer", shortcut: ["⌘", "P"] }, off)),
+                sep(),
+                it("Share…", Object.assign({ icon: "square.and.arrow.up" }, off)),
+                sep(),
+                it("Show Original", Object.assign({ shortcut: ["⌘", "R"] }, off)),
+                it("Add to Dock", Object.assign({ shortcut: ["⌃⇧⌘", "T"] }, off)),
+                sep(),
+                it("Move to Trash", Object.assign({ icon: "trash", shortcut: ["⌘", "⌫"] }, off)),
+                it("Eject", Object.assign({ icon: "eject.fill", shortcut: ["⌘", "E"] }, off)),
+                sep(),
+                it("Tags…", Object.assign({ icon: "tag" }, off)),
+                sep(),
+                it("Find", { icon: "magnifyingglass", shortcut: ["⌘", "F"], action: () => ShellState.open("spotlight") })
             ];
         }
         return [
-            it("Nouvelle fenêtre", { icon: "macwindow.badge.plus", shortcut: ["⌘", "N"], action: () => Apps.launch(c) }),
-            it("Ouvrir…", { icon: "folder", shortcut: ["⌘", "O"], action: () => send("CTRL", "O") }),
+            it("New Window", { icon: "macwindow.badge.plus", shortcut: ["⌘", "N"], action: () => Apps.launch(c) }),
+            it("Open…", { icon: "folder", shortcut: ["⌘", "O"], action: () => send("CTRL", "O") }),
             sep(),
-            it("Fermer la fenêtre", { icon: "xmark", shortcut: ["⌘", "W"], enabled: !!w, action: () => Windows.close(w) }),
-            it("Tout fermer", {
+            it("Close Window", { icon: "xmark", shortcut: ["⌘", "W"], enabled: !!w, action: () => Windows.close(w) }),
+            it("Close All", {
                 shortcut: ["⌥⌘", "W"], enabled: mine.length > 1,
                 action: () => { for (const t of mine) Windows.close(t); }
             }),
             sep(),
-            it("Imprimer…", { icon: "printer", shortcut: ["⌘", "P"], action: () => send("CTRL", "P") })
+            it("Print…", { icon: "printer", shortcut: ["⌘", "P"], action: () => send("CTRL", "P") })
         ];
     }
 
@@ -402,41 +441,75 @@ Item {
         const on = !isFinder;
         const cm = isTerminal ? "CTRL SHIFT" : "CTRL";
         return [
-            it("Annuler", { icon: "arrow.uturn.backward", shortcut: ["⌘", "Z"], enabled: on, action: () => send("CTRL", "Z") }),
-            it("Rétablir", { icon: "arrow.uturn.forward", shortcut: ["⇧⌘", "Z"], enabled: on, action: () => send("CTRL SHIFT", "Z") }),
+            it("Undo", { icon: "arrow.uturn.backward", shortcut: ["⌘", "Z"], enabled: on, action: () => send("CTRL", "Z") }),
+            it("Redo", { icon: "arrow.uturn.forward", shortcut: ["⇧⌘", "Z"], enabled: on, action: () => send("CTRL SHIFT", "Z") }),
             sep(),
-            it("Couper", { icon: "scissors", shortcut: ["⌘", "X"], enabled: on, action: () => send(cm, "X") }),
-            it("Copier", { icon: "doc.on.doc", shortcut: ["⌘", "C"], enabled: on, action: () => send(cm, "C") }),
-            it("Coller", { icon: "doc.on.clipboard", shortcut: ["⌘", "V"], enabled: on, action: () => send(cm, "V") }),
-            it("Supprimer", { icon: "trash", enabled: on, action: () => send("", "Delete") }),
-            it("Tout sélectionner", { icon: "character.textbox", shortcut: ["⌘", "A"], enabled: on, action: () => send(cm, "A") }),
+            it("Cut", { icon: "scissors", shortcut: ["⌘", "X"], enabled: on, action: () => send(cm, "X") }),
+            it("Copy", { icon: "doc.on.doc", shortcut: ["⌘", "C"], enabled: on, action: () => send(cm, "C") }),
+            it("Paste", { icon: "doc.on.clipboard", shortcut: ["⌘", "V"], enabled: on, action: () => send(cm, "V") }),
+            ...(isFinder ? [] : [it("Delete", { icon: "trash", enabled: on, action: () => send("", "Delete") })]),
+            it("Select All", { icon: "character.textbox", shortcut: ["⌘", "A"], enabled: on, action: () => send(cm, "A") }),
             sep(),
-            it("Rechercher", {
+            // (Finder : presse-papiers au lieu de Rechercher)
+            ...(isFinder ? [it("Show Clipboard", { icon: "doc.on.clipboard", enabled: false })] : [it("Find", {
                 icon: "magnifyingglass", enabled: on, submenu: [
-                    it("Rechercher…", { shortcut: ["⌘", "F"], action: () => send("CTRL", "F") }),
-                    it("Rechercher le suivant", { shortcut: ["⌘", "G"], action: () => send("CTRL", "G") }),
-                    it("Rechercher le précédent", { shortcut: ["⇧⌘", "G"], action: () => send("CTRL SHIFT", "G") })
+                    it("Find…", { shortcut: ["⌘", "F"], action: () => send("CTRL", "F") }),
+                    it("Find Next", { shortcut: ["⌘", "G"], action: () => send("CTRL", "G") }),
+                    it("Find Previous", { shortcut: ["⇧⌘", "G"], action: () => send("CTRL SHIFT", "G") })
                 ]
-            }),
+            })]),
             sep(),
-            it("Recopie automatique", { enabled: false }),
-            it("Démarrer la dictée…", { enabled: false }),
-            it("Emoji et symboles", { icon: "globe", shortcut: ["", "🌐E"], enabled: false })
+            it("AutoFill", { enabled: false }),
+            it("Start Dictation…", { enabled: false }),
+            it("Emoji & Symbols", { icon: "globe", shortcut: ["", "🌐E"], enabled: false })
+        ];
+    }
+
+    // Présentation du Finder (bureau au premier plan) : options d'affichage,
+    // sans objet ici sauf « Show View Options » absent : tout est grisé
+    function finderViewMenu() {
+        const off = { enabled: false };
+        return [
+            it("as Icons", Object.assign({ icon: "square.grid.2x2", shortcut: ["⌘", "1"] }, off)),
+            it("as List", Object.assign({ icon: "list.bullet", shortcut: ["⌘", "2"] }, off)),
+            it("as Columns", Object.assign({ shortcut: ["⌘", "3"] }, off)),
+            it("as Gallery", Object.assign({ shortcut: ["⌘", "4"] }, off)),
+            sep(),
+            it("Use Stacks", { shortcut: ["⌃⌘", "0"], enabled: false }),
+            it("Sort By", { submenu: [], enabled: false }),
+            it("Clean Up", { enabled: false }),
+            it("Clean Up By", { submenu: [], enabled: false }),
+            sep(),
+            it("Hide Sidebar", { shortcut: ["⌃⌘", "S"], enabled: false }),
+            it("Show Preview", { shortcut: ["⇧⌘", "P"], enabled: false }),
+            sep(),
+            it("Hide Toolbar", { shortcut: ["⌥⌘", "T"], enabled: false }),
+            it("Show All Tabs", { shortcut: ["⇧⌘", "\\"], enabled: false }),
+            it("Show Tab Bar", { shortcut: ["⇧⌘", "T"], enabled: false }),
+            it("Show Path Bar", { shortcut: ["⌥⌘", "P"], enabled: false }),
+            it("Show Status Bar", { shortcut: ["⌘", "/"], enabled: false }),
+            sep(),
+            it("Customize Toolbar…", { enabled: false }),
+            sep(),
+            it("Show View Options", { shortcut: ["⌘", "J"], enabled: false }),
+            sep(),
+            it("Enter Full Screen", { icon: "arrow.up.left.and.arrow.down.right", shortcut: ["", "🌐F"], enabled: false })
         ];
     }
 
     function viewMenu() {
+        if (isFinder) return finderViewMenu();
         const on = !isFinder;
         const fs = (win?.lastIpcObject?.fullscreen ?? 0) === 2;
         return [
-            it("Afficher la barre d’onglets", { enabled: false }),
-            it("Afficher tous les onglets", { shortcut: ["⇧⌘", "\\"], enabled: false }),
+            it("Show Tab Bar", { enabled: false }),
+            it("Show All Tabs", { shortcut: ["⇧⌘", "\\"], enabled: false }),
             sep(),
-            it("Agrandir", { icon: "plus.magnifyingglass", shortcut: ["⌘", "+"], enabled: on, action: () => send(isTerminal ? "CTRL SHIFT" : "CTRL", "equal") }),
-            it("Réduire", { icon: "minus.magnifyingglass", shortcut: ["⌘", "-"], enabled: on, action: () => send(isTerminal ? "CTRL SHIFT" : "CTRL", "minus") }),
-            it("Taille réelle", { shortcut: ["⌘", "0"], enabled: on, action: () => send(isTerminal ? "CTRL SHIFT" : "CTRL", "0") }),
+            it("Zoom In", { icon: "plus.magnifyingglass", shortcut: ["⌘", "+"], enabled: on, action: () => send(isTerminal ? "CTRL SHIFT" : "CTRL", "equal") }),
+            it("Zoom Out", { icon: "minus.magnifyingglass", shortcut: ["⌘", "-"], enabled: on, action: () => send(isTerminal ? "CTRL SHIFT" : "CTRL", "minus") }),
+            it("Actual Size", { shortcut: ["⌘", "0"], enabled: on, action: () => send(isTerminal ? "CTRL SHIFT" : "CTRL", "0") }),
             sep(),
-            it(fs ? "Quitter le mode plein écran" : "Passer en mode plein écran", {
+            it(fs ? "Exit Full Screen" : "Enter Full Screen", {
                 icon: "arrow.up.left.and.arrow.down.right", shortcut: ["", "🌐F"], enabled: !!win,
                 action: () => dispatch("fullscreen 0")
             })
@@ -453,7 +526,7 @@ Item {
         Windows.focus(w);
     }
 
-    // Dossier utilisateur XDG (Documents, Bureau…) ouvert dans le gestionnaire de fichiers
+    // Dossier utilisateur XDG (Documents, Desktop…) ouvert dans le gestionnaire de fichiers
     function openUserDir(kind) {
         Quickshell.execDetached(["sh", "-c", 'xdg-open "$(xdg-user-dir "$1" 2>/dev/null || echo "$HOME")"', "sh", kind]);
     }
@@ -463,26 +536,26 @@ Item {
     function goMenu() {
         const home = Quickshell.env("HOME");
         return [
-            it("Précédent", { shortcut: ["⌘", "["], enabled: false }),
-            it("Suivant", { shortcut: ["⌘", "]"], enabled: false }),
-            it("Dossier parent", { shortcut: ["⌘", "↑"], enabled: false }),
+            it("Back", { shortcut: ["⌘", "["], enabled: false }),
+            it("Forward", { shortcut: ["⌘", "]"], enabled: false }),
+            it("Enclosing Folder", { shortcut: ["⌘", "↑"], enabled: false }),
             sep(),
-            it("Récents", { icon: "clock", shortcut: ["⇧⌘", "F"], action: () => openPath("recent:///") }),
+            it("Recents", { icon: "clock", shortcut: ["⇧⌘", "F"], action: () => openPath("recent:///") }),
             it("Documents", { icon: "doc", shortcut: ["⇧⌘", "O"], action: () => openUserDir("DOCUMENTS") }),
-            it("Bureau", { icon: "menubar.dock.rectangle", shortcut: ["⇧⌘", "D"], action: () => openUserDir("DESKTOP") }),
-            it("Téléchargements", { icon: "arrow.down.circle", shortcut: ["⌥⌘", "L"], action: () => openUserDir("DOWNLOAD") }),
-            it("Départ", { icon: "house", shortcut: ["⇧⌘", "H"], action: () => openPath(home) }),
-            it("Ordinateur", { icon: "desktopcomputer", shortcut: ["⇧⌘", "C"], action: () => openPath("computer:///") }),
+            it("Desktop", { icon: "menubar.dock.rectangle", shortcut: ["⇧⌘", "D"], action: () => openUserDir("DESKTOP") }),
+            it("Downloads", { icon: "arrow.down.circle", shortcut: ["⌥⌘", "L"], action: () => openUserDir("DOWNLOAD") }),
+            it("Home", { icon: "house", shortcut: ["⇧⌘", "H"], action: () => openPath(home) }),
+            it("Computer", { icon: "desktopcomputer", shortcut: ["⇧⌘", "C"], action: () => openPath("computer:///") }),
             it("AirDrop", { icon: "airdrop", shortcut: ["⇧⌘", "R"], enabled: false }),
-            it("Réseau", { icon: "network", shortcut: ["⇧⌘", "K"], action: () => openPath("network:///") }),
+            it("Network", { icon: "network", shortcut: ["⇧⌘", "K"], action: () => openPath("network:///") }),
             it("iCloud Drive", { icon: "icloud", shortcut: ["⇧⌘", "I"], enabled: false }),
             it("Applications", { icon: "square.grid.3x3", shortcut: ["⇧⌘", "A"], action: () => ShellState.open("apps") }),
-            it("Utilitaires", { icon: "wrench.and.screwdriver", shortcut: ["⇧⌘", "U"], enabled: false }),
+            it("Utilities", { icon: "wrench.and.screwdriver", shortcut: ["⇧⌘", "U"], enabled: false }),
             sep(),
-            it("Dossiers récents", { submenu: () => recentFolders() }),
+            it("Recent Folders", { submenu: () => recentFolders() }),
             sep(),
-            it("Aller au dossier…", { shortcut: ["⇧⌘", "G"], action: () => ShellState.open("spotlight") }),
-            it("Se connecter au serveur…", { shortcut: ["⌘", "K"], enabled: false })
+            it("Go to Folder…", { shortcut: ["⇧⌘", "G"], action: () => ShellState.open("spotlight") }),
+            it("Connect to Server…", { shortcut: ["⌘", "K"], enabled: false })
         ];
     }
 
@@ -508,9 +581,8 @@ Item {
             const dir = d.dir;
             out.push(it(name, { iconSource: Quickshell.iconPath("folder"), action: () => openPath(dir) }));
         }
-        if (out.length === 0) out.push(it("Aucun élément", { enabled: false }));
-        out.push(sep());
-        out.push(it("Effacer le menu", { enabled: false }));
+        if (out.length) out.push(sep());
+        out.push(it("Clear Menu", { enabled: out.length > 0, action: () => root.clearRecent() }));
         return out;
     }
 
@@ -520,41 +592,58 @@ Item {
         const others = recentOthers(w);
         const mine = cls ? Windows.windowsOf(cls) : [];
         const out = [
-            it("Placer dans le Dock", { icon: "minus.rectangle", shortcut: ["⌘", "M"], enabled: has, action: () => Windows.minimize(w) }),
-            it("Zoom", { icon: "plus.rectangle", enabled: has, action: () => dispatch("fullscreen 1") }),
+            it("Minimize", { icon: "minus.rectangle", shortcut: ["⌘", "M"], enabled: has, action: () => Windows.minimize(w) }),
+            it("Zoom", { icon: "viewfinder.rectangle", enabled: has, action: () => dispatch("fullscreen 1") }),
+            it("Fill", { icon: "rectangle.inset.filled", shortcut: ["⌃", "🌐F"], enabled: has, action: () => place(0, 0, 1, 1) }),
+            it("Center", { icon: "rectangle.center.inset.filled", shortcut: ["⌃", "🌐C"], enabled: has, action: () => dispatch("centerwindow 1") }),
             sep(),
-            it("Remplir", { icon: "rectangle.inset.filled", shortcut: ["⌃", "🌐F"], enabled: has, action: () => place(0, 0, 1, 1) }),
-            it("Centrer", { icon: "rectangle.center.inset.filled", shortcut: ["⌃", "🌐C"], enabled: has, action: () => dispatch("centerwindow 1") }),
-            sep(),
-            it("Déplacer et redimensionner", {
+            it("Move & Resize", {
                 icon: "rectangle.lefthalf.inset.filled", enabled: has, submenu: [
                     // (flèches pleines ◀ ▶ ▲ ▼ comme sur Tahoe : ⌃ 🌐 ◀)
-                    hdr("Moitiés"),
-                    it("Gauche", { icon: "rectangle.lefthalf.inset.filled", shortcut: ["⌃", "🌐◀"], action: () => place(0, 0, 0.5, 1) }),
-                    it("Droite", { icon: "rectangle.righthalf.inset.filled", shortcut: ["⌃", "🌐▶"], action: () => place(0.5, 0, 0.5, 1) }),
-                    it("Haut", { icon: "rectangle.tophalf.inset.filled", shortcut: ["⌃", "🌐▲"], action: () => place(0, 0, 1, 0.5) }),
-                    it("Bas", { icon: "rectangle.bottomhalf.inset.filled", shortcut: ["⌃", "🌐▼"], action: () => place(0, 0.5, 1, 0.5) }),
+                    hdr("Halves"),
+                    it("Left", { icon: "rectangle.lefthalf.inset.filled", shortcut: ["⌃", "🌐◀"], action: () => place(0, 0, 0.5, 1) }),
+                    it("Right", { icon: "rectangle.righthalf.inset.filled", shortcut: ["⌃", "🌐▶"], action: () => place(0.5, 0, 0.5, 1) }),
+                    it("Top", { icon: "rectangle.tophalf.inset.filled", shortcut: ["⌃", "🌐▲"], action: () => place(0, 0, 1, 0.5) }),
+                    it("Bottom", { icon: "rectangle.bottomhalf.inset.filled", shortcut: ["⌃", "🌐▼"], action: () => place(0, 0.5, 1, 0.5) }),
                     sep(),
-                    hdr("Quarts"),
-                    it("En haut à gauche", { icon: "rectangle.inset.topleft.filled", action: () => place(0, 0, 0.5, 0.5) }),
-                    it("En haut à droite", { icon: "rectangle.inset.topright.filled", action: () => place(0.5, 0, 0.5, 0.5) }),
-                    it("En bas à gauche", { icon: "rectangle.inset.bottomleft.filled", action: () => place(0, 0.5, 0.5, 0.5) }),
-                    it("En bas à droite", { icon: "rectangle.inset.bottomright.filled", action: () => place(0.5, 0.5, 0.5, 0.5) }),
+                    hdr("Quarters"),
+                    it("Top Left", { icon: "rectangle.inset.topleft.filled", action: () => place(0, 0, 0.5, 0.5) }),
+                    it("Top Right", { icon: "rectangle.inset.topright.filled", action: () => place(0.5, 0, 0.5, 0.5) }),
+                    it("Bottom Left", { icon: "rectangle.inset.bottomleft.filled", action: () => place(0, 0.5, 0.5, 0.5) }),
+                    it("Bottom Right", { icon: "rectangle.inset.bottomright.filled", action: () => place(0.5, 0.5, 0.5, 0.5) }),
                     sep(),
                     // Disposer : la fenêtre active et la (les) précédente(s)
-                    hdr("Disposer"),
-                    it("Gauche et droite", { icon: "rectangle.split.leftright", shortcut: ["⌃⇧", "🌐◀"], enabled: others.length > 0, action: () => arrange([[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]]) }),
-                    it("Droite et gauche", { icon: "rectangle.split.rightleft", shortcut: ["⌃⇧", "🌐▶"], enabled: others.length > 0, action: () => arrange([[0.5, 0, 0.5, 1], [0, 0, 0.5, 1]]) }),
-                    it("Haut et bas", { icon: "rectangle.split.topbottom", shortcut: ["⌃⇧", "🌐▲"], enabled: others.length > 0, action: () => arrange([[0, 0, 1, 0.5], [0, 0.5, 1, 0.5]]) }),
-                    it("Bas et haut", { icon: "rectangle.split.bottomtop", shortcut: ["⌃⇧", "🌐▼"], enabled: others.length > 0, action: () => arrange([[0, 0.5, 1, 0.5], [0, 0, 1, 0.5]]) }),
-                    it("Quarts", { icon: "rectangle.split.2x2.filled", enabled: others.length > 0, action: () => arrange([[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5], [0, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5]]) }),
+                    hdr("Arrange"),
+                    it("Left & Right", { icon: "rectangle.split.leftright", shortcut: ["⌃⇧", "🌐◀"], enabled: others.length > 0, action: () => arrange([[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]]) }),
+                    it("Right & Left", { icon: "rectangle.split.rightleft", shortcut: ["⌃⇧", "🌐▶"], enabled: others.length > 0, action: () => arrange([[0.5, 0, 0.5, 1], [0, 0, 0.5, 1]]) }),
+                    it("Top & Bottom", { icon: "rectangle.split.topbottom", shortcut: ["⌃⇧", "🌐▲"], enabled: others.length > 0, action: () => arrange([[0, 0, 1, 0.5], [0, 0.5, 1, 0.5]]) }),
+                    it("Bottom & Top", { icon: "rectangle.split.bottomtop", shortcut: ["⌃⇧", "🌐▼"], enabled: others.length > 0, action: () => arrange([[0, 0.5, 1, 0.5], [0, 0, 1, 0.5]]) }),
+                    it("Quarters", { icon: "rectangle.split.2x2.filled", enabled: others.length > 0, action: () => arrange([[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5], [0, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5]]) }),
                     sep(),
-                    it("Revenir à la taille précédente", { shortcut: ["⌃", "🌐R"], enabled: hasPrev(w), action: () => restorePrev(w) })
+                    it("Return to Previous Size", { shortcut: ["⌃", "🌐R"], enabled: hasPrev(w), action: () => restorePrev(w) })
+                ]
+            }),
+            it("Full Screen Tile", {
+                icon: "rectangle.split.leftright", enabled: has, submenu: [
+                    it("Left of Screen", { icon: "rectangle.lefthalf.inset.filled", action: () => place(0, 0, 0.5, 1) }),
+                    it("Right of Screen", { icon: "rectangle.righthalf.inset.filled", action: () => place(0.5, 0, 0.5, 1) })
                 ]
             }),
             sep(),
-            it("Tout ramener au premier plan", {
-                enabled: mine.length > 0,
+            it("Remove Window from Set", { icon: "rectangle.3.group", enabled: false }),
+            sep(),
+            // ⌘` : fenêtre suivante de la même app
+            it("Cycle Through Windows", {
+                icon: "arrow.left.arrow.right", shortcut: ["⌘", "`"], enabled: mine.length > 1,
+                action: () => {
+                    const vis = mine.filter(t => !Windows.isMinimized(t));
+                    const k = vis.indexOf(w);
+                    if (vis.length > 1) Windows.focus(vis[(k + 1) % vis.length]);
+                }
+            }),
+            sep(),
+            it("Bring All to Front", {
+                icon: "square.stack.3d.up", enabled: mine.length > 0,
                 action: () => {
                     for (const t of mine) {
                         if (Windows.isMinimized(t)) Windows.restore(t);
@@ -569,7 +658,7 @@ Item {
             for (const t of mine) {
                 const tt = t;
                 out.push(it(t.title || appName, {
-                    checked: t === w,
+                    icon: "macwindow", checked: t === w,
                     minimized: Windows.isMinimized(t),
                     action: () => Windows.focus(tt)
                 }));
@@ -581,28 +670,28 @@ Item {
     function helpMenu() {
         return [
             { search: true, provider: () => root.searchable() },
-            it("Aide " + appName, { enabled: false })
+            it(isFinder ? "macOS Help" : appName + " Help", { enabled: false })
         ];
     }
 
     // ---- Menus des icônes d'état ----
 
-    // Batterie : « Batterie   85 % », source d'alimentation, réglages
+    // Batterie : « Battery   85% », source d'alimentation, réglages
     function batteryMenu(dev) {
-        const pct = Math.round((dev?.percentage ?? 0) * 100) + " %";
+        const pct = Math.round((dev?.percentage ?? 0) * 100) + "%";
         const st = dev?.state;
         const onAC = dev?.demo ? false : !UPower.onBattery;
-        let src = onAC ? "Adaptateur secteur" : "Batterie";
+        let src = onAC ? "Power Adapter" : "Battery";
         // (macOS n'affiche plus le temps restant dans ce menu depuis 10.12.2)
         let note = "";
-        if (st === UPowerDeviceState.FullyCharged) note = "Batterie chargée";
+        if (st === UPowerDeviceState.FullyCharged) note = "Battery Is Charged";
         const out = [
-            it("Batterie", { info: true, bold: true, pathText: pct }),
-            it("Source d’alimentation : " + src, { info: true, secondary: true })
+            it("Battery", { info: true, bold: true, pathText: pct }),
+            it("Power Source: " + src, { info: true, secondary: true })
         ];
         if (note) out.push(it(note, { info: true, secondary: true }));
         out.push(sep());
-        out.push(it("Mode économie d’énergie", {
+        out.push(it("Low Power Mode", {
             toggle: PowerProfiles.profile === PowerProfile.PowerSaver,
             keepOpen: true,
             action: () => {
@@ -611,7 +700,7 @@ Item {
             }
         }));
         out.push(sep());
-        out.push(it("Réglages de la batterie…", { action: () => ShellState.open("controlcenter") }));
+        out.push(it("Battery Settings…", { action: () => ShellState.open("controlcenter") }));
         return out;
     }
 
@@ -643,20 +732,20 @@ Item {
                 .sort((a, b) => (b.signalStrength ?? 0) - (a.signalStrength ?? 0));
             if (known.length) {
                 out.push(sep());
-                out.push(hdr("Réseaux connus"));
+                out.push(hdr("Known Networks"));
                 for (const n of known.slice(0, 6)) out.push(row(n));
             }
             const others = nets.filter(n => !n.known && !n.connected)
                 .sort((a, b) => (b.signalStrength ?? 0) - (a.signalStrength ?? 0));
             out.push(sep());
             // Section dépliable sur place (chevron qui pivote), pas un sous-menu
-            out.push(it("Autres réseaux", {
+            out.push(it("Other Networks", {
                 disclosure: true,
-                children: others.length ? others.slice(0, 12).map(row) : [it("Aucun réseau", { enabled: false })]
+                children: others.length ? others.slice(0, 12).map(row) : [it("No Networks Found", { enabled: false })]
             }));
         }
         out.push(sep());
-        out.push(it("Réglages Wi-Fi…", { action: () => ShellState.open("controlcenter") }));
+        out.push(it("Wi-Fi Settings…", { action: () => ShellState.open("controlcenter") }));
         return out;
     }
 
@@ -671,15 +760,15 @@ Item {
                 else if (typeof e.action === "function" && e.enabled !== false) out.push(Object.assign({}, e, { path: path }));
             }
         };
-        const names = [["app", appName], ["file", "Fichier"], ["edit", "Édition"], ["view", "Présentation"]]
-            .concat(isFinder ? [["go", "Aller"]] : []).concat([["window", "Fenêtre"]]);
+        const names = [["app", appName], ["file", "File"], ["edit", "Edit"], ["view", "View"]]
+            .concat(isFinder ? [["go", "Go"]] : []).concat([["window", "Window"]]);
         for (const n of names) walk(build(n[0]), [n[1]]);
         return out;
     }
 
-    // « À propos de <App> » : petit panneau du composant (AppAbout.qml)
+    // « About <App> » : petit panneau du composant (AppAbout.qml)
     signal aboutRequested(string cls)
-    // « Vider la corbeille… » : alerte de confirmation (Alert.qml)
+    // « Empty Trash… » : alerte de confirmation (Alert.qml)
     signal emptyTrashRequested(int count)
 
     // Nombre d'éléments dans la corbeille (rafraîchi à l'ouverture des menus)

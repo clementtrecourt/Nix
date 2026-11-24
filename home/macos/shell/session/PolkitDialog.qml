@@ -5,9 +5,10 @@ import Quickshell.Services.Polkit
 import qs.common
 
 // Agent Polkit au style macOS Tahoe : alerte alignée à gauche, icône cadenas,
-// "<App> veut effectuer des modifications.", "Saisissez votre mot de passe pour
-// autoriser cette action.", champs Nom / Mot de passe, Annuler / OK.
-// Mauvais mot de passe : la fenêtre secoue et le champ est vidé.
+// « <App> wants to make changes. », « Enter your password to allow this. »,
+// champs User Name / Password, Cancel / OK (métriques des alertes Tahoe : voir
+// SessionAlert.qml). Mauvais mot de passe : la fenêtre secoue et le champ est
+// vidé.
 Scope {
     id: root
 
@@ -31,21 +32,21 @@ Scope {
         const a = actionId ?? "";
         const known = [
             [/^org\.freedesktop\.systemd1/, "systemd"],
-            [/^org\.freedesktop\.NetworkManager/, "Réseau"],
-            [/^org\.freedesktop\.(udisks2|UDisks2)/, "Utilitaire de disque"],
-            [/^org\.freedesktop\.packagekit/, "Logiciels"],
-            [/^org\.freedesktop\.login1/, "Session"],
-            [/^org\.freedesktop\.timedate1/, "Date et heure"],
-            [/^org\.freedesktop\.hostname1/, "Réglages Système"],
-            [/^org\.freedesktop\.locale1/, "Langue et région"],
-            [/^org\.freedesktop\.accounts/, "Utilisateurs et groupes"],
-            [/^org\.gnome\./, "Réglages Système"],
+            [/^org\.freedesktop\.NetworkManager/, "Network"],
+            [/^org\.freedesktop\.(udisks2|UDisks2)/, "Disk Utility"],
+            [/^org\.freedesktop\.packagekit/, "Software Update"],
+            [/^org\.freedesktop\.login1/, "loginwindow"],
+            [/^org\.freedesktop\.timedate1/, "Date & Time"],
+            [/^org\.freedesktop\.hostname1/, "System Settings"],
+            [/^org\.freedesktop\.locale1/, "Language & Region"],
+            [/^org\.freedesktop\.accounts/, "Users & Groups"],
+            [/^org\.gnome\./, "System Settings"],
             [/^org\.freedesktop\.policykit\.exec/, "Terminal"],
             [/^com\.feralinteractive|^org\.blueman|^org\.bluez/, "Bluetooth"]
         ];
         for (const [re, n] of known) if (re.test(a)) return n;
         const parts = a.split(".");
-        const p = parts.length > 2 ? parts[2] : (parts[0] || "Une app");
+        const p = parts.length > 2 ? parts[2] : (parts[0] || "An app");
         return p.charAt(0).toUpperCase() + p.slice(1);
     }
 
@@ -83,8 +84,8 @@ Scope {
         shown: root.shown
         titleBar: false
         exclusiveKeyboard: true
-        cardWidth: 290
-        cardHeight: col.implicitHeight + 40
+        cardWidth: 260
+        cardHeight: col.implicitHeight + 36
 
         Item {
             anchors.fill: parent
@@ -93,12 +94,13 @@ Scope {
 
             Column {
                 id: col
-                x: 20
+                x: 16
                 y: 20
-                width: parent.width - 40
+                width: parent.width - 32
 
                 // Cadenas façon icône système (disque gris + cadenas)
                 Item {
+                    x: 4
                     width: 64
                     height: 64
                     Rectangle {
@@ -121,27 +123,30 @@ Scope {
                 }
                 Item { width: 1; height: 14 }
                 Text {
-                    width: parent.width
+                    x: 4
+                    width: parent.width - 8
                     wrapMode: Text.Wrap
-                    text: root.appName(root.flow?.actionId) + " veut effectuer des modifications."
+                    text: root.appName(root.flow?.actionId) + " wants to make changes."
                     font.family: Theme.font
                     font.pixelSize: 13
                     font.weight: Font.Bold
                     color: Theme.label
                 }
-                Item { width: 1; height: 6 }
+                Item { width: 1; height: 9 }
                 Text {
-                    width: parent.width
+                    x: 4
+                    width: parent.width - 8
                     wrapMode: Text.Wrap
-                    text: "Saisissez votre mot de passe pour autoriser cette action."
+                    text: "Enter your password to allow this."
                     font.family: Theme.font
-                    font.pixelSize: 11
+                    font.pixelSize: 13
                     color: Theme.label
                 }
                 // Détail Polkit (ce qui est réellement demandé)
                 Item { width: 1; height: (root.flow?.message ?? "") ? 6 : 0 }
                 Text {
-                    width: parent.width
+                    x: 4
+                    width: parent.width - 8
                     visible: text.length > 0
                     wrapMode: Text.Wrap
                     text: root.flow?.message ?? ""
@@ -151,10 +156,11 @@ Scope {
                 }
                 Item { width: 1; height: 14 }
                 TahoeTextField {
-                    width: parent.width
+                    x: 4
+                    width: parent.width - 8
                     readOnly: true
                     text: root.userLabel
-                    placeholder: "Nom d’utilisateur"
+                    placeholder: "User Name"
                     MouseArea {
                         anchors.fill: parent
                         enabled: root.identities.length > 1
@@ -164,15 +170,17 @@ Scope {
                 Item { width: 1; height: 8 }
                 TahoeTextField {
                     id: pass
-                    width: parent.width
+                    x: 4
+                    width: parent.width - 8
                     password: !(root.flow?.responseVisible ?? false)
-                    placeholder: "Mot de passe"
+                    placeholder: "Password"
                     focus: true
                     onAccepted: root.submit()
                 }
                 // Message d'erreur éventuel (PAM / Polkit)
                 Text {
-                    width: parent.width
+                    x: 4
+                    width: parent.width - 8
                     topPadding: 6
                     visible: text.length > 0
                     wrapMode: Text.Wrap
@@ -187,7 +195,7 @@ Scope {
                     spacing: 8
                     TahoeButton {
                         width: (parent.width - 8) / 2
-                        text: "Annuler"
+                        text: "Cancel"
                         onClicked: root.cancel()
                     }
                     TahoeButton {
@@ -220,7 +228,7 @@ Scope {
         function demo(): void {
             root.mock = {
                 actionId: "org.freedesktop.systemd1.manage-units",
-                message: "Authentification requise pour démarrer « sshd.service ».",
+                message: "Authentication is required to start 'sshd.service'.",
                 identities: [],
                 selectedIdentity: null,
                 responseVisible: false,

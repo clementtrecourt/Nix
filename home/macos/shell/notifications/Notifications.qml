@@ -19,7 +19,7 @@ Scope {
     GlobalShortcut {
         appid: "macos"
         name: "notificationcenter"
-        description: "Afficher / masquer le Centre de notifications"
+        description: "Show / hide Notification Center"
         onPressed: ShellState.toggle("notificationcenter")
     }
 }

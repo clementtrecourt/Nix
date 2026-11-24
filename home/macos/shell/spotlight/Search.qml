@@ -39,10 +39,60 @@ Scope {
     readonly property var results: buildResults()
     // Grille de la vue Applications : [{ header, title } | app...] ou apps à plat
     readonly property var appGrid: buildAppGrid()
+
+    // Applications visibles, dédoublonnées : une seule entrée par id .desktop
+    // et par (nom, commande) — le même lanceur installé à plusieurs endroits,
+    // ou un alias (ex. deux .desktop « kitty » au même Exec), n'apparaît
+    // qu'une fois. Sont aussi écartées les entrées masquées pour Hyprland
+    // (Hidden=true, OnlyShowIn= sans Hyprland, NotShowIn= avec Hyprland), que
+    // DesktopEntries n'expose pas : relevées par `hiddenScan`.
+    readonly property var apps: {
+        const seenId = {}, seenCmd = {}, out = [];
+        for (const e of Apps.all) {
+            if (e.noDisplay || hiddenIds[e.id]) continue;
+            const cmd = (e.execString ?? "").replace(/\s+%[a-zA-Z]/g, "").trim();
+            const key = e.name.toLowerCase() + "\u0001" + cmd;
+            if (seenId[e.id] || (cmd && seenCmd[key])) continue;
+            seenId[e.id] = true;
+            if (cmd) seenCmd[key] = true;
+            out.push(e);
+        }
+        return out;
+    }
+    property var hiddenIds: ({})
+    Process {
+        id: hiddenScan
+        running: true
+        // id<TAB>Hidden<TAB>OnlyShowIn<TAB>NotShowIn pour chaque .desktop des
+        // dossiers XDG (le premier dossier qui définit un id l'emporte)
+        command: ["sh", "-c",
+            "IFS=:; for d in ${XDG_DATA_HOME:-$HOME/.local/share} ${XDG_DATA_DIRS:-/usr/share}; do " +
+            "[ -d \"$d/applications\" ] || continue; " +
+            "find -L \"$d/applications\" -name '*.desktop' 2>/dev/null | while read -r f; do " +
+            "id=${f#$d/applications/}; id=$(printf %s \"${id%.desktop}\" | tr / -); " +
+            "h=$(sed -n '/^\\[Desktop Entry\\]/,/^\\[/{s/^Hidden=//p}' \"$f\" | head -1); " +
+            "o=$(sed -n '/^\\[Desktop Entry\\]/,/^\\[/{s/^OnlyShowIn=//p}' \"$f\" | head -1); " +
+            "n=$(sed -n '/^\\[Desktop Entry\\]/,/^\\[/{s/^NotShowIn=//p}' \"$f\" | head -1); " +
+            "[ -n \"$h$o$n\" ] && printf '%s\\t%s\\t%s\\t%s\\n' \"$id\" \"$h\" \"$o\" \"$n\"; done; done"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const out = {};
+                for (const l of text.split("\n")) {
+                    const f = l.split("\t");
+                    if (f.length < 4) continue;
+                    const only = f[2].split(";").filter(x => x);
+                    const not = f[3].split(";").filter(x => x);
+                    if (f[1] === "true" || (only.length && !only.includes("Hyprland")) || not.includes("Hyprland"))
+                        out[f[0]] = true;
+                }
+                root.hiddenIds = out;
+            }
+        }
+    }
     // Catégories présentes, des plus fournies aux moins fournies (pastilles)
     readonly property var appCategoriesPresent: {
         const count = {};
-        for (const e of Apps.all) {
+        for (const e of root.apps) {
             const c = Categories.categoryOf(e.categories);
             count[c] = (count[c] ?? 0) + 1;
         }
@@ -125,7 +175,7 @@ Scope {
 
     function matchApps(limit) {
         const out = [];
-        for (const e of Apps.all) {
+        for (const e of root.apps) {
             const s = scoreApp(e);
             if (s > 0) out.push({ e: e, s: s + usageBoost(e.id) * (s >= 50 ? 1 : 0.3) });
         }
@@ -138,29 +188,39 @@ Scope {
     // =====================================================================
     // tint : couleur de la tuile façon Raccourcis derrière le symbole blanc
     readonly property var systemActions: [
-        { id: "lock", title: "Verrouiller l’écran", symbol: "lock.fill", tint: "#5e5ce6", keywords: "lock verrouiller ecran" },
-        { id: "dark", title: Theme.dark ? "Désactiver le mode sombre" : "Activer le mode sombre", symbol: "circle.lefthalf.filled", tint: "#1c1c1e", keywords: "dark mode sombre clair apparence theme" },
-        { id: "sleep", title: "Suspendre l’activité", symbol: "moon.zzz", tint: "#5856d6", keywords: "sleep suspendre veille" },
-        { id: "restart", title: "Redémarrer…", symbol: "arrow.clockwise", tint: "#8e8e93", keywords: "restart reboot redemarrer" },
-        { id: "shutdown", title: "Éteindre…", symbol: "power", tint: "#ff3b30", keywords: "shutdown poweroff eteindre arreter" },
-        { id: "logout", title: "Fermer la session…", symbol: "rectangle.portrait.and.arrow.right", tint: "#8e8e93", keywords: "logout deconnexion session quitter" },
-        { id: "screenshot", title: "Capture d’écran", symbol: "camera.viewfinder", tint: "#8e8e93", keywords: "screenshot capture ecran" },
-        { id: "missioncontrol", title: "Mission Control", symbol: "rectangle.3.group", tint: "#0a84ff", keywords: "mission control expose fenetres" },
-        { id: "controlcenter", title: "Centre de contrôle", symbol: "switch.2", tint: "#636366", keywords: "control center centre controle" },
-        { id: "notificationcenter", title: "Centre de notifications", symbol: "bell", tint: "#ff3b30", keywords: "notifications centre widgets" },
-        { id: "forcequit", title: "Forcer à quitter…", symbol: "xmark.octagon", tint: "#ff9500", keywords: "force quit forcer quitter tuer kill" },
-        { id: "clearclip", title: "Effacer l’historique du presse-papiers", symbol: "trash", tint: "#8e8e93", keywords: "clipboard presse papiers effacer vider historique" }
+        { id: "lock", title: "Lock Screen", symbol: "lock.fill", tint: "#5e5ce6", keywords: "lock screen" },
+        { id: "dark", title: Theme.dark ? "Turn Off Dark Mode" : "Turn On Dark Mode", symbol: "circle.lefthalf.filled", tint: "#1c1c1e", keywords: "dark mode light appearance theme" },
+        { id: "sleep", title: "Sleep", symbol: "moon.zzz", tint: "#5856d6", keywords: "sleep suspend" },
+        { id: "restart", title: "Restart…", symbol: "arrow.clockwise", tint: "#8e8e93", keywords: "restart reboot" },
+        { id: "shutdown", title: "Shut Down…", symbol: "power", tint: "#ff3b30", keywords: "shut down shutdown power off" },
+        { id: "logout", title: "Log Out " + root.userName + "…", symbol: "rectangle.portrait.and.arrow.right", tint: "#8e8e93", keywords: "log out logout sign out session" },
+        { id: "screenshot", title: "Take Screenshot", symbol: "camera.viewfinder", tint: "#8e8e93", keywords: "screenshot screen capture" },
+        { id: "missioncontrol", title: "Mission Control", symbol: "rectangle.3.group", tint: "#0a84ff", keywords: "mission control expose windows" },
+        { id: "controlcenter", title: "Control Center", symbol: "switch.2", tint: "#636366", keywords: "control center" },
+        { id: "notificationcenter", title: "Notification Center", symbol: "bell", tint: "#ff3b30", keywords: "notifications center widgets" },
+        { id: "forcequit", title: "Force Quit…", symbol: "xmark.octagon", tint: "#ff9500", keywords: "force quit kill" },
+        { id: "clearclip", title: "Clear Clipboard History", symbol: "trash", tint: "#8e8e93", keywords: "clipboard clear history" }
     ]
+
+    // Nom complet de l'utilisateur pour « Log Out <nom>… » (menu Apple)
+    property string userName: Quickshell.env("USER") ?? ""
+    Process {
+        running: true
+        command: ["sh", "-c", "getent passwd \"$(id -un)\" | cut -d: -f5 | cut -d, -f1"]
+        stdout: StdioCollector {
+            onStreamFinished: { const n = text.trim(); if (n) root.userName = n; }
+        }
+    }
 
     function actionItem(a, section) {
         return { kind: "action", section: section, group: "actions", actionId: a.id, title: a.title,
-                 subtitle: "Système", symbol: a.symbol, tint: a.tint };
+                 subtitle: "System", symbol: a.symbol, tint: a.tint };
     }
 
-    // Actions déclarées par les .desktop (ex. « Nouvelle fenêtre privée »)
+    // Actions déclarées par les .desktop (ex. « New Private Window »)
     readonly property var appActions: {
         const out = [];
-        for (const e of Apps.all) {
+        for (const e of root.apps) {
             for (const a of (e.actions ?? [])) {
                 out.push({ entry: e, action: a, title: a.name, app: e.name,
                            icon: Quickshell.iconPath(a.icon || e.icon || e.id, "application-x-executable") });
@@ -171,19 +231,21 @@ Scope {
 
     function matchActions(limit) {
         const out = [];
-        for (const a of systemActions) {
+        for (let i = 0; i < systemActions.length; i++) {
+            const a = systemActions[i];
             // Mots-clés : seulement en début de mot (évite « fi » -> notiFIcations)
             const kw = q ? Fuzzy.score(q, a.keywords) : 0;
             const s = q ? Math.max(Fuzzy.score(q, a.title), kw >= 60 ? kw * 0.8 : 0) : 1;
-            if (s > 0) out.push({ s: s + (usage.apps["action:" + a.id] ? usageBoost("action:" + a.id) : 0), item: actionItem(a, "Actions") });
+            if (s > 0) out.push({ s: s + (usage.apps["action:" + a.id] ? usageBoost("action:" + a.id) : 0), item: actionItem(a, "Suggestions"), i: i });
         }
         for (const a of appActions) {
             const s = q ? Fuzzy.score(q, a.title) : 0.5;
-            if (s > 0) out.push({ s: s * 0.9, item: {
-                kind: "appaction", section: "Actions", group: "actions", entry: a.entry, action: a.action,
+            if (s > 0) out.push({ s: s * 0.9, i: 1000 + out.length, item: {
+                kind: "appaction", section: a.app, group: "actions", entry: a.entry, action: a.action,
                 title: a.title, subtitle: a.app, icon: a.icon } });
         }
-        out.sort((x, y) => y.s - x.s);
+        // Tri stable : à score égal, ordre de déclaration
+        out.sort((x, y) => y.s - x.s || x.i - y.i);
         return out.slice(0, limit ?? out.length).map(x => x.item);
     }
 
@@ -196,7 +258,7 @@ Scope {
             Appearance.toggle();
             break;
         case "sleep": Quickshell.execDetached(["systemctl", "suspend"]); break;
-        // Les dialogues de confirmation (Éteindre…, Redémarrer…) relèvent de Session
+        // Les dialogues de confirmation (Shut Down…, Restart…) relèvent de Session
         case "restart": ShellState.open("restart"); break;
         case "shutdown": ShellState.open("shutdown"); break;
         case "logout": ShellState.open("logout"); break;
@@ -217,16 +279,16 @@ Scope {
         const r = calcResult;
         if (!r) return null;
         if (r.kind === "convert") {
-            return { kind: "calc", section: "Conversion", group: "calc", symbol: "arrow.left.arrow.right", tint: "#ff9500",
+            return { kind: "calc", section: "Conversion", group: "conversion", symbol: "arrow.left.arrow.right", tint: "#ff9500",
                      title: Calc.format(r.value, 4) + " " + r.unit,
                      subtitle: Calc.format(r.input) + " " + r.fromUnit,
-                     copy: Calc.format(r.value, 4).replace(/ /g, "") };
+                     copy: Calc.format(r.value, 4).replace(/,/g, "") };
         }
-        return { kind: "calc", section: "Calculatrice", group: "calc",
+        return { kind: "calc", section: "Calculator", group: "calc",
                  icon: Quickshell.iconPath("accessories-calculator", "calc"),
                  symbol: "calculator", tint: "#ff9500",
                  title: "= " + Calc.format(r.value), subtitle: r.expr,
-                 copy: Calc.format(r.value).replace(/ /g, "") };
+                 copy: Calc.format(r.value).replace(/,/g, "") };
     }
 
     // =====================================================================
@@ -263,16 +325,18 @@ Scope {
         command: ["sh", "-c",
                   "cd \"$HOME\" && fd --strip-cwd-prefix --ignore-case --fixed-strings --max-results 80 --max-depth 8 " +
                   "--exclude node_modules --exclude .git --exclude target --exclude result " +
-                  "--exclude .cache --exclude __pycache__ -0 -- \"$1\" | xargs -0 -r stat -c '%Y\t%n'",
+                  "--exclude .cache --exclude __pycache__ -0 -- \"$1\" | xargs -0 -r stat -c '%Y\t%s\t%n'",
                   "sh", root.fdQuery]
         stdout: StdioCollector {
             onStreamFinished: {
                 const want = root.query.trim();
                 if (root.fdQuery !== want) return;      // résultat périmé
-                root.fileHits = text.split("\n").filter(l => l.includes("\t")).map(l => {
-                    const tab = l.indexOf("\t");
-                    const f = root.fileFromRel(l.slice(tab + 1));
-                    f.when = Number(l.slice(0, tab)) * 1000;
+                // « mtime<TAB>taille<TAB>chemin »
+                root.fileHits = text.split("\n").filter(l => l.split("\t").length >= 3).map(l => {
+                    const t1 = l.indexOf("\t"), t2 = l.indexOf("\t", t1 + 1);
+                    const f = root.fileFromRel(l.slice(t2 + 1));
+                    f.when = Number(l.slice(0, t1)) * 1000;
+                    f.size = Number(l.slice(t1 + 1, t2));
                     return f;
                 });
                 root.fileHitsQuery = want;
@@ -293,7 +357,8 @@ Scope {
     // GIF, BMP ou WebP (signature des premiers octets vérifiée)
     property var thumbOk: ({})
     function checkThumbs(files) {
-        const todo = files.filter(f => !f.isDir && /\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name) && !(f.path in thumbOk))
+        // (pas de WebP : le Qt du shell n'a pas le greffon de décodage)
+        const todo = files.filter(f => !f.isDir && /\.(png|jpe?g|gif|bmp)$/i.test(f.name) && !(f.path in thumbOk))
                           .slice(0, 40).map(f => f.path);
         if (!todo.length) return;
         const p = thumbCheckComp.createObject(root, { paths: todo });
@@ -344,7 +409,7 @@ Scope {
             recentCheck.times = {};
             for (const x of out) recentCheck.times[x.p] = x.t;
             recentCheck.command = ["sh", "-c",
-                "for f; do if [ -d \"$f\" ]; then echo \"d $f\"; elif [ -e \"$f\" ]; then echo \"f $f\"; fi; done",
+                "for f; do if [ -d \"$f\" ]; then echo \"d 0 $f\"; elif [ -e \"$f\" ]; then echo \"f $(stat -c %s \"$f\") $f\"; fi; done",
                 "sh"].concat(out.slice(0, 120).map(x => x.p));
             recentCheck.running = true;
         }
@@ -356,10 +421,13 @@ Scope {
             onStreamFinished: {
                 const res = [];
                 for (const line of text.split("\n")) {
-                    if (line.length < 3) continue;
-                    const p = line.slice(2);
+                    // « d|f <taille> <chemin> »
+                    const sp = line.indexOf(" ", 2);
+                    if (line.length < 3 || sp < 0) continue;
+                    const p = line.slice(sp + 1);
                     const f = root.fileFromRel(p.slice(root.home.length + 1) + (line[0] === "d" ? "/" : ""));
                     f.when = recentCheck.times[p] ?? 0;
+                    f.size = Number(line.slice(2, sp));
                     res.push(f);
                     if (res.length >= 60) break;
                 }
@@ -377,13 +445,42 @@ Scope {
         if (ext === "pdf") return "pdf";
         return "documents";
     }
-    readonly property var fileKindNames: ({ folders: "Dossiers", images: "Images", pdf: "Documents PDF", documents: "Documents" })
+    readonly property var fileKindNames: ({ folders: "Folders", images: "Images", pdf: "PDF Documents", documents: "Documents" })
+
+    // Type affiché (Finder, « Kind ») : « PDF document », « PNG image »…
+    function kindLabel(f) {
+        if (f.isDir) return "Folder";
+        const ext = (f.name.match(/\.([^.]+)$/)?.[1] ?? "").toLowerCase();
+        const map = {
+            pdf: "PDF document", png: "PNG image", jpg: "JPEG image", jpeg: "JPEG image", gif: "GIF image",
+            webp: "WebP image", heic: "HEIC image", svg: "SVG image", bmp: "BMP image", tif: "TIFF image", tiff: "TIFF image",
+            txt: "Plain Text", md: "Markdown Document", rtf: "Rich Text Document", html: "HTML text", css: "CSS",
+            json: "JSON", js: "JavaScript script", ts: "TypeScript", py: "Python script", sh: "Shell script",
+            nix: "Nix", qml: "QML", c: "C source", h: "C header", cpp: "C++ source", rs: "Rust source", go: "Go source",
+            zip: "ZIP archive", gz: "gzip compressed archive", tar: "tar archive", xz: "XZ archive", "7z": "7-Zip archive",
+            mp3: "MP3 audio", flac: "FLAC audio", wav: "Waveform audio", m4a: "Apple MPEG-4 audio", ogg: "Ogg audio",
+            mp4: "MPEG-4 movie", mov: "QuickTime movie", mkv: "Matroska video", webm: "WebM video",
+            doc: "Microsoft Word document", docx: "Microsoft Word document", odt: "OpenDocument text",
+            xls: "Microsoft Excel spreadsheet", xlsx: "Microsoft Excel spreadsheet", csv: "CSV document",
+            ppt: "Microsoft PowerPoint presentation", pptx: "Microsoft PowerPoint presentation",
+            iso: "Disk Image", ttf: "TrueType font", otf: "OpenType font"
+        };
+        return map[ext] ?? (ext ? ext.toUpperCase() + " file" : "Document");
+    }
+    // Taille façon Finder (base 1000) : « 41 KB », « 5.6 MB »
+    function sizeLabel(n) {
+        if (n === undefined || n === null || isNaN(n)) return "";
+        if (n < 1000) return n + " bytes";
+        const units = ["KB", "MB", "GB", "TB"];
+        let v = n, i = -1;
+        do { v /= 1000; i++; } while (v >= 1000 && i < units.length - 1);
+        return (v >= 100 || i === 0 ? Math.round(v) : Math.round(v * 10) / 10) + " " + units[i];
+    }
 
     function fileIcon(f) {
         if (f.isDir) {
-            const special = { "Documents": "folder-documents", "Downloads": "folder-download", "Téléchargements": "folder-download",
-                              "Pictures": "folder-pictures", "Images": "folder-pictures", "Music": "folder-music", "Musique": "folder-music",
-                              "Videos": "folder-videos", "Vidéos": "folder-videos", "Desktop": "user-desktop", "Bureau": "user-desktop" };
+            const special = { "Documents": "folder-documents", "Downloads": "folder-download", "Pictures": "folder-pictures",
+                              "Music": "folder-music", "Videos": "folder-videos", "Movies": "folder-videos", "Desktop": "user-desktop" };
             return Quickshell.iconPath(f.dir === "" && special[f.name] ? special[f.name] : "folder", "folder");
         }
         const ext = (f.name.match(/\.([^.]+)$/)?.[1] ?? "").toLowerCase();
@@ -407,27 +504,31 @@ Scope {
         return Quickshell.iconPath(map[ext] ?? "text-x-generic", "text-x-generic");
     }
 
-    // Date du détail des fichiers, façon Finder : « Aujourd’hui à 15:41 »,
-    // « Hier à 09:12 », sinon « 29/03/2025 ».
+    // Date du détail des fichiers, format court de macOS en anglais (US) :
+    // « Today at 3:41 PM », « Yesterday at 9:12 AM », sinon « 1/30/2025, 4:13 PM »
+    // (capture MacRumors « spotlight-kind » : « 30/01/2025, 4:13 pm » en UK).
     function fileDate(ms) {
         if (!ms) return "";
         const d = new Date(ms), now = new Date();
         const day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
         const diff = Math.round((day(now) - day(d)) / 86400000);
-        const hm = d.toLocaleTimeString(Qt.locale("fr_FR"), "HH:mm");
-        if (diff === 0) return "Aujourd’hui à " + hm;
-        if (diff === 1) return "Hier à " + hm;
-        return d.toLocaleDateString(Qt.locale("fr_FR"), "dd/MM/yyyy");
+        const hm = Qt.formatTime(d, "h:mm AP");
+        if (diff === 0) return "Today at " + hm;
+        if (diff === 1) return "Yesterday at " + hm;
+        return Qt.formatDate(d, "M/d/yyyy") + ", " + hm;
     }
 
     function fileItem(f, section) {
         const k = fileKindOf(f);
-        const folder = f.dir === "" ? "Dossier de départ" : f.dir.split("/").pop();
+        const folder = f.dir === "" ? root.home.split("/").pop() : f.dir.split("/").pop();
         const date = fileDate(f.when);
+        const size = f.isDir ? "" : sizeLabel(f.size);
         return {
             kind: "file", section: section ?? fileKindNames[k], fileKind: k, group: k,
             title: f.name, path: f.path, isDir: f.isDir,
-            subtitle: date ? date + " • " + folder : folder,
+            // « PDF document · 41 KB · 10/3/2024, 8:49 PM · Finance »
+            subtitle: [kindLabel(f), size, date].filter(x => x).join(" · "),
+            folder: folder,
             location: "~/" + (f.dir ? f.dir + "/" : ""),
             icon: fileIcon(f),
             // Vignette seulement pour les images dont la signature a été vérifiée
@@ -509,12 +610,12 @@ Scope {
         const isPath = /^(file:\/\/|\/)\S+$/.test(c.text.trim());
         return {
             kind: "clip", section: "", clipId: c.id,
-            title: c.isImage ? "Image " + c.ext.toUpperCase() : c.text.replace(/\s+/g, " ").trim(),
-            subtitle: c.isImage ? "Image · " + c.meta : (isUrl ? "Lien" : isPath ? "Fichier" : "Texte"),
+            title: c.isImage ? c.ext.toUpperCase() + " Image" : c.text.replace(/\s+/g, " ").trim(),
+            subtitle: c.isImage ? "Image · " + c.meta : (isUrl ? "Link" : isPath ? "File" : "Text"),
             symbol: c.isImage ? "photo" : isUrl ? "link" : isPath ? "doc" : "text.alignleft",
             // Comme Tahoe : icône de document du type copié
             icon: Quickshell.iconPath(c.isImage ? "image-x-generic" : isUrl ? "text-html" : "text-x-generic", "text-x-generic"),
-            thumb: c.isImage ? (clipThumbs[c.id] ?? "") : "",
+            thumb: c.isImage && c.ext !== "webp" ? (clipThumbs[c.id] ?? "") : "",
             fullText: c.text
         };
     }
@@ -533,8 +634,8 @@ Scope {
     // ordre et chaque groupe présent devient une pastille de filtre sous le
     // champ (« Applications », « Actions », « Documents »…).
     readonly property var groupNames: ({
-        apps: "Applications", calc: "Calcul", actions: "Actions", documents: "Documents",
-        pdf: "PDF", folders: "Dossiers", images: "Images"
+        apps: "Applications", calc: "Calculator", conversion: "Conversion", actions: "Actions",
+        documents: "Documents", pdf: "PDF", folders: "Folders", images: "Images"
     })
     // Filtre de groupe choisi ("" = tous)
     property string resultFilter: ""
@@ -558,7 +659,18 @@ Scope {
             return out;
         }
         if (mode === "actions") {
-            pushSection(out, "", matchActions(q ? 40 : 60));
+            const items = matchActions(q ? 40 : 80);
+            if (q) { pushSection(out, "", items); return out; }
+            // Sans saisie : sections « Suggestions » (actions système) puis une
+            // par app, en-têtes en gras comme Tahoe (capture Cult of Mac
+            // « Spotlight-Actions » : Suggestions, Books…)
+            const order = [], by = {};
+            for (const it of items) {
+                if (!by[it.section]) { by[it.section] = []; order.push(it.section); }
+                by[it.section].push(it);
+            }
+            order.sort((x, y) => (x === "Suggestions" ? -1 : y === "Suggestions" ? 1 : x.localeCompare(y)));
+            for (const sec of order) pushSection(out, sec, by[sec]);
             return out;
         }
         if (mode !== "") return out;           // Applications / Fichiers : grilles
@@ -584,7 +696,7 @@ Scope {
         // sinon action exacte
         let top = null;
         if (calc) top = calc;
-        else if (apps.length && apps[0].s >= 50) top = appItem(apps[0].e, "Meilleur résultat");
+        else if (apps.length && apps[0].s >= 50) top = appItem(apps[0].e, "Top Hit");
         else if (fileTopScore >= 80) top = fileItem(files[0]);
         else if (actions.length && Fuzzy.score(q, actions[0].title) >= 80) top = actions[0];
         if (top) out.push(Object.assign({}, top, { top: true }));
@@ -606,7 +718,7 @@ Scope {
         pushSection(out, "", groups.images);
 
         // Toujours en dernier : recherche sur le Web
-        out.push({ kind: "web", group: "web", title: query.trim(), subtitle: "Rechercher sur le Web",
+        out.push({ kind: "web", group: "web", title: query.trim(), subtitle: "Search the Web",
                    symbol: "globe", tint: "#0a84ff" });
         return out;
     }
@@ -616,6 +728,10 @@ Scope {
     // par ordre alphabétique. Pastille = filtre de catégorie ; la saisie
     // filtre à l'intérieur de la catégorie choisie.
     readonly property int suggestionCount: Metrics.gridColumns
+    // Grille (vrai) ou Liste (faux) : la rangée de suggestions est propre à la
+    // grille (capture Cult of Mac « Spotlight-Applications » : Safari, Mona…,
+    // Music, un trait, puis toutes les apps de A à Z, suggestions comprises)
+    property bool withSuggestions: true
     function buildAppGrid() {
         if (!active || mode !== "apps") return [];
         if (q) {
@@ -623,15 +739,19 @@ Scope {
                 .map(a => appItem(a.e, ""))
                 .filter(a => !appCategory || a.category === appCategory);
         }
-        const all = Apps.all.map(e => appItem(e, ""));
+        const all = root.apps.map(e => appItem(e, ""));
         if (appCategory) return all.filter(a => a.category === appCategory);
-        const used = Apps.all.filter(e => usage.apps[e.id])
+        // Vue Liste : uniquement toutes les apps (la rangée de suggestions
+        // n'existe que dans la grille, sinon chaque suggestion serait listée
+        // deux fois sans trait pour les séparer)
+        if (!withSuggestions) return all;
+        const used = root.apps.filter(e => usage.apps[e.id])
             .sort((a, b) => usageBoost(b.id) - usageBoost(a.id))
             .slice(0, suggestionCount);
         for (const id of Apps.pinned) {
             if (used.length >= suggestionCount) break;
             const e = Apps.entryFor(id);
-            if (e && !e.noDisplay && !used.includes(e)) used.push(e);
+            if (e && root.apps.includes(e) && !used.includes(e)) used.push(e);
         }
         if (!used.length) return all;
         return used.map(e => appItem(e, "")).concat([{ separator: true }], all);

@@ -2,7 +2,8 @@ import QtQuick
 import qs.common
 
 // Module rond 1x1 (Recopie de l'écran, Stage Manager, Mode sombre...).
-// on = disque blanc et glyphe sombre, comme les bascules rondes de Tahoe.
+// on = disque blanc et glyphe bleu (couleur d'accent), comme les bascules de
+// Tahoe (pastilles Wi-Fi / Bluetooth / AirDrop allumées).
 CCTile {
     id: m
 
@@ -30,7 +31,7 @@ CCTile {
         anchors.centerIn: parent
         name: m.symbol
         size: m.glyphSize
-        color: m.on ? CCStyle.glyphOnDark : CCStyle.text
+        color: m.on ? CCStyle.blue : CCStyle.text
         opacity: m.disabled ? CCStyle.disabledOpacity : 1
         Behavior on color { ColorAnimation { duration: 200 } }
     }

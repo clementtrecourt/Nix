@@ -187,6 +187,9 @@
     # --- Surfaces du shell (Quickshell, namespaces macos-*) ---------------------
     layerrule = blur on, match:namespace ^(macos-.*)$
     layerrule = ignore_alpha 0.05, match:namespace ^(macos-.*)$
+    # Verres Liquid Glass qui réfractent eux-mêmes leur fond (common/GlassBackdrop) :
+    # pas de flou du compositeur (il se verrait en double)
+    layerrule = blur off, match:namespace ^(macos-lg-.*)$
     layerrule = no_anim on, match:namespace ^(macos-.*)$
     # Sélecteur de captures (slurp) : pas de fondu, apparition immédiate
     layerrule = no_anim on, match:namespace ^(selection)$
@@ -224,6 +227,13 @@
     windowrule = hyprbars:no_bar on, match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
     windowrule = keep_aspect_ratio on, match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
     windowrule = move (monitor_w-window_w-24) (monitor_h-window_h-96), match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
+    # Finder du shell (shell/finder, fenêtres Quickshell « org.quickshell ») : il
+    # dessine ses feux tricolores dans sa barre latérale -> pas de barre hyprbars,
+    # coins « barre d'outils » de Tahoe ; « Get Info » : petite fenêtre à barre de
+    # titre seule, coins plus serrés
+    windowrule = hyprbars:no_bar on, match:class ^(org\.quickshell)$
+    windowrule = rounding 26, match:class ^(org\.quickshell)$
+    windowrule = rounding 16, match:class ^(org\.quickshell)$, match:title ^(.* Info)$
 
     # --- Barres de titre Tahoe (plugin hyprbars) --------------------------------
     plugin {
@@ -404,6 +414,8 @@ in {
         [
           # ---- Contrat du shell (GlobalShortcut appid "macos") ----
           "SUPER, space, global, macos:spotlight"
+          # ⌥⌘Espace : fenêtre du Finder (comme « Rechercher dans le Finder » sur Mac)
+          "SUPER ALT, space, global, macos:finder"
           ", XF86LaunchB, global, macos:apps"
           ", F4, global, macos:apps"
           "SUPER CTRL, Q, global, macos:lock"

@@ -17,6 +17,8 @@ Column {
         .sort((a, b) => (b.connected - a.connected) || (b.signalStrength - a.signalStrength))
     readonly property var others: networks.filter(n => !n.known && !n.connected)
         .sort((a, b) => b.signalStrength - a.signalStrength)
+    // Wi-Fi utilisable : carte présente ET radio activée
+    readonly property bool wifiOn: !!device && Networking.wifiEnabled
     property bool othersOpen: known.length === 0
     property var pskTarget: null
     // Fin de saisie du mot de passe : le Control Center reprend le focus clavier
@@ -40,16 +42,17 @@ Column {
     DetailHeader {
         title: "Wi-Fi"
         hasSwitch: true
-        checked: Networking.wifiEnabled
+        switchEnabled: !!root.device
+        checked: root.wifiOn
         onToggled: on => Networking.wifiEnabled = on
     }
 
     DetailCaption {
-        visible: Networking.wifiEnabled && root.known.length > 0
-        text: root.known.length > 1 ? "Réseaux connus" : "Réseau connu"
+        visible: root.wifiOn && root.known.length > 0
+        text: root.known.length > 1 ? "Known Networks" : "Known Network"
     }
     Repeater {
-        model: Networking.wifiEnabled ? root.known : []
+        model: root.wifiOn ? root.known : []
         DetailRow {
             required property var modelData
             symbol: root.strengthSymbol(modelData)
@@ -62,14 +65,14 @@ Column {
     }
 
     DetailCaption {
-        visible: Networking.wifiEnabled
-        text: "Autres réseaux"
+        visible: root.wifiOn
+        text: "Other Networks"
         collapsible: true
         expanded: root.othersOpen
         onToggled: root.othersOpen = !root.othersOpen
     }
     Repeater {
-        model: Networking.wifiEnabled && root.othersOpen ? root.others : []
+        model: root.wifiOn && root.othersOpen ? root.others : []
         DetailRow {
             required property var modelData
             symbol: root.strengthSymbol(modelData)
@@ -91,7 +94,7 @@ Column {
             x: 16
             y: 4
             width: parent.width - 32
-            text: "Mot de passe pour « " + (root.pskTarget?.name ?? "") + " »"
+            text: "Enter the password for “" + (root.pskTarget?.name ?? "") + "”"
             color: CCStyle.textSecondary
             font.family: Theme.font
             font.pixelSize: CCStyle.captionSize
@@ -134,7 +137,7 @@ Column {
     }
 
     DetailFooter {
-        text: "Réglages Wi-Fi…"
+        text: "Wi-Fi Settings…"
         onClicked: {
             CCActions.openSettings("wifi");
             ShellState.close();

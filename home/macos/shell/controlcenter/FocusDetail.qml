@@ -16,7 +16,7 @@ Column {
     // Mode dont les durées sont dépliées ("" = aucun)
     property string optionsFor: ""
 
-    DetailHeader { title: "Concentration" }
+    DetailHeader { title: "Focus" }
 
     component Option: DetailRow {
         id: opt
@@ -42,8 +42,8 @@ Column {
             DetailRow {
                 symbol: modeItem.modelData.symbol
                 glyphSize: 15
-                text: modeItem.modelData.name
-                detail: modeItem.isActive ? Focus.untilLabel : ""
+                text: Focus.nameEn(modeItem.modelData.id)
+                detail: modeItem.isActive ? Focus.untilLabelEn : ""
                 active: modeItem.isActive
                 activeColor: modeItem.modelData.color
                 actionSymbol: "ellipsis"
@@ -59,7 +59,7 @@ Column {
                 Option {
                     modeId: modeItem.modelData.id
                     kind: "hour"
-                    text: "Pendant 1 heure"
+                    text: "For 1 hour"
                     onClicked: { Focus.setMode(modeId); Focus.forOneHour(); }
                 }
                 // macOS ne propose « ce soir » qu'avant 19 h
@@ -67,13 +67,13 @@ Column {
                     modeId: modeItem.modelData.id
                     kind: "tonight"
                     visible: new Date().getHours() < 19
-                    text: "Jusqu’à ce soir"
+                    text: "Until this evening"
                     onClicked: { Focus.setMode(modeId); Focus.untilTonight(); }
                 }
                 Option {
                     modeId: modeItem.modelData.id
                     kind: "morning"
-                    text: "Jusqu’à demain matin"
+                    text: "Until tomorrow morning"
                     onClicked: { Focus.setMode(modeId); Focus.untilTomorrowMorning(); }
                 }
             }
@@ -81,7 +81,7 @@ Column {
     }
 
     DetailFooter {
-        text: "Réglages Concentration…"
+        text: "Focus Settings…"
         onClicked: {
             CCActions.openSettings("notifications");
             ShellState.close();

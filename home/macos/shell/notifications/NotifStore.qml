@@ -273,23 +273,21 @@ fi
             .replace(/&#39;/g, "'").replace(/&amp;/g, "&").trim();
     }
 
-    // ---- Heure relative, façon macOS (en français) ------------------------------
+    // ---- Heure relative, façon macOS (anglais US) ----------------------------
+    // « now », « 2m ago », « 3h ago » (jour même), « Yesterday », nom du jour
+    // (semaine écoulée), puis date courte « 11/17/26 ».
     function relTime(t) {
-        const d = (now - t) / 1000;
-        if (d < 60) return "maintenant";
-        if (d < 3600) return "il y a " + Math.floor(d / 60) + " min";
+        const d = Math.max(0, (now - t) / 1000);
+        if (d < 60) return "now";
+        if (d < 3600) return Math.floor(d / 60) + "m ago";
         const dt = new Date(t), today = new Date(now);
-        if (dt.toDateString() === today.toDateString()) {
-            if (d < 4 * 3600) return "il y a " + Math.floor(d / 3600) + " h";
-            return Qt.formatTime(dt, "HH:mm");
-        }
+        if (dt.toDateString() === today.toDateString()) return Math.floor(d / 3600) + "h ago";
         const y = new Date(now - 86400000);
-        if (dt.toDateString() === y.toDateString()) return "Hier";
-        // Semaine écoulée : nom du jour (« lundi »), puis date courte
+        if (dt.toDateString() === y.toDateString()) return "Yesterday";
         const d0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
         if (dt >= new Date(d0.getTime() - 6 * 86400000))
-            return ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"][dt.getDay()];
-        return Qt.formatDate(dt, "dd/MM/yyyy");
+            return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dt.getDay()];
+        return (dt.getMonth() + 1) + "/" + dt.getDate() + "/" + String(dt.getFullYear()).slice(-2);
     }
 
     // ---- Bannières ------------------------------------------------------------
@@ -491,7 +489,7 @@ fi
         function count(): int { return root.entries.length; }
         function doNotDisturb(): bool { return root.doNotDisturb; }
         function list(): string {
-            return root.entries.map(e => [e.uid, e.appKey, e.appName, e.summary, e.appIcon, e.image, e.popup ? "[bannière]" : ""].join("\t")).join("\n");
+            return root.entries.map(e => [e.uid, e.appKey, e.appName, e.summary, e.appIcon, e.image, e.popup ? "[banner]" : ""].join("\t")).join("\n");
         }
     }
 
@@ -511,5 +509,26 @@ fi
         }
         function activateFirst(): void { if (root.entries.length) root.activate(root.entries[0]); }
         function hideBanners(): void { root.hideAllBanners(); }
+        // Apparence en mémoire seulement (captures claires / sombres)
+        function dark(on: bool): void { Theme.dark = on; }
+        // Injection d'une notification factice (dans le banc, la session hôte
+        // possède déjà org.freedesktop.Notifications). `actions` : libellés
+        // séparés par « | » ; `minutesAgo` : antidatage (heure relative).
+        function inject(app: string, summary: string, body: string, actions: string,
+                        urgency: int, image: string, minutesAgo: int): void {
+            root.injectFake(app, summary, body, actions, urgency, image, minutesAgo);
+        }
+    }
+    function injectFake(app, summary, body, actions, urgency, image, minutesAgo) {
+        const e = entryComponent.createObject(root, {
+            uid: nextUid++, appKey: groupKey(app, app), appName: displayName(app, app),
+            appIcon: resolveIcon(app, "", app), image: image ? (image.startsWith("/") ? "file://" + image : image) : "",
+            summary: summary, body: body, urgency: urgency,
+            time: Date.now() - minutesAgo * 60000
+        });
+        e.actions = actions ? actions.split("|").map((t, i) => ({ identifier: "a" + i, text: t, ref: null })) : [];
+        entries = [e].concat(entries).sort((a, b) => b.time - a.time);
+        if (minutesAgo === 0) showBanner(e);
+        scheduleSave();
     }
 }

@@ -66,10 +66,12 @@ Singleton {
     Process {
         id: scanner
         command: ["sh", "-c",
-            // Dossiers de fonds d'écran uniquement (pas toute la photothèque)
+            // Dossiers de fonds d'écran uniquement (pas toute la photothèque).
+            // Formats décodés par Qt sans qtimageformats (WebP/HEIC/AVIF : erreurs
+            // de décodage dans le journal)
             'for d in "$HOME/Pictures/Wallpapers" "$HOME/Pictures/wallpapers" "$HOME/Pictures/walls" "$HOME/Images/Fonds d’écran" ' +
             '"$HOME/Images/Wallpapers" "$HOME/.config/macos-shell/wallpapers" "$HOME/.local/share/backgrounds" /run/current-system/sw/share/backgrounds; do ' +
-            '[ -d "$d" ] && find -L "$d" -maxdepth 3 -type f \\( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" -o -iname "*.heic" -o -iname "*.avif" \\) 2>/dev/null; ' +
+            '[ -d "$d" ] && find -L "$d" -maxdepth 3 -type f \\( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \\) 2>/dev/null; ' +
             'done | sort -u | head -n 120']
         stdout: StdioCollector {
             onStreamFinished: root.images = text.split("\n").filter(l => l.length > 0)

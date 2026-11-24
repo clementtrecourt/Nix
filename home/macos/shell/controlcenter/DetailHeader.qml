@@ -8,6 +8,7 @@ Item {
     property string title
     property bool hasSwitch: false
     property bool checked: false
+    property bool switchEnabled: true
     signal toggled(bool on)
 
     implicitWidth: CCStyle.width
@@ -31,6 +32,8 @@ Item {
         anchors.rightMargin: 16
         anchors.verticalCenter: parent.verticalCenter
         checked: h.checked
+        enabled: h.switchEnabled
+        opacity: h.switchEnabled ? 1 : CCStyle.disabledOpacity
         onToggled: on => h.toggled(on)
     }
 }

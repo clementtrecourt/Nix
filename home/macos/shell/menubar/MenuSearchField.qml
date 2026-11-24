@@ -1,7 +1,7 @@
 import QtQuick
 import qs.common
 
-// Champ « Rechercher » en tête du menu Aide (comme sur macOS : il cherche dans
+// Champ « Search » en tête du menu Aide (comme sur macOS : il cherche dans
 // les menus de l'app au premier plan). Il prend le focus clavier à l'ouverture.
 Item {
     id: root
@@ -50,7 +50,7 @@ Item {
                 anchors.fill: parent
                 verticalAlignment: Text.AlignVCenter
                 visible: input.text === ""
-                text: "Rechercher"
+                text: "Search"
                 font: input.font
                 color: Theme.labelTertiary
             }

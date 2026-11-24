@@ -28,7 +28,7 @@ PanelWindow {
     property var hiddenWidgets: []
     readonly property var shownWidgets: widgetIds.filter(w => !hiddenWidgets.includes(w))
     readonly property var availableWidgets: widgetIds.filter(w => hiddenWidgets.includes(w))
-    // Mode « Modifier les widgets » : pastille − pour retirer, + pour remettre
+    // Mode « Edit Widgets » : pastille − pour retirer, + pour remettre
     property bool editing: false
     onOpenChanged: if (!open) editing = false
 
@@ -50,7 +50,8 @@ PanelWindow {
     }
 
     // Progression d'ouverture 0 → 1 (pilote le glissement depuis la droite)
-    property real progress: open ? 1 : 0
+    // (démarre quand la fenêtre est réellement visible, capture du fond prête)
+    property real progress: open && backdrop.pass ? 1 : 0
     Behavior on progress {
         NumberAnimation {
             duration: (win.open ? 480 : 300) * NotifStore.slow
@@ -63,9 +64,18 @@ PanelWindow {
         const name = ShellState.panelScreen || Hyprland.focusedMonitor?.name;
         return Quickshell.screens.find(s => s.name === name) ?? Quickshell.screens[0];
     }
-    visible: open || progress > 0
+    // Liquid Glass : capture de l'écran prise juste avant l'ouverture
+    property Item glassBackdrop: backdrop
+    GlassBackdrop {
+        id: backdrop
+        mode: "snapshot"
+        screen: win.screen
+        want: win.open || win.progress > 0
+    }
+    visible: backdrop.pass
 
-    WlrLayershell.namespace: "macos-notificationcenter"
+    // "macos-lg-*" : pas de flou Hyprland (le verre floute et réfracte lui-même)
+    WlrLayershell.namespace: "macos-lg-notificationcenter"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
@@ -89,7 +99,7 @@ PanelWindow {
     // c'est la barre des menus qui referme via toggle (sinon on rouvrirait).
     HyprlandFocusGrab {
         windows: [win]
-        active: win.open
+        active: win.open && win.visible
         onCleared: outsideTimer.restart()
     }
     Timer {
@@ -174,7 +184,7 @@ PanelWindow {
                     }
                 }
 
-                // Capsule « Modifier les widgets » (« Terminé » en mode édition)
+                // Capsule « Edit Widgets » (« Done » en mode édition)
                 Item {
                     width: win.cardWidth
                     height: 22
@@ -187,14 +197,14 @@ PanelWindow {
                             anchors.fill: parent
                             radius: height / 2
                             tint: editMouse.pressed ? (Theme.dark ? Qt.rgba(0.30, 0.30, 0.32, 0.55) : Qt.rgba(1, 1, 1, 0.55))
-                                : Theme.dark ? Qt.rgba(0.22, 0.22, 0.24, 0.42) : Qt.rgba(1, 1, 1, 0.34)
+                                : Theme.dark ? Qt.rgba(0.22, 0.22, 0.24, 0.42) : Qt.rgba(1, 1, 1, 0.42)
                             shadowOffset: 2
                             shadowBlur: 0.4
                         }
                         Text {
                             id: editLabel
                             anchors.centerIn: parent
-                            text: win.editing ? "Terminé" : "Modifier les widgets"
+                            text: win.editing ? "Done" : "Edit Widgets"
                             color: Theme.dark ? Qt.rgba(1, 1, 1, 0.78) : Qt.rgba(0, 0, 0, 0.58)
                             font.family: Theme.font
                             font.pixelSize: 12
@@ -216,7 +226,7 @@ PanelWindow {
                     visible: win.editing && win.availableWidgets.length > 0
                     Text {
                         x: 4
-                        text: "Widgets disponibles"
+                        text: "Available Widgets"
                         color: Theme.labelSecondary
                         font.family: Theme.font
                         font.pixelSize: 12

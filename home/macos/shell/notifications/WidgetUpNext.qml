@@ -9,13 +9,13 @@ import qs.common
 //  - les événements sur deux colonnes : 2 sous la date, puis jusqu'à 4 à droite ;
 //    chacun dans une pilule teintée de sa couleur, avec une barre verticale, le
 //    titre en gras et l'horaire dans une teinte foncée (claire en mode sombre) ;
-//  - sans autre événement aujourd'hui : « Aucun autre événement aujourd’hui » sous
-//    la date, et les événements de demain à droite (en-tête « DEMAIN »).
+//  - sans autre événement aujourd'hui : « No more events today » sous
+//    la date, et les événements de demain à droite (en-tête « TOMORROW »).
 //
 // Source des événements (simple, sans serveur CalDAV) : fichier JSON
 //   ~/.local/state/quickshell/by-shell/<id>/events.json  (Quickshell.statePath)
 //   [{ "date": "2026-11-23", "start": "14:00", "end": "15:00",
-//      "title": "Réunion", "color": "#FF9F0A" }, ...]
+//      "title": "Meeting", "color": "#FF9F0A" }, ...]
 Item {
     id: w
 
@@ -23,10 +23,23 @@ Item {
     width: 344
     height: 164
 
-    readonly property var dayNames: ["DIMANCHE", "LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI", "SAMEDI"]
+    readonly property var dayNames: ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
     readonly property string todayIso: Qt.formatDate(now, "yyyy-MM-dd")
     readonly property string tomorrowIso: Qt.formatDate(new Date(now.getTime() + 86400000), "yyyy-MM-dd")
     readonly property string nowHm: Qt.formatTime(now, "HH:mm")
+
+    // Horaire au format US de macOS : « 9:00 – 10:30 AM », « 11:30 AM – 1:00 PM »
+    function hm(t) {
+        const [h, m] = String(t).split(":").map(Number);
+        return { t: (h % 12 || 12) + ":" + String(m || 0).padStart(2, "0"), p: h < 12 ? "AM" : "PM" };
+    }
+    function timeRange(start, end) {
+        if (!start) return "";
+        const a = hm(start);
+        if (!end) return a.t + " " + a.p;
+        const b = hm(end);
+        return a.p === b.p ? a.t + " – " + b.t + " " + b.p : a.t + " " + a.p + " – " + b.t + " " + b.p;
+    }
 
     property var allEvents: []
     function sorted(l) { return l.slice().sort((a, b) => (a.start || "").localeCompare(b.start || "")); }
@@ -94,7 +107,7 @@ Item {
         x: 18
         y: 76
         width: 146
-        text: w.todayAll.length ? "Aucun autre événement aujourd’hui" : "Aucun événement aujourd’hui"
+        text: w.todayAll.length ? "No more events today" : "No events today"
         color: Theme.labelSecondary
         font.family: Theme.font
         font.pixelSize: 12
@@ -110,7 +123,7 @@ Item {
         spacing: 4
         Text {
             visible: w.upcoming.length === 0 && w.tomorrow.length > 0
-            text: "DEMAIN"
+            text: "TOMORROW"
             color: Theme.labelSecondary
             font.family: Theme.font
             font.pixelSize: 11
@@ -160,7 +173,7 @@ Item {
             }
             Text {
                 width: parent.width
-                text: (pill.event.start || "") + (pill.event.end ? "–" + pill.event.end : "")
+                text: w.timeRange(pill.event.start, pill.event.end)
                 color: pill.ink
                 opacity: 0.9
                 font.family: Theme.font

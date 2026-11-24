@@ -5,5 +5,6 @@
     ./hyprland.nix
     ./shell.nix
     ./theme.nix
+    ./finder.nix
   ];
 }

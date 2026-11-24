@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -40,12 +41,16 @@ PanelWindow {
     property bool started: false
     visible: started
     color: "transparent"
-    // Calque Top, comme le Dock et la barre des menus : la règle Hyprland
-    // « layerrule = order » (home/macos/hyprland.nix) range alors la barre des
-    // menus SOUS Mission Control (masquée, comme sur macOS) et le Dock AU-DESSUS
-    // (le Dock reste visible et utilisable dans Mission Control).
+    // Calque Top, comme le Dock et la barre des menus. Dans un même calque,
+    // Hyprland empile les surfaces dans l'ordre où elles sont mappées : Mission
+    // Control (mappé à l'ouverture) recouvre donc la barre des menus (masquée,
+    // comme sur macOS)... mais aussi le Dock (« layerrule = order » ne règle que
+    // la réservation d'espace, pas l'empilement). Garder le Dock visible demande
+    // de le placer dans le calque Overlay (hors de ce composant).
+    // "macos-lg-*" : pas de flou Hyprland (surface opaque une fois ouverte ;
+    // pendant l'animation, le vrai bureau doit rester net sous les vignettes).
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.namespace: "macos-missioncontrol"
+    WlrLayershell.namespace: "macos-lg-missioncontrol"
     WlrLayershell.keyboardFocus: isOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; bottom: true; left: true; right: true }
@@ -104,14 +109,36 @@ PanelWindow {
         };
     }
 
-    // Zone de la grille : sous la barre des Spaces dépliée, au-dessus du Dock
+    // Zone de la grille : sous la barre des Spaces repliée, au-dessus du Dock,
+    // avec une marge latérale (les fenêtres ne touchent jamais les bords).
     readonly property real dockReserve: 84
     readonly property rect area: shownMode === "app"
         ? Qt.rect(40, 56, width - 80, height - 56 - dockReserve - 24 - (minStripH > 0 ? minStripH + 56 : 0))
-        : Qt.rect(18, spaces.expandedH + 26, width - 36, height - spaces.expandedH - 26 - dockReserve - 18)
-    readonly property var rects: Layout.compute(wins.map(geomOf), {
+        : Qt.rect(48, spaces.collapsedH + 30, width - 96, height - spaces.collapsedH - 30 - dockReserve - 18)
+    readonly property var baseRects: Layout.compute(wins.map(geomOf), {
         x: area.x, y: area.y, w: area.width, h: area.height
     }, { gapX: 26, gapY: 46, maxScale: 0.88 })   // toujours un léger "recul", comme macOS
+    // Barre des Spaces dépliée (survol, glisser) : comme sur macOS, la même
+    // disposition est réduite et descendue sous la barre (aucune fenêtre ne
+    // change de place dans la grille).
+    readonly property var rects: {
+        const r = baseRects;
+        if (shownMode !== "mc" || !spaces.expanded || r.length === 0) return r;
+        let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+        for (const q of r) {
+            x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y);
+            x1 = Math.max(x1, q.x + q.w); y1 = Math.max(y1, q.y + q.h);
+        }
+        const top = spaces.expandedH + 30;
+        const bottom = height - dockReserve - 18;
+        const k = Math.min(1, (bottom - top) / Math.max(1, y1 - y0));
+        const cx = (x0 + x1) / 2;
+        const ny0 = Math.max(top, Math.min(y0, bottom - (y1 - y0) * k));
+        return r.map(q => ({
+            x: cx + (q.x - cx) * k, y: ny0 + (q.y - y0) * k,
+            w: q.w * k, h: q.h * k, s: q.s * k
+        }));
+    }
     readonly property var minRects: Layout.compute(minWins.map(geomOf), {
         x: 80, y: minStripY, w: width - 160, h: minStripH
     }, { gapX: 34, gapY: 20, maxScale: 0.3 })
@@ -260,25 +287,43 @@ PanelWindow {
             else ShellState.close();
         }
 
-        // Fond d'écran (copie du bureau), apparaît en fondu au début
+        // Fond d'écran (copie du bureau). Au départ (progress = 0) la surface
+        // est transparente : on voit le vrai bureau. Le fond d'écran net devient
+        // opaque presque aussitôt, en même temps que les vignettes (qui
+        // recouvrent alors exactement les vraies fenêtres : pas de « fantôme »
+        // des fenêtres réelles pendant l'animation), puis se floute et
+        // s'assombrit progressivement, comme sur macOS.
         Item {
             id: backdrop
             anchors.fill: parent
-            opacity: Math.min(1, win.progress / 0.3)
+            opacity: Math.min(1, win.progress / 0.06)
             layer.enabled: true
+            // Avancement du flou/voile (et des ombres des vignettes)
+            readonly property real fx: Math.min(1, win.progress / 0.35)
 
+            // Fond d'écran net (source du flou et des vignettes des Spaces)
             WallpaperView {
                 id: wallpaper
                 anchors.fill: parent
                 layer.enabled: true
             }
-            // Voile : le fond d'écran de Mission Control est très légèrement
-            // assombri (~7 %, mesuré sur une capture de macOS 26 : pas de flou) ;
-            // l'Exposé d'application l'assombrit nettement.
+            MultiEffect {
+                anchors.fill: parent
+                source: wallpaper
+                opacity: backdrop.fx
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: 1.0
+                blurMax: 64
+                blurMultiplier: 0.6
+                saturation: 0.05
+            }
+            // Voile : Mission Control assombrit le fond ; l'Exposé
+            // d'application l'assombrit davantage
             Rectangle {
                 anchors.fill: parent
                 color: "black"
-                opacity: win.shownMode === "app" ? 0.38 : 0.07
+                opacity: (win.shownMode === "app" ? 0.40 : 0.24) * backdrop.fx
             }
         }
 
@@ -311,7 +356,7 @@ PanelWindow {
                     progress: win.progress
                     settle: win.progress === 1
                     active: (modelData.lastIpcObject?.focusHistoryID ?? 1) === 0
-                    shadowOpacity: backdrop.opacity
+                    shadowOpacity: backdrop.fx
                     z: dragging ? 1000 : (win.raised === modelData && win.closing ? 900 : index)
                     onHoveredChanged: if (hovered) tiles.hoveredIndex = index; else if (tiles.hoveredIndex === index) tiles.hoveredIndex = -1
                     Binding on hovered {
@@ -354,7 +399,7 @@ PanelWindow {
                     progress: win.progress
                     settle: win.progress === 1
                     active: false
-                    shadowOpacity: backdrop.opacity
+                    shadowOpacity: backdrop.fx
                     draggable: false
                     z: win.raised === modelData && win.closing ? 900 : 0
                     onActivated: win.pick(modelData)

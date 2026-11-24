@@ -96,20 +96,34 @@ for pair in "$@"; do
   done
   if [ -n "$found" ]; then printf "%s\\t%s\\t1\\n" "$key" "$found"; continue; fi
   case "$name" in /*) [ -f "$name" ] && printf "%s\\t%s\\t0\\n" "$key" "$name"; continue ;; esac
+  # « @nom » : icône prise d abord dans le thème de base (MacTahoe clair) :
+  # Tahoe garde la Corbeille de verre dépoli et le dossier bleu clair en mode
+  # sombre, alors que MacTahoe-dark les assombrit.
+  order="$themes"
+  case "$name" in @*) name="${name#@}"; order="${base%-Apple}:$themes" ;; esac
+  # Noms de repli : sans suffixe de canal (-beta, -bin…), dernier segment d un
+  # id inversé (dev.zed.Zed -> Zed), « <nom>-browser » (zen-beta -> zen-browser)
+  stem=$(printf %s "$name" | sed -E "s/[-_](beta|bin|stable|nightly|dev|git|preview|desktop)$//")
+  last="${name##*.}"
+  cands="$name"
+  for c in "$stem" "$last" "$(printf %s "$last" | tr "[:upper:]" "[:lower:]")" "$stem-browser"; do
+    case " $cands " in *" $c "*) ;; *) [ -n "$c" ] && cands="$cands $c" ;; esac
+  done
+  for cand in $cands; do
   best=""; bestsz=0; svg=""
   IFS=:
   for d in $dirs; do
     # Thème choisi seulement : hicolor (icônes amont non stylées) ne doit pas
     # passer devant un SVG du thème ; le repli hicolor reste assuré par Qt.
-    for t in $themes; do
+    for t in $order; do
       r="$d/icons/$t"
       [ -d "$r" ] || continue
-      for f in "$r"/*/*/"$name".svg "$r"/*/"$name".svg; do
+      for f in "$r"/*/*/"$cand".svg "$r"/*/"$cand".svg; do
         [ -f "$f" ] || continue
         # Préférer le dessin « scalable » aux variantes 16/22/24 px simplifiées
         case "$svg" in */scalable/*) ;; *) case "$f" in */scalable/*) svg="$f" ;; *) [ -z "$svg" ] && svg="$f" ;; esac ;; esac
       done
-      for f in "$r"/*/*/"$name".png "$r"/*/"$name".png; do
+      for f in "$r"/*/*/"$cand".png "$r"/*/"$cand".png; do
         [ -f "$f" ] || continue
         rel="${f#$r/}"
         sz=$(printf %s "$rel" | grep -o "[0-9][0-9]*" | head -1)
@@ -120,6 +134,8 @@ for pair in "$@"; do
     done
   done
   unset IFS
+  [ -n "$best$svg" ] && break
+  done
   # Toile >= 512 px : icône Apple exportée d un Mac (squircle à 80,5 %) -> 2
   if [ -n "$best" ] && [ "$bestsz" -ge 512 ]; then printf "%s\\t%s\\t2\\n" "$key" "$best";
   elif [ -n "$best" ] && [ "$bestsz" -ge "$min" ]; then printf "%s\\t%s\\t0\\n" "$key" "$best";

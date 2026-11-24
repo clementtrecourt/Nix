@@ -1,87 +1,32 @@
 import QtQuick
+import Quickshell
 import qs.common
 
-// Plaque "Liquid Glass" (macOS Tahoe) : teinte translucide, lueur interne
-// d'épaisseur près des bords, liseré spéculaire qui s'allume sur les bords
-// orientés vers la lumière (haut-gauche, et plus faiblement bas-droite), ombre
-// portée douce. Tout est calculé dans un seul shader SDF
-// (assets/shaders/glass.frag) : pas de couche intermédiaire, pas d'artefact
-// carré autour de l'ombre, l'intérieur du verre n'est jamais assombri par
-// l'ombre.
+// Plaque « Liquid Glass » commune (macOS Tahoe) : LiquidGlass dont le fond est
+// fourni par la fenêtre.
 //
-// Le flou d'arrière-plan vient de Hyprland (layerrule blur sur le namespace
-// "macos-*" de la surface) : rien n'est flouté ici.
+//  - Si la fenêtre déclare `property Item glassBackdrop: <GlassBackdrop>`, le
+//    verre RÉFRACTE ce fond (lentille de bord, flou léger, teinte adaptative,
+//    liseré spéculaire, bande d'épaisseur) : voir common/GlassBackdrop.qml.
+//  - Sinon : repli sans réfraction (teinte + liseré ; le flou vient de la
+//    layerrule Hyprland du namespace "macos-*").
+//
+// Même API qu'avant (radius, tint, thick, shadowEnabled, shadowBlur,
+// shadowOffset, shadowColor, réglages fins du liseré, contenu par défaut) ;
+// `overlay` : voile dense composé par-dessus le fond réfracté (remplace un
+// Rectangle peint sous le verre, qui serait masqué par la réfraction).
 //
 // L'ombre déborde de l'item (de ~3 x shadowBlur x 14 px) : prévoir cette marge
 // dans la fenêtre.
 //
 // Usage : Glass { radius: Theme.radiusPanel; <contenu> }
-Item {
+LiquidGlass {
     id: root
 
-    property real radius: Theme.radiusPanel
-    property color tint: thick ? Theme.glassThick : Theme.glass
-    property bool thick: false
-    property bool shadowEnabled: true
-    // 1.0 = ombre de panneau standard (sigma 14 px) ; 0.5 = ombre courte.
-    property real shadowBlur: 1.0
-    property int shadowOffset: 8
-    property color shadowColor: Theme.shadow
-    default property alias content: contentItem.data
+    readonly property var _bd: QsWindow.window?.glassBackdrop ?? null
 
-    // --- Réglages fins (optionnels) ---
-    // Liseré spéculaire : couleur, épaisseur, intensité minimale hors lumière.
-    property color rimColor: Theme.glassHighlight
-    property real rimWidth: 1.2
-    property real rimBase: Theme.dark ? 0.42 : 0.50
-    // Lueur interne (épaisseur du verre).
-    property color glowColor: Theme.glassGlow
-    property real glowWidth: Math.min(14, Math.min(width, height) * 0.22)
-    // Bande sombre interne (réfraction dans l'épaisseur du verre, sous le liseré).
-    property color shadeColor: Theme.glassShade
-    property real shadeWidth: Math.min(7, Math.min(width, height) * 0.14)
-    // Angle (degrés) de la lumière : 225 = vient du haut-gauche.
-    property real lightAngle: 225
-    // Alpha max de l'ombre. Hyprland floute tout pixel des surfaces "macos-*"
-    // dont l'alpha dépasse ignore_alpha (Theme.layerBlurIgnoreAlpha = 0.05) :
-    // une ombre plus opaque ferait apparaître un halo flouté, au contour net,
-    // autour du verre. L'ombre de Tahoe est de toute façon très discrète.
-    property real shadowMax: Theme.layerBlurIgnoreAlpha - 0.003
-
-    readonly property real _sigma: shadowEnabled ? Math.max(0.5, shadowBlur * 14) : 0
-    readonly property int _pad: shadowEnabled ? Math.ceil(_sigma * 3 + Math.abs(shadowOffset)) : 1
-
-    ShaderEffect {
-        id: fx
-        x: -root._pad
-        y: -root._pad
-        width: root.width + 2 * root._pad
-        height: root.height + 2 * root._pad
-        visible: root.width > 0 && root.height > 0
-        fragmentShader: Qt.resolvedUrl("../assets/shaders/glass.frag.qsb")
-
-        property vector2d itemSize: Qt.vector2d(width, height)
-        property vector4d plate: Qt.vector4d(root._pad, root._pad, root.width, root.height)
-        property real radius: root.radius
-        property color tint: root.tint
-        property color rimColor: root.rimColor
-        property real rimWidth: root.rimWidth
-        property real rimBase: root.rimBase
-        property color glowColor: root.glowColor
-        property real glowWidth: root.glowWidth
-        property color shadowColor: root.shadowColor
-        property real shadowSigma: root._sigma
-        property real shadowOffsetY: root.shadowOffset
-        property real shadowMax: root.shadowMax
-        property color shadeColor: root.shadeColor
-        property real shadeWidth: root.shadeWidth
-        // Direction dans laquelle se propage la lumière (repère écran, y vers le bas)
-        property vector2d lightDir: Qt.vector2d(-Math.cos(root.lightAngle * Math.PI / 180),
-                                                -Math.sin(root.lightAngle * Math.PI / 180))
-    }
-
-    Item {
-        id: contentItem
-        anchors.fill: parent
-    }
+    tint: thick ? Theme.glassThick : Theme.glass
+    backdrop: _bd ? _bd.mode : "none"
+    backdropItem: _bd
+    windowOrigin: _bd && _bd.origin ? _bd.origin : _autoWindowOrigin
 }

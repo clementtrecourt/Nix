@@ -88,15 +88,15 @@ Item {
         }
         // Menu Aide : résultats de recherche parmi les menus de l'app
         if (out.length > 0 && out[0].search && query.trim() !== "") {
-            // (insensible à la casse et aux accents, comme macOS : « re » trouve « Récents »)
+            // (insensible à la casse et aux accents, comme macOS)
             const fold = t => (t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
             const q = fold(query.trim());
             const found = (out[0].provider ? out[0].provider() : [])
                 .filter(e => fold(e.text).includes(q))
                 .slice(0, 12)
                 .map(e => normalize(Object.assign({}, e, { shortcut: null, pathText: e.path.join(" ▸ ") })));
-            out = [out[0], { header: true, text: "Éléments de menu" }].concat(
-                found.length ? found : [{ text: "Aucun résultat", enabled: false }]);
+            out = [out[0], { header: true, text: "Menu Items" }].concat(
+                found.length ? found : [{ text: "No Results", enabled: false }]);
         }
         // Pas de séparateur en tête / en fin / en double
         const clean = [];
@@ -105,6 +105,17 @@ Item {
             clean.push(e);
         }
         while (clean.length && clean[clean.length - 1].separator) clean.pop();
+        // Tahoe : le retrait du texte se décide par SECTION (entre deux
+        // séparateurs) : si un élément de la section a un picto, tous les
+        // libellés de la section s'alignent après la colonne des pictos ; sinon
+        // ils restent à gauche (menus Safari / Loopback de macOS 26)
+        let start = 0;
+        for (let i = 0; i <= clean.length; i++) {
+            if (i < clean.length && !clean[i].separator) continue;
+            const has = clean.slice(start, i).some(e => !!(e.icon || e.iconSource));
+            for (let k = start; k < i; k++) clean[k].indent = has;
+            start = i + 1;
+        }
         return clean;
     }
 
@@ -116,7 +127,7 @@ Item {
     }
     readonly property var metrics: {
         // 1er passage : colonnes communes (picto à gauche, raccourcis)
-        let mw = 0, kw = 0, lead = false, search = false;
+        let mw = 0, kw = 0, gutter = false, search = false;
         for (const e of model) {
             if (e.separator) continue;
             if (e.search) { search = true; continue; }
@@ -128,16 +139,21 @@ Item {
                 mw = Math.max(mw, m);
             }
             if (e.key) kw = Math.max(kw, fm.advanceWidth(e.key));
-            if (e.icon || e.iconSource || e.checked || e.checkable || e.minimized) lead = true;
+            if (e.checked || e.checkable || e.minimized) gutter = true;
         }
-        const textX = lead ? 37 : 16;
+        // Colonnes (pt, depuis le bord du menu), relevées sur les captures 2x
+        // de Tahoe : texte seul à 16, picto centré à 24 et texte à 38 ; si le
+        // menu a des coches, une gouttière (coche centrée à 13,5) décale tout :
+        // picto à 31,5, texte après picto à 47 (Fenêtre du Finder).
+        const cols = gutter ? { check: 13, plain: 25, icon: 31, iconText: 47 }
+                            : { check: 13, plain: 16, icon: 24, iconText: 38 };
         const keys = kw > 0 ? 22 + Math.ceil(mw) + 3 + Math.ceil(kw) : 0;
         // 2e passage : largeur nécessaire par ligne. Marge droite : 14 pt +
         // respiration (macOS laisse au moins ~20 pt après le texte).
         let w = 0;
         for (const e of model) {
             if (e.separator || e.search) continue;
-            let need = (e.header ? 16 : e.network ? 46 : textX)
+            let need = 1 + (e.header ? cols.plain : e.network ? 46 : e.indent ? cols.iconText : cols.plain)
                 + fm.advanceWidth(e.text ?? "") * (e.header ? 0.9 : 1) + 24 + keys;
             if (e.pathText) need += fm.advanceWidth(e.pathText) * (e.info ? 1 : 0.85) + 12;
             if (e.hasSubmenu || e.disclosure) need += 16;
@@ -147,33 +163,60 @@ Item {
             w = Math.max(w, need);
         }
         if (search) w = Math.max(w, 260);
-        return { textX: textX, modsW: Math.ceil(mw) + 3, keyW: Math.ceil(kw), width: Math.ceil(Math.max(w, 140)) };
+        return { cols: cols, modsW: Math.ceil(mw) + 3, keyW: Math.ceil(kw), width: Math.ceil(Math.max(w, 140)) };
     }
 
     width: metrics.width
     height: column.implicitHeight + 10
 
     // ---- Rendu ----
-    // Rayon : ~14 pt mesuré sur Tahoe (Fenêtre > Déplacer et redimensionner,
-    // capture 2x), un peu plus que Theme.radiusMenu (12) des menus contextuels.
-    readonly property real radius: 14
+    // Mesures Tahoe (captures 2x, menus Apple / Finder / Safari de macOS 26) :
+    // rayon ~12,5-13 pt, ombre douce (~0 3 20 pt, 18 %), filet extérieur
+    // sombre d'un demi-point sous le liseré clair du verre.
+    readonly property real radius: 13
 
-    // Teinte posée par un Rectangle (alpha correct) plutôt que par la teinte du
-    // shader de Glass : celui-ci multiplie une seconde fois par l'alpha une
-    // couleur que Qt lui passe déjà prémultipliée, ce qui rendait les menus
-    // clairs gris-bleu (rgb 156,172,183 au lieu de ~235,236,240).
+    // Matériau : le fond flouté (nettement plus que les autres verres) est
+    // ramené vers une luminance cible en GARDANT sa couleur : relevé sur Tahoe
+    // clair, #4170BA derrière -> #C9E8FF, blanc derrière -> #F8F8F8 ; sombre,
+    // fond très sombre -> ~#1D1D1D, fond rouge vif -> rouge très sombre.
+    readonly property color glassTint: Theme.dark ? Qt.rgba(0.18, 0.18, 0.19, 0.86)
+                                                  : Qt.rgba(0.973, 0.973, 0.973, 0.76)
+
+    // Repli sans réfraction (pas de capture) : teinte posée par un Rectangle
+    // (la teinte du shader de Glass y serait prémultipliée deux fois)
     Rectangle {
         anchors.fill: parent
         radius: panel.radius
         color: Theme.menuBackground
         antialiasing: true
+        visible: !menuGlass.refracting
     }
     Glass {
+        id: menuGlass
         anchors.fill: parent
         radius: panel.radius
-        tint: "transparent"
-        shadowBlur: 0.5
-        shadowOffset: 4
+        tint: refracting ? panel.glassTint : "transparent"
+        adaptive: 0
+        blur: 12
+        saturation: 1.2
+        // (la lentille de bord reste discrète sur un menu : verre « dense »)
+        refraction: bezel * 0.8
+        shadowBlur: 0.72
+        shadowOffset: 3
+        shadowColor: Qt.rgba(0, 0, 0, Theme.dark ? 0.36 : 0.18)
+        rimColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.30) : Qt.rgba(1, 1, 1, 0.85)
+        glowColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.04) : Qt.rgba(1, 1, 1, 0.20)
+        edgeDarken: 0.08
+    }
+    // Filet extérieur d'un demi-point (sombre), qui détache le menu du fond
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -0.5
+        radius: panel.radius + 0.5
+        color: "transparent"
+        antialiasing: true
+        border.width: 0.75
+        border.color: Theme.dark ? Qt.rgba(0, 0, 0, 0.55) : Qt.rgba(0, 0, 0, 0.16)
     }
 
     Column {
@@ -196,8 +239,9 @@ Item {
                     MenuRow {
                         entry: slot.modelData
                         highlighted: panel.currentIndex === slot.index
+                        muted: panel.subIndex === slot.index && !!panel.childPanel && panel.childPanel.currentIndex >= 0
                         flashOff: panel.flashOff
-                        textX: panel.metrics.textX
+                        cols: panel.metrics.cols
                         expanded: !!slot.modelData.expanded
                         modsW: panel.metrics.modsW
                         keyW: panel.metrics.keyW
@@ -217,6 +261,14 @@ Item {
 
     // ---- Comportement ----
     function rowAt(i) { return rep.itemAt(i)?.item ?? null; }
+    // Index de la ligne à l'ordonnée y (repère du menu), -1 si aucune
+    function rowIndexAt(y) {
+        for (let i = 0; i < rep.count; i++) {
+            const r = rep.itemAt(i);
+            if (r && y >= column.y + r.y && y < column.y + r.y + r.height) return i;
+        }
+        return -1;
+    }
     function selectable(i) {
         const e = model[i];
         return !!e && !e.separator && !e.header && !e.info && !e.search && e.enabled !== false;
@@ -225,7 +277,8 @@ Item {
     // Survol : surbrillance, ouverture différée du sous-menu
     function hover(i) {
         if (flashing) return;
-        currentIndex = i;
+        // (un élément grisé ne s'allume pas)
+        currentIndex = selectable(i) ? i : -1;
         if (model[i]?.hasSubmenu && selectable(i)) {
             if (subIndex !== i) { subTimer.target = i; subTimer.restart(); }
         } else if (subIndex !== -1) {
@@ -363,7 +416,8 @@ Item {
         onLoaded: {
             const c = item;
             // À droite du parent, ou à gauche s'il n'y a plus de place
-            c.x = Qt.binding(() => (panel.originX + panel.width + c.width + 6 > panel.areaWidth) ? -c.width - 1 : panel.width + 1);
+            // (Tahoe : le sous-menu chevauche le parent de ~4 pt)
+            c.x = Qt.binding(() => (panel.originX + panel.width + c.width + 6 > panel.areaWidth) ? -c.width + 4 : panel.width - 4);
             // Première ligne alignée sur la ligne parente, sans sortir de l'écran
             c.y = Qt.binding(() => Math.max(-panel.originY + 4, Math.min(subLoader.rowY - 5, panel.areaHeight - panel.originY - c.height - 6)));
             c.originX = Qt.binding(() => panel.originX + c.x);

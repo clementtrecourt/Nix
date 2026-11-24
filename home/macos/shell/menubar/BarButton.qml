@@ -24,20 +24,59 @@ Item {
 
     signal pressed(var mouse)
     signal entered()
+    // Glisser bouton enfoncé (point dans le repère de la fenêtre de la barre) :
+    // macOS permet d'appuyer sur un titre, glisser jusqu'à un élément et relâcher
+    signal dragged(point p)
+    signal released(point p)
 
     implicitWidth: holder.childrenRect.width + padding * 2
     implicitHeight: parent ? parent.height : 32
 
-    // Pastille (capsule de verre clair, sans liseré visible : blanc ~0,30 mesuré
-    // sur la capture Apple). Sur fond clair : voile sombre très léger.
+    // Verre (Liquid Glass sur le fond d'écran) pour la pastille ; sinon
+    // (barre opaque du plein écran) simple capsule teintée
+    property bool glassPill: true
+
+    // Pastille Tahoe : capsule de ~24 pt de haut, sans liseré visible, qui
+    // ÉCLAIRCIT le fond en gardant sa couleur (capture Ars Technica de Tahoe,
+    // Control Center ouvert : bleu 62,115,165 -> 78,134,187, soit la luminance
+    // rapprochée du blanc de ~13 % et la chrominance conservée : c'est la
+    // compression de luminance du verre, pas un voile blanc qui délaverait).
+    // Sur fond clair (texte noir), la pastille assombrit légèrement.
+    readonly property real pillWidth: width + 2 * pillExtra
+    // (20-22 pt de haut sur Tahoe)
+    readonly property real pillHeight: Math.min(height - 8, 22)
+    Loader {
+        id: pillGlass
+        active: root.glassPill && (root.active || opacity > 0)
+        anchors.centerIn: parent
+        width: root.pillWidth
+        height: root.pillHeight
+        opacity: root.active ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
+        sourceComponent: Glass {
+            radius: height / 2
+            tint: root.lightBackdrop ? Qt.rgba(0, 0, 0, 0.09) : Qt.rgba(1, 1, 1, 0.13)
+            adaptive: 0
+            saturation: 1.1
+            refraction: 2
+            blur: 3
+            shadowEnabled: false
+            // (liseré à peine perceptible : la pastille de Tahoe n'a pas de bord net)
+            rimColor: Qt.rgba(1, 1, 1, root.lightBackdrop ? 0.18 : 0.07)
+            rimBase: 0.2
+            glowColor: "transparent"
+            shadeColor: "transparent"
+            edgeDarken: 0
+        }
+    }
     Rectangle {
         id: pill
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: parent.width + 2 * root.pillExtra
-        height: Math.min(parent.height - 8, 24)
+        visible: !root.glassPill
+        anchors.centerIn: parent
+        width: root.pillWidth
+        height: root.pillHeight
         radius: height / 2
-        color: root.lightBackdrop ? Qt.rgba(0, 0, 0, 0.10) : Qt.rgba(1, 1, 1, 0.30)
+        color: root.lightBackdrop ? Qt.rgba(0, 0, 0, 0.10) : Qt.rgba(1, 1, 1, 0.20)
         opacity: root.active ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
     }
@@ -68,5 +107,9 @@ Item {
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
         onPressed: mouse => root.pressed(mouse)
         onEntered: root.entered()
+        // (pendant l'appui, Wayland continue d'envoyer le pointeur à la barre
+        // même hors de sa surface : c'est elle qui pilote alors le menu)
+        onPositionChanged: mouse => { if (pressed) root.dragged(mapToItem(null, mouse.x, mouse.y)); }
+        onReleased: mouse => root.released(mapToItem(null, mouse.x, mouse.y))
     }
 }

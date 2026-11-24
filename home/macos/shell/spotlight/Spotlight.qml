@@ -11,8 +11,11 @@ import qs.services
 //
 // - ⌘Espace (GlobalShortcut macos:spotlight) : capsule Liquid Glass centrée au
 //   tiers supérieur de l'écran ; en bougeant le pointeur, les 4 boutons de mode
-//   (Applications ⌘1, Fichiers ⌘2, Actions ⌘3, Presse-papiers ⌘4) sortent de
-//   la capsule comme des gouttes.
+//   (Applications ⌘1, Files ⌘2, Actions ⌘3, Clipboard ⌘4) sortent de la
+//   capsule comme des gouttes.
+// - Liquid Glass : la fenêtre fournit un GlassBackdrop « snapshot » (capture de
+//   l'écran prise juste avant l'apparition) que tous ses verres réfractent ;
+//   l'animation d'apparition ne démarre qu'une fois la fenêtre visible.
 // - Dès la frappe, la capsule s'étire en panneau de résultats groupés.
 // - F4 / Launchpad (macos:apps) : ouvre directement la vue Applications.
 //
@@ -37,12 +40,12 @@ Scope {
 
     // Symboles des boutons de Tahoe : « A » de l'App Store, dossier, calques
     // (Raccourcis), documents sur presse-papiers. Le nom du mode sert de texte
-    // indicatif du champ (« Applications », « Presse-papiers »…).
+    // indicatif du champ (« Applications », « Clipboard »…).
     readonly property var modes: [
         { id: "apps", label: "Applications", symbol: "appstore", key: "1" },
-        { id: "files", label: "Fichiers", symbol: "folder", key: "2" },
+        { id: "files", label: "Files", symbol: "folder", key: "2" },
         { id: "actions", label: "Actions", symbol: "square.2.layers.3d", key: "3" },
-        { id: "clipboard", label: "Presse-papiers", symbol: "document.on.clipboard", key: "4" }
+        { id: "clipboard", label: "Clipboard", symbol: "document.on.clipboard", key: "4" }
     ]
     readonly property var modeInfo: modes.find(m => m.id === mode) ?? null
     // Bouton de mode survolé (-1 = aucun) : le champ annonce le mode et son raccourci
@@ -54,6 +57,7 @@ Scope {
         active: root.shown
         query: root.query
         mode: root.mode
+        withSuggestions: !root.appsAsList
     }
 
     onWantedChanged: wanted ? show() : hide()
@@ -83,8 +87,14 @@ Scope {
         menuOpen = false;
         hoverMode = -1;
         search.resultFilter = "";
+        openT0 = Date.now();
+        lastPointer = Qt.point(-1, -1);
+        pointerMoved = false;
         shown = true;
     }
+    // Mesure du délai d'ouverture (raccourci -> fenêtre visible), en ms
+    property double openT0: 0
+    property real openLatency: -1
     function hide() {
         if (!shown) return;
         shown = false;
@@ -114,13 +124,13 @@ Scope {
     GlobalShortcut {
         appid: "macos"
         name: "spotlight"
-        description: "Ouvrir / fermer Spotlight"
+        description: "Show Spotlight search"
         onPressed: root.wanted ? ShellState.close() : ShellState.open("spotlight")
     }
     GlobalShortcut {
         appid: "macos"
         name: "apps"
-        description: "Vue Applications (Launchpad)"
+        description: "Show Apps"
         onPressed: ShellState.openPanel === "apps" ? ShellState.close() : ShellState.open("apps")
     }
 
@@ -130,15 +140,32 @@ Scope {
     PanelWindow {
         id: win
         screen: root.targetScreen
-        visible: root.shown || root.presented > 0.001
+        // Visible une fois la capture du fond arrivée (Liquid Glass)
+        visible: bd.pass
         color: "transparent"
         anchors { top: true; bottom: true; left: true; right: true }
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.namespace: "macos-spotlight"
+        // « macos-lg-* » : pas de flou Hyprland, le verre réfracte lui-même
+        WlrLayershell.namespace: "macos-lg-spotlight"
         WlrLayershell.keyboardFocus: root.shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-        onVisibleChanged: if (visible) field.forceActiveFocus()
+        property Item glassBackdrop: bd
+        GlassBackdrop {
+            id: bd
+            mode: "snapshot"
+            screen: win.screen
+            want: root.shown || root.presented > 0.001
+            // Repli court : Spotlight doit s'ouvrir en < 100 ms même si la
+            // capture tarde (elle arrive en ~50 ms à 60 Hz)
+            timeout: 90
+        }
+
+        onVisibleChanged: {
+            if (!visible) return;
+            field.forceActiveFocus();
+            if (root.openT0 > 0) { root.openLatency = Date.now() - root.openT0; root.openT0 = 0; }
+        }
 
         Item {
             id: stage
@@ -200,7 +227,7 @@ Scope {
                                 }
                             }
                         }
-                        readonly property real finalX: Metrics.groupWidth - Metrics.buttonsWidth + Metrics.buttonGap
+                        readonly property real finalX: Metrics.barWidthWithButtons + Metrics.buttonGap
                                                        + index * (Metrics.buttonSize + Metrics.buttonSpacing)
                         // Départ : à moitié sous l'extrémité droite ACTUELLE de la capsule
                         // (qui se rétracte en même temps). Le verre de la capsule est
@@ -227,17 +254,15 @@ Scope {
                 // ---- Capsule / panneau de verre ----
                 Glass {
                     id: panel
-                    width: root.buttonsVisible ? Metrics.groupWidth - Metrics.buttonsWidth : Metrics.groupWidth
+                    width: root.buttonsVisible ? Metrics.barWidthWithButtons : Metrics.groupWidth
                     height: Metrics.barHeight + (root.bodyShown ? root.bodyHeight + 1 : 0)
                     radius: Metrics.barRadius
-                    // Ombre douce et légère : au-delà de 5 % d'opacité Hyprland
-                    // floute aussi la zone d'ombre (layerrule ignore_alpha 0.05),
-                    // ce qui dessinerait une bande floue sous la capsule. On plafonne
-                    // donc l'ombre juste sous ce seuil (plateau large et diffus).
-                    shadowBlur: 1.4
-                    shadowOffset: 10
-                    shadowColor: Qt.rgba(0, 0, 0, Theme.dark ? 0.35 : 0.2)
-                    shadowMax: 0.045
+                    tint: root.glassTint
+                    // Ombre douce et diffuse (namespace macos-lg-* : non floutée
+                    // par Hyprland, plus de plafond ignore_alpha)
+                    shadowBlur: 1.6
+                    shadowOffset: 12
+                    shadowColor: Qt.rgba(0, 0, 0, Theme.dark ? 0.30 : 0.14)
 
                     Behavior on width {
                         NumberAnimation {
@@ -268,7 +293,7 @@ Scope {
                                 name: root.mode === "" ? "magnifyingglass"
                                      : (leadMouse.containsMouse ? "chevron.left" : root.modeInfo.symbol)
                                 size: Metrics.glyphSize
-                                color: Theme.dark ? "#c2c2c7" : "#606065"
+                                color: root.glyphColor
                             }
                             MouseArea {
                                 id: leadMouse
@@ -285,11 +310,12 @@ Scope {
                             id: placeholder
                             anchors.fill: field
                             verticalAlignment: Text.AlignVCenter
-                            visible: field.text.length === 0
+                            // Jeton de filtre présent : pas de texte indicatif
+                            visible: field.text.length === 0 && !token.visible
                             text: root.modeInfo ? root.modeInfo.label
-                                 : (root.hoverInfo ? root.hoverInfo.label : "Recherche Spotlight")
+                                 : (root.hoverInfo ? root.hoverInfo.label : "Spotlight Search")
                             font: field.font
-                            color: Theme.labelSecondary
+                            color: Theme.dark ? Qt.rgba(1, 1, 1, 0.60) : Qt.rgba(0, 0, 0, 0.52)
                             elide: Text.ElideRight
                         }
 
@@ -301,18 +327,19 @@ Scope {
                             visible: label !== ""
                             x: Metrics.textX - 2
                             anchors.verticalCenter: parent.verticalCenter
-                            width: visible ? tokenText.implicitWidth + 20 : 0
-                            height: 30
-                            radius: height / 2
-                            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.85)
+                            // Jeton gris neutre au texte de la taille du champ
+                            // (MacRumors « search-spotlight-location » : « iCloud Drive »)
+                            width: visible ? tokenText.implicitWidth + 24 : 0
+                            height: 38
+                            radius: 12
+                            color: Theme.dark ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(0, 0, 0, 0.07)
                             Text {
                                 id: tokenText
                                 anchors.centerIn: parent
                                 text: token.label
-                                font.family: Theme.font
-                                font.pixelSize: 16
-                                font.weight: Font.Medium
-                                color: "white"
+                                font.family: Theme.fontDisplay
+                                font.pixelSize: Metrics.fieldFontSize - 4
+                                color: Theme.label
                             }
                         }
 
@@ -332,7 +359,8 @@ Scope {
                             cursorDelegate: Rectangle {
                                 width: 2
                                 radius: 1
-                                color: Theme.accent
+                                // Captures Tahoe : curseur de la couleur du texte
+                                color: Theme.label
                                 visible: field.activeFocus
                                 SequentialAnimation on opacity {
                                     loops: Animation.Infinite
@@ -373,15 +401,15 @@ Scope {
                                 delegate: Rectangle {
                                     required property string modelData
                                     required property int index
-                                    width: 19
-                                    height: 19
-                                    radius: 5
+                                    width: 22
+                                    height: 22
+                                    radius: 6
                                     color: Theme.fillHover
                                     Symbol {
                                         visible: parent.index === 0
                                         anchors.centerIn: parent
                                         name: "command"
-                                        size: 12
+                                        size: 13
                                         // Couleur opaque : la recoloration de Symbol
                                         // gère mal une couleur semi-transparente
                                         color: Theme.dark ? "#b4b4b9" : "#5c5c61"
@@ -391,7 +419,7 @@ Scope {
                                         anchors.centerIn: parent
                                         text: parent.modelData
                                         font.family: Theme.font
-                                        font.pixelSize: 11
+                                        font.pixelSize: 13
                                         font.weight: Font.Medium
                                         color: Theme.dark ? "#b4b4b9" : "#5c5c61"
                                     }
@@ -417,8 +445,8 @@ Scope {
                             Symbol {
                                 anchors.centerIn: parent
                                 name: "ellipsis.circle"
-                                size: 22
-                                color: Theme.dark ? "#c2c2c7" : "#606065"
+                                size: 24
+                                color: root.glyphColor
                             }
                             MouseArea {
                                 id: optMouse
@@ -512,8 +540,10 @@ Scope {
                                 cmdHeld: root.cmdHeld
                                 onClicked: { list.sel = index; root.activate(false); }
                                 onSecondaryAction: { search.copyClip(modelData.clipId); root.close(); }
+                                onPointed: (sx, sy) => { if (root.pointerMovedTo(sx, sy) && !modelData.header) list.sel = index; }
                             }
-                            onModelChanged: { sel = 0; positionViewAtBeginning(); }
+                            // Première ligne sélectionnable (saute un en-tête)
+                            onModelChanged: { sel = root.firstSelectable(); positionViewAtBeginning(); }
                         }
 
                         // Message vide (presse-papiers vide, aucun résultat…)
@@ -542,12 +572,14 @@ Scope {
                             items: root.gridItems
                             columns: Metrics.gridColumns
                             showSelection: root.query.length > 0 || root.gridNavigated
+                            hoverActive: root.pointerMoved
+                            onPointed: (sx, sy) => root.pointerMovedTo(sx, sy)
                             onActivated: item => root.activateItem(item, false)
                         }
                         Text {
                             visible: root.bodyKind === "grid" && grid.flat.length === 0
                             anchors.centerIn: grid
-                            text: search.filesLoading ? "Recherche…" : "Aucun résultat"
+                            text: search.filesLoading ? "Searching…" : "No Results"
                             font.family: Theme.font
                             font.pixelSize: 15
                             color: Theme.labelSecondary
@@ -578,7 +610,9 @@ Scope {
     // =====================================================================
     // Présentation (apparition / disparition)
     // =====================================================================
-    property real presented: shown ? 1 : 0
+    // Démarre quand la fenêtre devient visible (après la capture du fond), pas
+    // avant : sinon la première partie de l'animation serait perdue
+    property real presented: shown && bd.pass ? 1 : 0
     Behavior on presented {
         NumberAnimation {
             duration: (root.shown ? 340 : 150) * root.slow
@@ -589,6 +623,19 @@ Scope {
     onShownChanged: if (shown) field.forceActiveFocus()
 
     readonly property bool buttonsVisible: shown && buttonsShown && mode === "" && query.length === 0
+    // Le pointeur a-t-il réellement bougé ? (une liste qui apparaît ou défile
+    // sous un pointeur immobile envoie aussi des événements de survol : ils ne
+    // doivent ni sélectionner une ligne ni surligner une case)
+    property point lastPointer: Qt.point(-1, -1)
+    property bool pointerMoved: false
+    function pointerMovedTo(sx, sy) {
+        if (lastPointer.x < 0) { lastPointer = Qt.point(sx, sy); return pointerMoved; }
+        if (Math.abs(sx - lastPointer.x) + Math.abs(sy - lastPointer.y) < 1) return pointerMoved;
+        lastPointer = Qt.point(sx, sy);
+        pointerMoved = true;
+        return true;
+    }
+
     function revealButtons() {
         if (shown && mode === "" && query.length === 0) buttonsShown = true;
     }
@@ -607,7 +654,7 @@ Scope {
     readonly property var chipModel: {
         if (mode === "apps") return search.appCategoriesPresent;
         if (mode === "files") return [
-            { id: "folders", name: "Dossiers" }, { id: "documents", name: "Documents" },
+            { id: "folders", name: "Folders" }, { id: "documents", name: "Documents" },
             { id: "pdf", name: "PDF" }, { id: "images", name: "Images" }
         ];
         if (mode === "") return search.resultGroups;
@@ -626,6 +673,9 @@ Scope {
         else if (mode === "files") search.fileKind = search.fileKind === id ? "" : id;
         else search.resultFilter = search.resultFilter === id ? "" : id;
         gridNavigated = false;
+        // Fait défiler la rangée de pastilles jusqu'à la pastille choisie
+        const idx = chipModel.findIndex(c => c.id === id);
+        if (idx >= 0) chips.positionViewAtIndex(idx, ListView.Contain);
     }
     function clearFilter() {
         search.appCategory = "";
@@ -643,7 +693,7 @@ Scope {
             return search.groupNames[search.resultFilter] ?? "";
         return "";
     }
-    readonly property string emptyText: mode === "clipboard" && !query.length ? "Aucun élément dans le presse-papiers" : "Aucun résultat"
+    readonly property string emptyText: mode === "clipboard" && !query.length ? "No Clipboard History" : "No Results"
 
     readonly property var listModel: {
         if (mode === "apps") {
@@ -656,7 +706,7 @@ Scope {
         if (mode === "apps") return search.appGrid;
         if (mode === "files") {
             const items = search.fileGrid;
-            return (!query.trim() && items.length) ? [{ header: true, title: "Récents" }].concat(items) : items;
+            return (!query.trim() && items.length) ? [{ header: true, title: "Recents" }].concat(items) : items;
         }
         return [];
     }
@@ -668,9 +718,28 @@ Scope {
     // en bas du panneau au repos, comme Tahoe).
     readonly property real listHeight: {
         const pad = Metrics.listPadTop + Metrics.listPadBottom;
-        const fit = Math.max(1, Math.floor((maxBody - chipsArea - pad) / Metrics.rowHeight));
-        return pad + Math.min(listModel.length, fit) * Metrics.rowHeight;
+        const avail = maxBody - chipsArea - pad;
+        let h = 0;
+        for (const it of listModel) {
+            const rh = it.header ? Metrics.headerHeight : Metrics.rowHeight;
+            if (h + rh > avail) break;
+            h += rh;
+        }
+        return pad + Math.max(h, Math.min(listModel.length, 1) * Metrics.rowHeight);
     }
+    function firstSelectable() {
+        for (let i = 0; i < listModel.length; i++) if (!listModel[i].header) return i;
+        return 0;
+    }
+
+    // ---- Matériau (Liquid Glass recalibré sur les captures Tahoe) ----
+    // Teinte = cible de luminance du fond réfracté. Clair (Cult of Mac
+    // « Spotlight-Applications ») : fond L ≈ 0,45 -> panneau ≈ 0,82, fond
+    // pastel gardant sa chrominance -> blanc à ~62 %. Sombre (MacRumors
+    // « spotlight-clipboard », « search-spotlight-location ») : fond ≈ 0,40
+    // -> ≈ 0,19, bleuté -> gris très foncé à ~64 %.
+    readonly property color glassTint: Theme.dark ? Qt.rgba(0.09, 0.09, 0.10, 0.64) : Qt.rgba(1, 1, 1, 0.62)
+    readonly property color glyphColor: Theme.dark ? "#c8c8cd" : "#55555a"
     readonly property real bodyHeight: {
         // Grilles : panneau de hauteur fixe (≈ carré comme Tahoe), les
         // rangées suivantes défilent sous le bord bas
@@ -813,7 +882,8 @@ Scope {
         function state(): string {
             return JSON.stringify({ shown: root.shown, mode: root.mode, query: root.query, body: root.bodyKind,
                                     results: root.listModel.length, grid: root.gridItems.length,
-                                    sel: list.sel, buttons: root.buttonsVisible,
+                                    sel: list.sel, buttons: root.buttonsVisible, latency: root.openLatency,
+                                    apps: search.apps.length, appsAll: Apps.all.length,
                                     files: search.fileHits.length, fileQ: search.fileHitsQuery, fdQ: search.fdQuery });
         }
     }

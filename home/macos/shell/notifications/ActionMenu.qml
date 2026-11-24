@@ -19,14 +19,14 @@ Item {
     readonly property int padV: 5
     readonly property int rowH: 24
 
-    // Actions affichées (libellés complets) ; « Répondre » (réponse en ligne) en tête
+    // Actions affichées (libellés complets) ; « Reply » (réponse en ligne) en tête
     readonly property var items: {
         if (!entry) return [];
-        const l = entry.canReply ? [{ identifier: "__reply", text: "Répondre", reply: true }] : [];
+        const l = entry.canReply ? [{ identifier: "__reply", text: "Reply", reply: true }] : [];
         return l.concat(entry.actions);
     }
 
-    width: open ? Math.min(300, Math.max(150, measure.maxWidth + 2 * 14 + 10)) : 0
+    width: open ? Math.min(300, Math.max(150, menu.maxTextWidth + 2 * 15 + 10)) : 0
     height: open ? items.length * rowH + 2 * padV : 0
     visible: open || fade.running
     z: 100
@@ -43,13 +43,14 @@ Item {
         entry = e;
         Qt.callLater(place);
     }
-    // Sous la carte, bord droit légèrement au-delà de celui de la carte (comme
-    // macOS), sans sortir de la fenêtre.
+    // Comme sur l'image Apple (macOS 26) : bord droit ~11 pt au-delà de celui
+    // de la carte, haut du menu ~4 pt AU-DESSUS du bas de la carte (le menu la
+    // recouvre légèrement), sans sortir de la fenêtre.
     function place() {
         if (!card || !parent) return;
         const p = card.mapToItem(parent, card.width, card.plateHeight);
-        x = Math.max(0, Math.min(parent.width - width - 2, p.x + 8 - width));
-        y = p.y + 3;
+        x = Math.round(Math.max(0, Math.min(parent.width - width - 2, p.x + 11 - width)));
+        y = Math.round(p.y - 4);
     }
     function close() { entry = null; card = null; }
 
@@ -72,22 +73,16 @@ Item {
     HoverHandler { id: menuHover }
 
     // Largeur du plus long libellé
-    Item {
-        id: measure
-        visible: false
-        property real maxWidth: 0
-        Repeater {
-            model: menu.items
-            Text {
-                required property var modelData
-                text: modelData.text
-                font.family: Theme.font
-                font.pixelSize: 13
-                Component.onCompleted: measure.maxWidth = Math.max(measure.maxWidth, implicitWidth)
-            }
-        }
+    FontMetrics {
+        id: metrics
+        font.family: Theme.font
+        font.pixelSize: 13
     }
-    onEntryChanged: measure.maxWidth = 0
+    readonly property real maxTextWidth: {
+        let m = 0;
+        for (const it of items) m = Math.max(m, metrics.advanceWidth(it.text));
+        return Math.ceil(m);
+    }
 
     NotifGlass {
         anchors.fill: parent
@@ -115,8 +110,8 @@ Item {
                     visible: rowMouse.containsMouse
                 }
                 Text {
-                    x: 9
-                    width: parent.width - 18
+                    x: 10
+                    width: parent.width - 20
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.modelData.text
                     color: rowMouse.containsMouse ? Theme.menuHighlightText : Theme.label

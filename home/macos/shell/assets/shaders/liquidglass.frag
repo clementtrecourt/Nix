@@ -52,6 +52,10 @@ layout(std140, binding = 0) uniform buf {
     float shadowOffsetY;
     float shadowMax;     // alpha max de l'ombre
     vec2 lightDir;       // direction (normalisée) dans laquelle va la lumière
+    float edgeWidth;     // largeur de la bande d'épaisseur (px)
+    float edgeDarken;    // assombrissement max dans la bande (0..1)
+    float edgeSaturate;  // renfort de chrominance dans la bande
+    vec4 overlay;        // voile composé PAR-DESSUS le fond réfracté (alpha normal, prémultiplié)
 };
 
 layout(binding = 1) uniform sampler2D bg;
@@ -102,16 +106,23 @@ void main() {
     float fw = max(fwidth(d), 1e-4);
     float cov = clamp(0.5 - d / fw, 0.0, 1.0);
 
-    // Normale sortante (gradient de la SDF)
+    // Normale sortante (gradient de la SDF). Sur l'axe médian du rectangle (taille
+    // impaire : centre de pixel pile sur la crête), les différences centrées
+    // s'annulent : on décale très légèrement le point d'évaluation pour briser
+    // la symétrie, et on garde une normale de repli si le gradient reste nul.
     const float e = 0.5;
-    vec2 n = vec2(sdRoundBox(p + vec2(e, 0.0), hs, r) - sdRoundBox(p - vec2(e, 0.0), hs, r),
-                  sdRoundBox(p + vec2(0.0, e), hs, r) - sdRoundBox(p - vec2(0.0, e), hs, r));
-    n = normalize(n + vec2(1e-6));
+    vec2 pn = p + vec2(0.0131, 0.0173);
+    vec2 n = vec2(sdRoundBox(pn + vec2(e, 0.0), hs, r) - sdRoundBox(pn - vec2(e, 0.0), hs, r),
+                  sdRoundBox(pn + vec2(0.0, e), hs, r) - sdRoundBox(pn - vec2(0.0, e), hs, r));
+    n = dot(n, n) > 1e-10 ? normalize(n) : vec2(0.0, -1.0);
     float l = dot(n, -lightDir);
-    float lit = pow(max(l, 0.0), 1.5) + 0.75 * pow(max(-l, 0.0), 1.8);
+    // Reflet spéculaire concentré : Tahoe allume nettement l'arc haut-gauche
+    // et l'arc bas-droite, les flancs restent presque éteints.
+    float lit = pow(max(l, 0.0), 2.6) + 0.8 * pow(max(-l, 0.0), 3.0);
 
     float inside = max(-d, 0.0);
     vec4 col = vec4(0.0);
+    vec3 g = vec3(0.0);
 
     if (cov > 0.0) {
         if (hasBg > 0.5) {
@@ -120,7 +131,6 @@ void main() {
             float t = inside / bz;
             float disp = refraction * lens(t);
             vec2 q = px - n * disp;
-            vec3 g;
             if (dispersion > 0.0 && disp > 0.05) {
                 // Le rouge est moins dévié que le bleu
                 g.r = sampleBg(px - n * disp * (1.0 - dispersion)).r;
@@ -148,10 +158,24 @@ void main() {
             float L2 = mix(L, tL, ta);
             vec3 c2 = vec3(L2) + chroma * saturation * (1.0 - 0.5 * ta)
                     + (trgb - vec3(tL)) * ta;          // chrominance propre de la teinte
+            // ---- Épaisseur du verre ----
+            // Près du bord, la lumière traverse plus de verre : le fond y est
+            // plus sombre et plus saturé (bande brune sur le beige, violette sur
+            // le violet, relevée sur le Control Center de Tahoe), sauf sous les
+            // arcs éclairés où le reflet domine.
+            // Filet serré juste sous le liseré (biseau), puis fondu court.
+            float eb = 1.0 - smoothstep(rimWidth * 0.6, max(edgeWidth, rimWidth + 1.0), inside);
+            eb = pow(eb, 1.6) * (1.0 - 0.5 * lit);
+            float L3 = luma(c2);
+            c2 = vec3(L3) + (c2 - vec3(L3)) * (1.0 + edgeSaturate * eb);
+            c2 *= 1.0 - edgeDarken * eb;
             col = vec4(clamp(c2, 0.0, 1.0), 1.0);
         } else {
             col = tint;
         }
+
+        // Voile « overlay » (menus, notifications : teinte dense posée sur le fond)
+        col = overlay + col * (1.0 - overlay.a);
 
         col = vec4(0.0, 0.0, 0.0, dim) + col * (1.0 - dim);
 
@@ -163,14 +187,18 @@ void main() {
 
         // Lueur interne, plus forte côté lumière
         float gl = 1.0 - smoothstep(0.0, max(glowWidth, 0.001), inside);
-        gl = gl * gl * (0.25 + 0.75 * lit);
+        gl = gl * gl * (0.06 + 0.94 * lit);
         vec4 glow = glowColor * gl;
         col = glow + col * (1.0 - glow.a);
 
         // Liseré spéculaire
         float rimMask = 1.0 - smoothstep(rimWidth - 0.5 * fw, rimWidth + 0.5 * fw, inside);
         float ri = rimMask * mix(rimBase, 1.0, lit);
-        vec4 rim = rimColor * ri;
+        // Le reflet est de la lumière du fond renvoyée par l'arête : il prend
+        // sa couleur (relevé Tahoe : liseré rosé sur fond rose, bleuté sur bleu).
+        vec3 rimRgb = rimColor.a > 0.0 ? rimColor.rgb / rimColor.a : vec3(1.0);
+        if (hasBg > 0.5) rimRgb = mix(rimRgb, clamp(g * 1.6 + 0.25, 0.0, 1.0), 0.35);
+        vec4 rim = vec4(rimRgb, 1.0) * rimColor.a * ri;
         col = rim + col * (1.0 - rim.a);
 
         col *= cov;
@@ -185,5 +213,6 @@ void main() {
         col += vec4(srgb * sa, sa);
     }
 
+    if (any(isnan(col)) || any(isinf(col))) col = vec4(0.0);
     fragColor = col * qt_Opacity;
 }

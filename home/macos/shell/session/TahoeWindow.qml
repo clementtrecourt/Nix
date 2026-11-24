@@ -6,8 +6,14 @@ import qs.common
 
 // Fenêtre "système" façon macOS Tahoe dessinée par le shell (À propos, Forcer à
 // quitter, alertes, Polkit…) : surface layer-shell centrée sur l'écran actif,
-// carte de verre aux grands rayons, pastilles rouge/jaune/vert, déplaçable par
-// glisser, apparition "pop" (échelle 0,92 -> 1 + fondu) et disparition en fondu.
+// carte Liquid Glass (réfraction d'une capture de l'écran prise juste avant
+// l'ouverture), pastilles rouge/jaune/vert, déplaçable par glisser, apparition
+// "pop" (échelle 0,92 -> 1 + fondu) et disparition en fondu.
+//
+// Teintes (voile dense composé sur le fond réfracté), relevées sur les captures
+// Tahoe 26 (512pixels) : fenêtre claire ≈ blanc à 85 % teinté par le fond
+// (About This Mac : 225,249,255 sur un ciel 86,141,193) ; alerte claire ≈
+// blanc à 60 % (Empty Trash : 192,229,255 sur 100,153,199).
 PanelWindow {
     id: win
 
@@ -21,11 +27,13 @@ PanelWindow {
     property real radius: titleBar ? 16 : 26
     property int cardWidth: 300
     property int cardHeight: 200
+    // Ligne de séparation sous la barre de titre (Force Quit Applications)
+    property bool titleSeparator: false
     property color tint: titleBar
-        ? (Theme.dark ? Qt.rgba(0.14, 0.14, 0.15, 0.93) : Qt.rgba(0.975, 0.975, 0.98, 0.94))
-        // Alerte : verre épais, presque opaque (blanc laiteux / gris anthracite)
-        : (Theme.dark ? Qt.rgba(0.16, 0.16, 0.17, 0.84) : Qt.rgba(0.975, 0.975, 0.98, 0.92))
-    readonly property int titleBarHeight: titleBar ? 38 : 0
+        ? (Theme.dark ? Qt.rgba(0.13, 0.13, 0.14, 0.86) : Qt.rgba(1, 1, 1, 0.88))
+        : (Theme.dark ? Qt.rgba(0.11, 0.11, 0.12, 0.66) : Qt.rgba(1, 1, 1, 0.68))
+    // Barre de titre Tahoe : 31 pt (séparateur à 31 pt sur Force Quit)
+    readonly property int titleBarHeight: titleBar ? 31 : 0
     readonly property int pad: 56          // marge pour l'ombre portée
     default property alias content: body.data
     property alias card: card
@@ -36,10 +44,21 @@ PanelWindow {
     // Écran actif (celui du curseur / de la fenêtre focalisée)
     screen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0]
 
-    visible: shown || hideAnim.running
+    // Fond Liquid Glass : capture de l'écran prise avant l'apparition
+    property Item glassBackdrop: backdrop
+    GlassBackdrop {
+        id: backdrop
+        mode: "snapshot"
+        screen: win.screen
+        // (opacité de la carte : la fenêtre reste le temps du fondu de fermeture)
+        want: win.shown || card.opacity > 0.001
+    }
+
+    visible: backdrop.pass
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: titleBar ? "macos-window" : "macos-alert"
+    // "macos-lg-*" : pas de flou Hyprland (le verre floute et réfracte lui-même)
+    WlrLayershell.namespace: titleBar ? "macos-lg-window" : "macos-lg-alert"
     WlrLayershell.keyboardFocus: exclusiveKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
     exclusionMode: ExclusionMode.Ignore
     anchors { top: true; left: true }
@@ -61,12 +80,15 @@ PanelWindow {
             dragX = 0;
             dragY = 0;
             hideAnim.stop();
-            showAnim.restart();
+            // Fenêtre encore visible (réouverture pendant le fondu) : on repart
+            // de l'état courant ; sinon l'animation part quand la capture est là
+            if (visible) showAnim.restart();
         } else {
             showAnim.stop();
             hideAnim.restart();
         }
     }
+    onVisibleChanged: if (visible && shown) showAnim.restart()
 
     Item {
         id: card
@@ -100,10 +122,21 @@ PanelWindow {
             }
         }
 
+        // Ligne sous la barre de titre (0,5 pt)
+        Rectangle {
+            visible: win.titleBar && win.titleSeparator
+            y: win.titleBarHeight - height
+            width: parent.width
+            height: 0.5
+            color: Theme.dark ? Qt.rgba(0, 0, 0, 0.45) : Qt.rgba(0, 0, 0, 0.10)
+        }
+
+        // Pastilles : centres à 16 pt du bord haut et du bord gauche
         TrafficLights {
+            id: lights
             visible: win.titleBar
-            x: 14
-            y: 13
+            x: 9
+            y: 9
             closeEnabled: win.closeEnabled
             minimizeEnabled: win.minimizeEnabled
             zoomEnabled: win.zoomEnabled
@@ -111,16 +144,18 @@ PanelWindow {
             onMinimizeClicked: win.minimizeRequested()
         }
 
+        // Titre centré (décalé à droite des pastilles s'il manque de place)
         Text {
             visible: win.titleBar && win.title !== ""
             text: win.title
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 11
+            x: Math.max(lights.x + lights.width + 14, (parent.width - implicitWidth) / 2)
+            anchors.verticalCenter: parent.top
+            anchors.verticalCenterOffset: 16
             font.family: Theme.font
             font.pixelSize: 13
-            font.weight: Font.DemiBold
+            font.weight: Font.Bold
             color: Theme.label
-            opacity: 0.85
+            opacity: Theme.dark ? 0.85 : 0.70
         }
 
         Item {

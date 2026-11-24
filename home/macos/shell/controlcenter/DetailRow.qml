@@ -93,7 +93,8 @@ Item {
             visible: row.trailingSymbol !== ""
             name: row.trailingSymbol
             size: 13
-            color: CCStyle.textSecondary
+            color: CCStyle.text
+            opacity: CCStyle.textSecondary.a     // Symbol ignore l'alpha de la couleur
             anchors.verticalCenter: parent.verticalCenter
         }
         Item {

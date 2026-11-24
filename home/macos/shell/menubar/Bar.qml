@@ -57,6 +57,16 @@ PanelWindow {
         }
     }
 
+    // Fond réfracté par les pastilles de verre : derrière la barre, il n'y a
+    // que le fond d'écran (zone exclusive), sauf en plein écran (fond opaque)
+    property Item glassBackdrop: backdrop
+    GlassBackdrop {
+        id: backdrop
+        mode: "wallpaper"
+        screen: bar.screen
+        want: true
+    }
+
     color: "transparent"
     implicitHeight: Theme.menuBarHeight
     anchors {
@@ -67,7 +77,7 @@ PanelWindow {
     exclusionMode: fullscreen ? ExclusionMode.Ignore : ExclusionMode.Normal
     exclusiveZone: fullscreen ? 0 : Theme.menuBarHeight
     WlrLayershell.layer: fullscreen ? WlrLayer.Overlay : WlrLayer.Top
-    WlrLayershell.namespace: "macos-menubar"
+    WlrLayershell.namespace: "macos-lg-menubar"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
     // En plein écran masqué, seule une bande de 2 px reçoit la souris
@@ -94,6 +104,17 @@ PanelWindow {
         // Zones mesurées séparément : fin des menus, début des icônes d'état
         leftEnd: left.x + left.width + 12
         rightStart: right.x - 12
+    }
+    // Apparence changée : le fond d'écran change aussi (variantes claire /
+    // sombre) ; on remesure sans attendre l'échantillonnage périodique
+    Connections {
+        target: Theme
+        function onDarkChanged() { toneKick.restart(); }
+    }
+    Timer {
+        id: toneKick
+        interval: 400
+        onTriggered: tone.sample()
     }
     readonly property real backdropLuminance: tone.luminance
     readonly property real backdropLuminanceLeft: tone.luminanceLeft
@@ -139,12 +160,13 @@ PanelWindow {
         btn = btn ?? buttonFor(id);
         if (!btn) return;
         const p = btn.mapToItem(content, 0, 0);
-        controller.open(id, screenName, p.x, btn.width, menus.build(id), viaKeyboard);
+        // Le menu s'aligne sur le bord gauche de la pastille du titre
+        controller.open(id, screenName, p.x - btn.pillExtra, btn.width, menus.build(id), viaKeyboard);
     }
 
     function openTray(item, btn) {
         const p = btn.mapToItem(content, 0, 0);
-        controller.open("tray:" + item.id, screenName, p.x, btn.width, { handle: item.menu }, false);
+        controller.open("tray:" + item.id, screenName, p.x - btn.pillExtra, btn.width, { handle: item.menu }, false);
     }
 
     function trayDebug() {
@@ -171,7 +193,7 @@ PanelWindow {
             : batteryBtn.dev;
         const items = id === "battery" ? menus.batteryMenu(dev)
             : menus.wifiMenu(wifiBtn.device, wifiBtn.network);
-        controller.open(id, screenName, p.x, btn.width, items, false);
+        controller.open(id, screenName, p.x - btn.pillExtra, btn.width, items, false);
     }
     function openStatusById(id) {
         openStatus(id, id === "battery" ? batteryBtn : wifiBtn, true);
@@ -194,6 +216,26 @@ PanelWindow {
     // Survol d'un titre pendant qu'un menu est ouvert : bascule
     function hoverTitle(id, btn) {
         if (menuHere && controller.openId !== id) openMenu(id, btn, false);
+    }
+
+    // Glisser bouton enfoncé depuis un titre (p : repère de la barre). Dans la
+    // barre, le titre survolé ouvre son menu ; plus bas, la couche de menu
+    // suit le pointeur et choisit l'élément au relâchement.
+    function dragAt(p, release) {
+        if (!menuHere) return;
+        const layer = controller.layers[screenName];
+        const top = layer ? layer.top : Theme.menuBarHeight;
+        if (p.y < top) {
+            if (release) return;   // relâché sur la barre : le menu reste ouvert
+            for (const id of order) {
+                const b = buttonFor(id);
+                if (!b) continue;
+                const q = b.mapFromItem(null, p.x, p.y);
+                if (q.x >= 0 && q.x < b.width) { hoverTitle(id, b); return; }
+            }
+            return;
+        }
+        if (layer) layer.dragAt(p.x, p.y - top, release);
     }
 
     // ---- Contenu ----
@@ -234,27 +276,35 @@ PanelWindow {
         }
 
         // ---- Gauche ----
+        // Mesures Tahoe (capture Ars Technica 2x) : logo Apple de 12,5 x 15 pt
+        // à 21 pt du bord, 22 pt entre deux libellés (logo -> nom de l'app
+        // compris), pastille débordant de 16 pt de part et d'autre du texte.
         Row {
             id: left
-            x: 7
+            x: 10
             height: parent.height
 
             BarButton {
                 id: logoBtn
                 readonly property string menuId: "logo"
-                padding: 11
+                padding: 10
+                pillExtra: 5
                 fg: bar.fgLeft
                 lightBackdrop: bar.lightLeft
                 halo: !bar.fullscreen
+                glassPill: !bar.fullscreen
                 active: bar.menuHere && bar.controller.openId === "logo"
                 onPressed: bar.press("logo", logoBtn)
                 onEntered: bar.hoverTitle("logo", logoBtn)
+                onDragged: p => bar.dragAt(p, false)
+                onReleased: p => bar.dragAt(p, true)
 
+                // Logo Apple (menu Apple)
                 Glyph {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.verticalCenterOffset: -0.5
-                    name: "nixos"
-                    size: 18
+                    name: "apple.logo"
+                    size: 15
                     tint: bar.fgLeft
                 }
             }
@@ -262,12 +312,17 @@ PanelWindow {
             BarButton {
                 id: appBtn
                 readonly property string menuId: "app"
+                padding: 11
+                pillExtra: 5
                 fg: bar.fgLeft
                 lightBackdrop: bar.lightLeft
                 halo: !bar.fullscreen
+                glassPill: !bar.fullscreen
                 active: bar.menuHere && bar.controller.openId === "app"
                 onPressed: bar.press("app", appBtn)
                 onEntered: bar.hoverTitle("app", appBtn)
+                onDragged: p => bar.dragAt(p, false)
+                onReleased: p => bar.dragAt(p, true)
 
                 BarText {
                     text: bar.menus.appName
@@ -283,12 +338,17 @@ PanelWindow {
                     id: tb
                     required property var modelData
                     readonly property string menuId: modelData.id
+                    padding: 11
+                    pillExtra: 5
                     fg: bar.fgLeft
                     lightBackdrop: bar.lightLeft
                     halo: !bar.fullscreen
+                    glassPill: !bar.fullscreen
                     active: bar.menuHere && bar.controller.openId === menuId
                     onPressed: bar.press(menuId, tb)
                     onEntered: bar.hoverTitle(menuId, tb)
+                    onDragged: p => bar.dragAt(p, false)
+                    onReleased: p => bar.dragAt(p, true)
 
                     BarText {
                         text: tb.modelData.text
@@ -302,7 +362,8 @@ PanelWindow {
         Row {
             id: right
             anchors.right: parent.right
-            anchors.rightMargin: 5
+            // (l'horloge se termine à ~18,5 pt du bord droit)
+            anchors.rightMargin: 8
             height: parent.height
 
             // Barre d'état (StatusNotifierItem)
@@ -318,6 +379,7 @@ PanelWindow {
                     fg: bar.fgRight
                     lightBackdrop: bar.lightRight
                     halo: !bar.fullscreen
+                    glassPill: !bar.fullscreen
                     active: bar.menuHere && bar.controller.openId === "tray:" + modelData.id
                     onPressed: mouse => {
                         const it = tray.modelData;
@@ -329,6 +391,8 @@ PanelWindow {
                         } else it.activate();
                     }
                     onEntered: if (bar.menuHere && tray.modelData.hasMenu && bar.controller.openId !== "tray:" + tray.modelData.id) bar.openTray(tray.modelData, tray)
+                    onDragged: p => bar.dragAt(p, false)
+                    onReleased: p => bar.dragAt(p, true)
 
                     // Icônes « modèles » (symboliques, monochromes) : recolorées
                     // dans la couleur de la barre, comme les template images de
@@ -357,6 +421,37 @@ PanelWindow {
                 }
             }
 
+            // Wi-Fi (Tahoe : à gauche de la batterie, guide macOS 26 « The menu bar »)
+            BarButton {
+                id: wifiBtn
+                readonly property var device: Networking.devices.values.find(d => d.type === DeviceType.Wifi) ?? null
+                readonly property var network: device ? (device.networks.values.find(n => n.connected) ?? null) : null
+                visible: bar.demo || device !== null
+                padding: 10
+                pillExtra: 5
+                fg: bar.fgRight
+                lightBackdrop: bar.lightRight
+                halo: !bar.fullscreen
+                glassPill: !bar.fullscreen
+                active: bar.menuHere && bar.controller.openId === "wifi"
+                onPressed: bar.openStatus("wifi", wifiBtn)
+                onEntered: bar.hoverStatus("wifi", wifiBtn)
+                onDragged: p => bar.dragAt(p, false)
+                onReleased: p => bar.dragAt(p, true)
+
+                WifiGlyph {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: bar.fgRight
+                    off: !bar.demo && !Networking.wifiEnabled
+                    level: {
+                        if (bar.demo) return 3;
+                        const s = wifiBtn.network?.signalStrength ?? 0;
+                        if (!wifiBtn.network) return 0;
+                        return s > 0.6 ? 3 : s > 0.3 ? 2 : 1;
+                    }
+                }
+            }
+
             // Batterie
             BarButton {
                 id: batteryBtn
@@ -367,9 +462,12 @@ PanelWindow {
                 fg: bar.fgRight
                 lightBackdrop: bar.lightRight
                 halo: !bar.fullscreen
+                glassPill: !bar.fullscreen
                 active: bar.menuHere && bar.controller.openId === "battery"
                 onPressed: bar.openStatus("battery", batteryBtn)
                 onEntered: bar.hoverStatus("battery", batteryBtn)
+                onDragged: p => bar.dragAt(p, false)
+                onReleased: p => bar.dragAt(p, true)
 
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
@@ -391,34 +489,6 @@ PanelWindow {
                 }
             }
 
-            // Wi-Fi
-            BarButton {
-                id: wifiBtn
-                readonly property var device: Networking.devices.values.find(d => d.type === DeviceType.Wifi) ?? null
-                readonly property var network: device ? (device.networks.values.find(n => n.connected) ?? null) : null
-                visible: bar.demo || device !== null
-                padding: 10
-                pillExtra: 5
-                fg: bar.fgRight
-                lightBackdrop: bar.lightRight
-                halo: !bar.fullscreen
-                active: bar.menuHere && bar.controller.openId === "wifi"
-                onPressed: bar.openStatus("wifi", wifiBtn)
-                onEntered: bar.hoverStatus("wifi", wifiBtn)
-
-                WifiGlyph {
-                    anchors.verticalCenter: parent.verticalCenter
-                    color: bar.fgRight
-                    off: !bar.demo && !Networking.wifiEnabled
-                    level: {
-                        if (bar.demo) return 3;
-                        const s = wifiBtn.network?.signalStrength ?? 0;
-                        if (!wifiBtn.network) return 0;
-                        return s > 0.6 ? 3 : s > 0.3 ? 2 : 1;
-                    }
-                }
-            }
-
             // Spotlight
             BarButton {
                 id: spotBtn
@@ -427,6 +497,7 @@ PanelWindow {
                 fg: bar.fgRight
                 lightBackdrop: bar.lightRight
                 halo: !bar.fullscreen
+                glassPill: !bar.fullscreen
                 active: ShellState.openPanel === "spotlight"
                 onPressed: ShellState.toggle("spotlight")
 
@@ -446,6 +517,7 @@ PanelWindow {
                 fg: bar.fgRight
                 lightBackdrop: bar.lightRight
                 halo: !bar.fullscreen
+                glassPill: !bar.fullscreen
                 active: ShellState.openPanel === "controlcenter"
                 onPressed: ShellState.toggle("controlcenter")
 
@@ -456,13 +528,14 @@ PanelWindow {
 
             }
 
-            // Date et heure ("lun. 23 nov. 17:20")
+            // Date et heure au format US de macOS ("Tue Nov 24  9:12 AM")
             BarButton {
                 id: clockBtn
                 padding: 10
                 fg: bar.fgRight
                 lightBackdrop: bar.lightRight
                 halo: !bar.fullscreen
+                glassPill: !bar.fullscreen
                 active: ShellState.openPanel === "notificationcenter"
                 onPressed: ShellState.toggle("notificationcenter")
 
@@ -472,15 +545,16 @@ PanelWindow {
                 }
                 // La date et l'heure sont séparées par un blanc plus large qu'une
                 // espace (« Tue Apr 1  9:41 AM » sur la capture Apple)
+                readonly property var usLocale: Qt.locale("en_US")
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 7
                     BarText {
-                        text: Qt.locale("fr_FR").toString(clock.date, "ddd d MMM")
+                        text: clockBtn.usLocale.toString(clock.date, "ddd MMM d")
                         color: bar.fgRight
                     }
                     BarText {
-                        text: Qt.locale("fr_FR").toString(clock.date, "HH:mm")
+                        text: clockBtn.usLocale.toString(clock.date, "h:mm AP")
                         color: bar.fgRight
                     }
                 }

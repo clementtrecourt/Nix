@@ -3,8 +3,12 @@ import qs.common
 
 // Ligne de résultat de Spotlight (Tahoe) : icône 32 pt, titre et détail sur
 // deux lignes, information à droite (raccourci, date) ou bouton « copier »
-// rond (presse-papiers). La ligne sélectionnée prend la couleur d'accent,
-// dans une capsule arrondie en retrait des bords du panneau.
+// rond (presse-papiers). La ligne sélectionnée est une capsule GRISE neutre en
+// retrait des bords du panneau, texte inchangé (captures MacRumors
+// « search-spotlight-location », « spotlight-kind » : pas d'accent bleu).
+//
+// Élément { header: true, title } : en-tête de section en gras avec un filet
+// dessous (vue Actions : « Suggestions », nom de l'app).
 Item {
     id: root
 
@@ -17,23 +21,56 @@ Item {
     signal clicked()
     signal doubleClicked()
     signal secondaryAction()   // bouton « copier » du presse-papiers
+    // Le pointeur a BOUGÉ sur la ligne : comme Spotlight, le survol sélectionne
+    // (un pointeur immobile sous la liste ne sélectionne rien)
+    signal pointed(real sx, real sy)
 
+    readonly property bool isHeader: !!modelData.header
     readonly property bool isClip: modelData.kind === "clip"
-    readonly property string detail: {
-        if (modelData.kind === "file" && cmdHeld && selected) return modelData.location ?? "";
-        return modelData.subtitle ?? "";
-    }
+    readonly property bool showPath: modelData.kind === "file" && cmdHeld && selected
+    readonly property string detail: showPath ? (modelData.location ?? "") : (modelData.subtitle ?? "")
+    // Dossier parent (fichiers) : « · <dossier> » précédé d'un petit dossier
+    readonly property string folder: !showPath && modelData.kind === "file" ? (modelData.folder ?? "") : ""
+
+    // Sélection : voile neutre (plus clair en sombre, plus sombre en clair)
+    readonly property color selColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.13) : Qt.rgba(0, 0, 0, 0.075)
+    readonly property color detailColor: Theme.dark ? Qt.rgba(1, 1, 1, 0.50) : Qt.rgba(0, 0, 0, 0.45)
 
     width: ListView.view ? ListView.view.width : 0
-    height: Metrics.rowHeight
+    height: isHeader ? Metrics.headerHeight : Metrics.rowHeight
+
+    // ---- En-tête de section ----
+    Item {
+        anchors.fill: parent
+        visible: root.isHeader
+        Text {
+            x: Metrics.sidePad
+            anchors.bottom: headerRule.top
+            anchors.bottomMargin: 6
+            text: root.modelData.title ?? ""
+            font.family: Theme.font
+            font.pixelSize: Metrics.headerFontSize
+            font.weight: Font.Bold
+            color: Theme.label
+        }
+        Rectangle {
+            id: headerRule
+            x: Metrics.sidePad
+            y: parent.height - 3
+            width: parent.width - 2 * Metrics.sidePad
+            height: 1
+            color: Theme.separator
+        }
+    }
 
     Rectangle {
         id: bg
+        visible: !root.isHeader
         anchors.fill: parent
         anchors.leftMargin: Metrics.rowInset
         anchors.rightMargin: Metrics.rowInset
         radius: Metrics.rowRadius
-        color: root.selected ? Theme.accent : (mouse.containsMouse ? Theme.fill : "transparent")
+        color: root.selected ? root.selColor : "transparent"
         Behavior on color { ColorAnimation { duration: 80 } }
 
         // Icône : à 19 pt du bord du panneau
@@ -51,7 +88,7 @@ Item {
             anchors.right: trailing.left
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 1
+            spacing: 0
 
             Text {
                 width: parent.width
@@ -61,18 +98,46 @@ Item {
                 textFormat: Text.PlainText
                 font.family: Theme.font
                 font.pixelSize: Metrics.titleSize
-                color: root.selected ? "white" : Theme.label
+                color: Theme.label
             }
-            Text {
+            Row {
                 width: parent.width
-                visible: text.length > 0
-                text: root.detail
-                elide: root.modelData.kind === "file" ? Text.ElideMiddle : Text.ElideRight
-                maximumLineCount: 1
-                textFormat: Text.PlainText
-                font.family: Theme.font
-                font.pixelSize: Metrics.detailSize
-                color: root.selected ? Qt.rgba(1, 1, 1, 0.72) : Theme.labelSecondary
+                visible: root.detail.length > 0 || root.folder.length > 0
+                spacing: 0
+                Text {
+                    id: detailText
+                    width: Math.min(implicitWidth, parent.width - (folderRow.visible ? Math.min(folderRow.implicitWidth, parent.width * 0.4) : 0))
+                    text: root.detail + (root.folder ? " · " : "")
+                    elide: root.showPath ? Text.ElideMiddle : Text.ElideRight
+                    maximumLineCount: 1
+                    textFormat: Text.PlainText
+                    font.family: Theme.font
+                    font.pixelSize: Metrics.detailSize
+                    color: root.detailColor
+                }
+                Row {
+                    id: folderRow
+                    visible: root.folder.length > 0
+                    spacing: 4
+                    width: Math.min(implicitWidth, parent.width - detailText.width)
+                    clip: true
+                    Symbol {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "folder"
+                        size: Metrics.detailSize - 1
+                        // (couleur opaque : Symbol recolore mal l'alpha)
+                        color: Theme.dark ? "#8e8e93" : "#8a8a8e"
+                    }
+                    Text {
+                        text: root.folder
+                        elide: Text.ElideRight
+                        maximumLineCount: 1
+                        textFormat: Text.PlainText
+                        font.family: Theme.font
+                        font.pixelSize: Metrics.detailSize
+                        color: root.detailColor
+                    }
+                }
             }
         }
 
@@ -82,8 +147,8 @@ Item {
             anchors.right: parent.right
             anchors.rightMargin: 11
             anchors.verticalCenter: parent.verticalCenter
-            width: root.isClip ? 26 : trailText.implicitWidth
-            height: 26
+            width: root.isClip ? 30 : trailText.implicitWidth
+            height: 30
 
             Text {
                 id: trailText
@@ -92,8 +157,8 @@ Item {
                 visible: !root.isClip && text.length > 0
                 text: root.modelData.trailing ?? ""
                 font.family: Theme.font
-                font.pixelSize: 12
-                color: root.selected ? Qt.rgba(1, 1, 1, 0.72) : Theme.labelSecondary
+                font.pixelSize: 14
+                color: root.detailColor
             }
 
             // Bouton copier rond (Tahoe : toujours visible sur chaque élément)
@@ -101,14 +166,13 @@ Item {
                 anchors.fill: parent
                 visible: root.isClip
                 radius: width / 2
-                color: root.selected ? Qt.rgba(1, 1, 1, copyMouse.containsMouse ? 0.32 : 0.2)
-                                     : (copyMouse.containsMouse ? Theme.fillHover : Theme.fill)
+                color: copyMouse.containsMouse ? Theme.fillHover : Theme.fill
                 Symbol {
                     anchors.centerIn: parent
                     name: "doc.on.doc"
-                    size: 14
+                    size: 15
                     // (couleur opaque : Symbol recolore mal l'alpha)
-                    color: root.selected ? "white" : (Theme.dark ? "#a8a8ad" : "#6e6e73")
+                    color: Theme.dark ? "#c2c2c7" : "#6e6e73"
                 }
                 MouseArea {
                     id: copyMouse
@@ -126,6 +190,10 @@ Item {
             z: -1
             onClicked: root.clicked()
             onDoubleClicked: root.doubleClicked()
+            onPositionChanged: mouse => {
+                const p = mapToItem(null, mouse.x, mouse.y);
+                root.pointed(p.x, p.y);
+            }
         }
     }
 }

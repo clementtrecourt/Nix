@@ -33,7 +33,8 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         name: "chevron.right"
         size: 12
-        color: CCStyle.textSecondary
+        color: CCStyle.text
+        opacity: CCStyle.textSecondary.a     // Symbol ignore l'alpha de la couleur
         rotation: c.expanded ? 90 : 0
         Behavior on rotation { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
     }

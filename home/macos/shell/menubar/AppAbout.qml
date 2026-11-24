@@ -57,7 +57,16 @@ Scope {
 
     PanelWindow {
         id: win
-        visible: root.open
+        // Le verre réfracte une capture de l'écran prise juste avant l'ouverture
+        // (origine déduite des ancres / marges : suit le glissement du panneau)
+        property Item glassBackdrop: backdrop
+        GlassBackdrop {
+            id: backdrop
+            mode: "snapshot"
+            screen: win.screen
+            want: root.open
+        }
+        visible: backdrop.pass
         color: "transparent"
         screen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0]
 
@@ -70,7 +79,7 @@ Scope {
         readonly property real screenH: screen?.height ?? 982
 
         WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.namespace: "macos-about-app"
+        WlrLayershell.namespace: "macos-lg-about-app"
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
         exclusionMode: ExclusionMode.Ignore
         anchors {
@@ -103,6 +112,7 @@ Scope {
             radius: card.radius
             color: Theme.glassThick
             antialiasing: true
+            visible: !card.refracting
         }
         Glass {
             id: card
@@ -112,6 +122,8 @@ Scope {
             height: col.implicitHeight + 62
             radius: Theme.radiusWindow
             tint: "transparent"
+            // Avec réfraction, le verre est opaque : la teinte devient son voile
+            overlay: refracting ? Theme.glassThick : "transparent"
 
             // Glisser la fenêtre par n'importe quel point de son fond
             MouseArea {
@@ -178,7 +190,7 @@ Scope {
                 Text {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
-                    text: root.cls ? Apps.name(root.cls) : "Finder"
+                    text: root.cls ? Apps.displayName(root.cls) : "Finder"
                     font.family: Theme.font
                     renderType: Text.CurveRendering
                     font.pixelSize: 14
