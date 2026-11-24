@@ -45,7 +45,7 @@ Singleton {
     // Approche des titres : Inter a quasiment la chasse de SF Pro à corps égal :
     // pas de resserrement.
     readonly property real tracking: 0
-    // Tous les textes du composant : renderType CurveRendering (antialiasing en
+    // Tous les textes du composant : renderType NativeRendering (antialiasing en
     // niveaux de gris comme macOS ; le rendu par défaut fait ici de l'antialiasing
     // sous-pixel, franges colorées sur le verre).
 

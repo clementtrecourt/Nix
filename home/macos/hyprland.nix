@@ -25,6 +25,8 @@
   # Apps à décorations client sans identifiant « reverse-DNS » (navigateurs, Electron,
   # GTK à barre d'en-tête…) : pas de barre hyprbars, coins « barre d'outils » de Tahoe
   csdApps = lib.concatStringsSep "|" [
+    # Sélecteur de fichiers / dialogues du portail GTK (barre d'en-tête GTK propre)
+    "xdg-desktop-portal-gtk"
     "zen.*"
     "firefox.*"
     "librewolf"
@@ -134,12 +136,14 @@
       # détacher nettement les fenêtres empilées ; plus courte sur les inactives
       shadow {
         enabled = true
-        range = 80
-        render_power = 1
-        offset = 0 22
+        # Ombre Tahoe : douce et diffuse, dense près de la fenêtre et vite
+        # estompée (render_power 3), noir léger ; plus discrète en arrière-plan
+        range = 48
+        render_power = 3
+        offset = 0 14
         scale = 1.0
-        color = rgba(000000b3)
-        color_inactive = rgba(00000066)
+        color = rgba(00000061)
+        color_inactive = rgba(00000033)
       }
       # Flou des matériaux (surfaces macos-* du shell)
       blur {

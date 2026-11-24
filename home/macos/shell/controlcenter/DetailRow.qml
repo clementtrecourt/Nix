@@ -59,7 +59,7 @@ Item {
     }
 
     Text {
-        renderType: Text.CurveRendering
+        renderType: Text.NativeRendering
         anchors.left: row.showIcon ? icon.right : parent.left
         anchors.leftMargin: (row.showIcon ? 9 : 16) + row.indent
         anchors.right: trailing.left
@@ -80,7 +80,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 6
         Text {
-            renderType: Text.CurveRendering
+            renderType: Text.NativeRendering
             visible: row.detail !== ""
             text: row.detail
             color: CCStyle.textSecondary

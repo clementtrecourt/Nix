@@ -69,7 +69,7 @@ CCTile {
         width: parent.width - 2 * x
         spacing: 1
         Text {
-            renderType: Text.CurveRendering
+            renderType: Text.NativeRendering
             width: parent.width
             text: np.hasTrack ? np.player.trackTitle : "Not Playing"
             color: CCStyle.text
@@ -80,7 +80,7 @@ CCTile {
             elide: Text.ElideRight
         }
         Text {
-            renderType: Text.CurveRendering
+            renderType: Text.NativeRendering
             width: parent.width
             visible: np.hasTrack && text !== ""
             text: np.player?.trackArtist ?? ""

@@ -8,6 +8,6 @@ Text {
     font.pixelSize: Theme.fontSizeMenuBar
     font.weight: Font.Normal
     textFormat: Text.PlainText
-    renderType: Text.CurveRendering
+    renderType: Text.NativeRendering
     Behavior on color { ColorAnimation { duration: 300 } }
 }

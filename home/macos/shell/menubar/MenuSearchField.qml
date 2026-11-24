@@ -37,7 +37,7 @@ Item {
             anchors.rightMargin: 10
             anchors.verticalCenter: parent.verticalCenter
             font.family: Theme.font
-            renderType: TextInput.CurveRendering
+            renderType: TextInput.NativeRendering
             font.pixelSize: Theme.fontSize
             color: Theme.label
             selectionColor: Theme.accent

@@ -46,7 +46,7 @@ CCTile {
     readonly property real rightCenterX: width - rightInset
 
     Text {
-        renderType: Text.CurveRendering
+        renderType: Text.NativeRendering
         id: titleText
         x: 15.5
         y: 10

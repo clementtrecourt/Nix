@@ -15,7 +15,7 @@ Item {
     implicitHeight: 44
 
     Text {
-        renderType: Text.CurveRendering
+        renderType: Text.NativeRendering
         x: 16
         anchors.verticalCenter: parent.verticalCenter
         text: h.title

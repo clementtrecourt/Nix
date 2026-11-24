@@ -225,9 +225,30 @@ Item {
             }
         }
 
+        // Au repos (sans agrandissement) : icône rastérisée à sa taille EXACTE en
+        // pixels et posée sur des pixels entiers. La réduction par mipmap d'une
+        // grande image (ci-dessous, pendant l'agrandissement) donnait des icônes
+        // floues sur un écran 1x.
+        readonly property real restW: tile.boxed ? tile.canvas * 0.805 * 0.66 : tile.canvas * tile.iconScale
+        readonly property bool atRest: Math.abs(tile.vSize - tile.canvas) < 0.5 && !tile.pressed
+        readonly property real _dpr: QsWindow.window?.devicePixelRatio ?? 1
+        Image {
+            id: iconRest
+            visible: !iconBox.stackOpen && iconBox.atRest && status === Image.Ready
+            width: Math.round(iconBox.restW)
+            height: width
+            x: Math.round((parent.width - width) / 2)
+            y: Math.round((parent.height - height) / 2)
+            source: tile.iconSource
+            sourceSize: Qt.size(Math.round(width * iconBox._dpr), Math.round(width * iconBox._dpr))
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+            mipmap: false
+        }
+
         Image {
             id: icon
-            visible: !iconBox.stackOpen
+            visible: !iconBox.stackOpen && !iconRest.visible
             anchors.centerIn: parent
             width: tile.boxed ? box.width * 0.66 : tile.vSize * tile.iconScale
             height: width

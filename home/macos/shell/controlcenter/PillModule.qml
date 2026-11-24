@@ -73,7 +73,7 @@ CCTile {
         opacity: pill.disabled ? CCStyle.disabledOpacity : 1
 
         Text {
-            renderType: Text.CurveRendering
+            renderType: Text.NativeRendering
             width: parent.width
             text: pill.title
             color: CCStyle.text
@@ -88,7 +88,7 @@ CCTile {
             elide: Text.ElideRight
         }
         Text {
-            renderType: Text.CurveRendering
+            renderType: Text.NativeRendering
             width: parent.width
             visible: text !== ""
             text: pill.subtitle

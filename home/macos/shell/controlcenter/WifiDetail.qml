@@ -90,7 +90,7 @@ Column {
         height: visible ? 64 : 0
 
         Text {
-            renderType: Text.CurveRendering
+            renderType: Text.NativeRendering
             x: 16
             y: 4
             width: parent.width - 32
@@ -111,7 +111,7 @@ Column {
             border.color: Qt.rgba(0.04, 0.52, 1, 0.8)
 
             TextInput {
-                renderType: TextInput.CurveRendering
+                renderType: TextInput.NativeRendering
                 id: pskField
                 anchors.fill: parent
                 anchors.leftMargin: 10

@@ -161,7 +161,7 @@ Item {
         text: row.entry.text ?? ""
         textFormat: Text.PlainText
         font.family: Theme.font
-        renderType: Text.CurveRendering
+        renderType: Text.NativeRendering
         font.pixelSize: row.isHeader ? 11 : Theme.fontSize
         font.weight: row.isHeader || row.entry.bold ? Font.DemiBold : Font.Normal
         color: row.isHeader ? Theme.labelSecondary : row.fg
@@ -176,7 +176,7 @@ Item {
         anchors.rightMargin: row.edge
         text: row.entry.pathText ?? ""
         font.family: Theme.font
-        renderType: Text.CurveRendering
+        renderType: Text.NativeRendering
         font.pixelSize: row.isInfo ? Theme.fontSize : Theme.fontSizeSmall
         color: row.fgSecondary
     }
@@ -237,7 +237,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: modItem.isGlobe ? "" : modItem.modelData
                     font.family: Theme.font
-                    renderType: Text.CurveRendering
+                    renderType: Text.NativeRendering
                     font.pixelSize: Theme.fontSize
                     color: row.fgShortcut
                 }
@@ -272,7 +272,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: row.entry.key ?? ""
             font.family: Theme.font
-            renderType: Text.CurveRendering
+            renderType: Text.NativeRendering
             font.pixelSize: Theme.fontSize
             color: row.fgShortcut
         }

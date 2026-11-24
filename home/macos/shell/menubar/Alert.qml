@@ -106,7 +106,7 @@ Scope {
                     wrapMode: Text.WordWrap
                     text: root.title
                     font.family: Theme.font
-                    renderType: Text.CurveRendering
+                    renderType: Text.NativeRendering
                     font.pixelSize: 13
                     font.weight: Font.Bold
                     color: Theme.label
@@ -118,7 +118,7 @@ Scope {
                     visible: text !== ""
                     text: root.message
                     font.family: Theme.font
-                    renderType: Text.CurveRendering
+                    renderType: Text.NativeRendering
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.label
                 }
@@ -171,7 +171,7 @@ Scope {
             elide: Text.ElideRight
             text: btn.text
             font.family: Theme.font
-            renderType: Text.CurveRendering
+            renderType: Text.NativeRendering
             font.pixelSize: Theme.fontSize
             font.weight: btn.primary ? Font.Medium : Font.Normal
             color: btn.primary ? "white" : Theme.label

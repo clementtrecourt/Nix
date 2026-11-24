@@ -192,7 +192,7 @@ Scope {
                     horizontalAlignment: Text.AlignHCenter
                     text: root.cls ? Apps.displayName(root.cls) : "Finder"
                     font.family: Theme.font
-                    renderType: Text.CurveRendering
+                    renderType: Text.NativeRendering
                     font.pixelSize: 14
                     font.weight: Font.Bold
                     color: Theme.label
@@ -204,7 +204,7 @@ Scope {
                     visible: root.version !== ""
                     text: "Version " + root.version
                     font.family: Theme.font
-                    renderType: Text.CurveRendering
+                    renderType: Text.NativeRendering
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.labelSecondary
                 }

@@ -136,6 +136,22 @@ in {
     };
   };
 
+  # Rendu du texte sur écran 1x : antialiasing en niveaux de gris (pas de franges
+  # colorées sous-pixel sur le verre translucide), hinting léger pour la netteté
+  xdg.configFile."fontconfig/conf.d/99-macos-rendering.conf".text = ''
+    <?xml version="1.0"?>
+    <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+    <fontconfig>
+      <match target="font">
+        <edit name="antialias" mode="assign"><bool>true</bool></edit>
+        <edit name="hinting" mode="assign"><bool>true</bool></edit>
+        <edit name="hintstyle" mode="assign"><const>hintslight</const></edit>
+        <edit name="rgba" mode="assign"><const>none</const></edit>
+        <edit name="lcdfilter" mode="assign"><const>lcdnone</const></edit>
+      </match>
+    </fontconfig>
+  '';
+
   # Icône Zen Browser (l'entrée .desktop réclame « zen-beta », absent des thèmes)
   xdg.dataFile."icons/hicolor/scalable/apps/zen-beta.svg".source = "${macosPkgs.mactahoe-icon-theme}/share/icons/MacTahoe/apps/scalable/zen-browser.svg";
 

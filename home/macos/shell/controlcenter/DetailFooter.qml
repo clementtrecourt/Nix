@@ -34,7 +34,7 @@ Item {
             Behavior on opacity { NumberAnimation { duration: 90 } }
         }
         Text {
-            renderType: Text.CurveRendering
+            renderType: Text.NativeRendering
             x: 16
             anchors.verticalCenter: parent.verticalCenter
             text: f.text

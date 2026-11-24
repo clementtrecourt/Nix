@@ -17,7 +17,7 @@ Column {
         width: parent.width
         height: 40
         Text {
-            renderType: Text.CurveRendering
+            renderType: Text.NativeRendering
             x: 16
             width: parent.width - 32
             anchors.verticalCenter: parent.verticalCenter

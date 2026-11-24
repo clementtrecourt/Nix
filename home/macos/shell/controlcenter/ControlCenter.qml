@@ -389,7 +389,7 @@ Scope {
                         cc.close();
                     }
                     Text {
-                        renderType: Text.CurveRendering
+                        renderType: Text.NativeRendering
                         id: editLabel
                         anchors.centerIn: parent
                         text: "Edit Controls"
