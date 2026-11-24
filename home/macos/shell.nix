@@ -89,9 +89,6 @@ in {
         # Texte hinté et net sur écran 1x (le rendu par défaut de Qt Quick, en
         # « distance field », est flou aux petites tailles)
         "QT_QUICK_DEFAULT_TEXT_RENDER_TYPE=NativeRendering"
-        # Formats d'image supplémentaires (WebP, AVIF, TIFF…) : fonds d'écran et
-        # vignettes du Finder
-        "QT_PLUGIN_PATH=${pkgs.qt6.qtimageformats}/lib/qt-6/plugins"
       ];
     };
     Install.WantedBy = ["hyprland-session.target"];

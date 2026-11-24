@@ -97,9 +97,8 @@ shell)
   fi
   export XDG_DATA_DIRS="$ICON_PKG/share:${XDG_DATA_DIRS:-/run/current-system/sw/share}"
   export QS_ICON_THEME="${QS_ICON_THEME:-$(cat "$HERE/icon-theme" 2>/dev/null || echo MacTahoe-Apple-dark)}"
-  # Comme le service de prod : formats d'image supplémentaires (WebP…)
+  # Comme le service de prod : texte hinté et net
   QT_QUICK_DEFAULT_TEXT_RENDER_TYPE="${QT_QUICK_DEFAULT_TEXT_RENDER_TYPE:-NativeRendering}" \
-  QT_PLUGIN_PATH="$(P qt6.qtimageformats)/lib/qt-6/plugins${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}" \
   nohup "$QS/bin/quickshell" -p "$SHELL_DIR" > "$STATE/qs.log" 2>&1 &
   echo $! > "$STATE/qs.pid"
   sleep "${WAIT:-3}"
