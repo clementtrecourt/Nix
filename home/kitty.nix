@@ -1,5 +1,5 @@
 # Kitty en verre, comme les surfaces du shell : fond translucide flouté par Hyprland
-# (decoration.blur, même flou que les matériaux macos-*), texte à 14 px, couleurs
+# (decoration.blur, même flou que les matériaux macos-*), texte à 16 px, couleurs
 # tirées du fond d'écran (matugen, Material You) en clair comme en sombre.
 #
 # Les couleurs vivent dans les fichiers *-theme.auto.conf de kitty (≥ 0.38), que
@@ -13,8 +13,8 @@
   pkgs,
   ...
 }: let
-  # Opacité du fond : celle des menus du shell (Theme.menuBackground ≈ 0,62)
-  opacity = "0.62";
+  # Opacité du fond : verre épais (plus opaque que les menus du shell, pour la lisibilité)
+  opacity = "0.85";
 
   # Couleurs ANSI : couleurs système de macOS (mode sombre), harmonisées avec la
   # couleur source du fond d'écran (blend matugen) pour rester dans sa teinte
@@ -141,11 +141,17 @@ in {
   programs.kitty = {
     enable = true;
 
-    # 14 px logiques. kitty compte en points typographiques à 96 dpi :
-    # 14 × 72/96 = 10,5. (Cmd+= / Cmd+- / Cmd+0 changent la taille, comme dans Terminal)
+    # 16 px logiques. kitty compte en points typographiques à 96 dpi :
+    # 16 × 72/96 = 12. (Cmd+= / Cmd+- / Cmd+0 changent la taille, comme dans Terminal)
+    # Police : Monaspace Neon (GitHub), en version Nerd Font pour les icônes.
+    # Seule la famille Neon est installée (le paquet complet pèse ~390 Mo).
     font = {
-      name = "JetBrainsMonoNF-Regular";
-      size = 10.5;
+      name = "MonaspiceNe Nerd Font";
+      size = 12;
+      package = pkgs.runCommand "monaspice-neon-nerd-font" {} ''
+        install -Dm444 -t $out/share/fonts/opentype \
+          ${pkgs.nerd-fonts.monaspace}/share/fonts/opentype/NerdFonts/Monaspice/MonaspiceNeNerdFont-*.otf
+      '';
     };
 
     # Configuration générale
