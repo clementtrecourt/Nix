@@ -1,9 +1,15 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.common
+import qs.settings
 
 // Résolution des icônes du Dock, par ordre de priorité :
 //   1. surcharge utilisateur : ~/.local/share/macos-shell/icons/<clé>.png (ou .svg)
+//      Les sous-dossiers light/ (style Default) et dark/ (style Dark) suivent le
+//      réglage Apparence > Icon & widget style, PAS le mode sombre : comme dans
+//      Tahoe, le mode sombre garde les icônes normales. En style Dark, une app
+//      sans variante sombre garde son icône normale (light/, puis la suite).
 //      <clé> = id .desktop sans extension (sinon classe en minuscules), ou
 //      « apps », « downloads », « user-trash », « user-trash-full ».
 //      C'est là qu'on dépose les VRAIES icônes Tahoe (toiles 1024×1024 extraites
@@ -24,7 +30,12 @@ Item {
 
     // Taille maximale affichée en pixels physiques (sourceSize des Image)
     property int maxPixels: 160
-    readonly property string theme: Quickshell.env("QS_ICON_THEME") || "MacTahoe-dark"
+    // Style d'icônes (Default / Dark ; Clear et Tinted : pas d'illustrations, donc Default)
+    readonly property string variant: Prefs.v.iconStyle === "dark" ? "dark" : "light"
+    // Le thème (dossiers, repli) suit, lui, l'apparence claire / sombre
+    readonly property string theme: (Quickshell.env("QS_ICON_THEME") || "MacTahoe-dark").replace(/-(dark|light)$/, Theme.dark ? "-dark" : "-light")
+    onVariantChanged: resolveTimer.restart()
+    onThemeChanged: resolveTimer.restart()
     readonly property string overrideDir: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/macos-shell/icons"
 
     // clé -> { path, override }
@@ -55,13 +66,13 @@ Item {
         const args = [];
         for (const k in wanted) args.push(k + "=" + wanted[k]);
         if (args.length === 0) return;
-        proc.command = ["sh", "-c", script, "sh", root.theme, root.overrideDir, String(root.maxPixels)].concat(args);
+        proc.command = ["sh", "-c", script, "sh", root.theme, root.overrideDir, String(root.maxPixels), root.variant].concat(args);
         proc.running = true;
     }
 
-    // $1 thème, $2 dossier de surcharge, $3 taille minimale d'un PNG, puis clé=nom…
+    // $1 thème, $2 dossier, $3 taille minimale, $4 variante, puis clé=nom…
     readonly property string script: '
-theme="$1"; ovr="$2"; min="$3"; shift 3
+theme="$1"; ovr="$2"; min="$3"; variant="$4"; shift 4
 dirs="${XDG_DATA_HOME:-$HOME/.local/share}:${XDG_DATA_DIRS:-/run/current-system/sw/share}"
 base="${theme%-dark}"; base="${base%-light}"
 # Thèmes à parcourir : le thème, ses parents (Inherits=, sauf hicolor), puis la base
@@ -89,7 +100,9 @@ for pair in "$@"; do
   key="${pair%%=*}"; name="${pair#*=}"
   low=$(printf %s "$key" | tr "[:upper:]" "[:lower:]")
   found=""
-  for k in "$key" "$low"; do
+  subs="light"; [ "$variant" = dark ] && subs="dark light"
+  cands=""; for s in $subs; do cands="$cands $s/$key $s/$low"; done
+  for k in $cands "$key" "$low"; do
     for ext in png svg; do
       if [ -z "$found" ] && [ -f "$ovr/$k.$ext" ]; then found="$ovr/$k.$ext"; fi
     done

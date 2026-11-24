@@ -5,7 +5,7 @@
 # Mode clair / sombre : piloté à chaud par gsettings color-scheme (Control Center du
 # shell). Rien ici ne fige le mode : le thème GTK3/GTK4 suit gsettings gtk-theme,
 # et macos-appearance (exec-once, cf. pkgs/macos-scripts.nix) réécrit le CSS
-# libadwaita (~/.config/gtk-4.0/gtk.css), le thème Kvantum et les barres hyprbars.
+# libadwaita (~/.config/gtk-4.0/gtk.css), et le thème Kvantum.
 # Le mode sombre n'est posé qu'à la première activation (clé encore vide).
 {
   config,

@@ -59,8 +59,6 @@ start)
   fi
   {
     echo "monitor = , ${SIZE}@60, 0x0, 1"
-    # Plugin hyprbars de la même version que Hyprland (comme en prod)
-    echo "plugin = $(P hyprlandPlugins.hyprbars)/lib/libhyprbars.so"
     # Bloc « look » de la prod (source unique : home/macos/hyprland-look.nix)
     echo "source = $STATE/look.conf"
     # Réglages propres au banc (aucun aujourd'hui)
@@ -73,7 +71,23 @@ start)
     echo "source = $SETTINGS_CONF"
   } > "$CONF"
   before=$(ls "$XDG_RUNTIME_DIR/hypr" 2>/dev/null || true)
-  nohup "$HYPR/bin/Hyprland" -c "$CONF" > "$STATE/hyprland.log" 2>&1 &
+  # Au démarrage, Hyprland lance `systemctl --user import-environment` et
+  # `dbus-update-activation-environment` (WAYLAND_DISPLAY, HYPRLAND_INSTANCE_SIGNATURE…).
+  # Pour l'instance imbriquée, cela casserait la vraie session : après l'arrêt du
+  # banc, macos-shell.service viserait un écran disparu au prochain redémarrage
+  # (nrs). HYPRLAND_NO_SD_VARS n'y change rien en 0.56 : on neutralise ces deux
+  # appels par des substituts placés en tête du PATH de l'instance.
+  NOSD="$STATE/nosd"
+  mkdir -p "$NOSD"
+  REAL_SYSTEMCTL=$(command -v systemctl || echo /run/current-system/sw/bin/systemctl)
+  cat > "$NOSD/systemctl" <<EOF
+#!/bin/sh
+case " \$* " in *" import-environment "*|*" unset-environment "*) exit 0 ;; esac
+exec "$REAL_SYSTEMCTL" "\$@"
+EOF
+  printf '#!/bin/sh\nexit 0\n' > "$NOSD/dbus-update-activation-environment"
+  chmod +x "$NOSD/systemctl" "$NOSD/dbus-update-activation-environment"
+  PATH="$NOSD:$PATH" nohup "$HYPR/bin/Hyprland" -c "$CONF" > "$STATE/hyprland.log" 2>&1 &
   echo $! > "$STATE/hypr.pid"
   for _ in $(seq 1 150); do
     sleep 0.1
@@ -132,8 +146,22 @@ run)
   ;;
 log) cat "$STATE/qs.log" ;;
 stop)
+  # Le .pid est celui de l'enveloppe Nix (script bash) : le vrai processus est
+  # son enfant, qui resterait orphelin si on ne tuait que l'enveloppe.
   for f in qs hypr; do
-    if [ -f "$STATE/$f.pid" ]; then kill "$(cat "$STATE/$f.pid")" 2>/dev/null || true; fi
+    if [ -f "$STATE/$f.pid" ]; then
+      pid=$(cat "$STATE/$f.pid")
+      pids="$pid $(pgrep -P "$pid" | tr '\n' ' ')"
+      # shellcheck disable=SC2086
+      kill $pids 2>/dev/null || true
+      for _ in 1 2 3 4 5 6; do
+        # shellcheck disable=SC2086
+        kill -0 $pids 2>/dev/null || break
+        sleep 0.5
+      done
+      # shellcheck disable=SC2086
+      kill -9 $pids 2>/dev/null || true
+    fi
     rm -f "$STATE/$f.pid"
   done
   rm -f "$STATE/env"

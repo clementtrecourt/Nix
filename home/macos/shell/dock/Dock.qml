@@ -151,7 +151,7 @@ Scope {
         exclusiveZone: root.shouldHide ? 0 : dockArea.platterH + dockArea.bottomGap
 
         // Seule la plaque (et les icônes agrandies) reçoivent la souris ; masquée :
-        // une bande de 2 px en bas de l'écran pour la faire réapparaître.
+        // une bande de 8 px en bas, centrée sous le Dock, pour le révéler.
         mask: Region { item: hitArea }
 
         Item {
@@ -363,10 +363,16 @@ Scope {
             Item {
                 id: hitArea
                 visible: false
-                x: dockArea.dragKey !== "" ? 0 : dockArea.revealed ? dockArea.platterX : 0
-                width: dockArea.dragKey !== "" ? dockArea.width : dockArea.revealed ? dockArea.platterW : dockArea.width
-                y: dockArea.dragKey !== "" ? 0 : dockArea.revealed ? Math.min(dockArea.platterTop, dockArea.hovering ? dockArea.magnifiedTop : dockArea.platterTop) : dockArea.height - 2
-                height: dockArea.dragKey !== "" ? dockArea.height : dockArea.revealed ? dockArea.height - y : 2
+                x: dockArea.dragKey !== "" ? 0 : dockArea.platterX
+                width: dockArea.dragKey !== "" ? dockArea.width : dockArea.platterW
+                // Dès le début de l'apparition, garder une zone sensible jusqu'au
+                // bord inférieur. La plaque animée est encore hors écran : suivre
+                // son y donnerait une hauteur négative et annulerait le survol.
+                y: dockArea.dragKey !== "" ? 0 : dockArea.revealed
+                    ? Math.min(dockArea.height - dockArea.bottomGap - dockArea.platterH,
+                        dockArea.hovering ? dockArea.magnifiedTop : dockArea.platterTop)
+                    : dockArea.height - 8
+                height: dockArea.height - y
             }
 
             property int pressedIndex: -1
@@ -653,7 +659,9 @@ Scope {
         target: "dock-debug"
         function visibility(): string {
             return JSON.stringify({ occupied: root.workspaceOccupied, autohide: root.autohide,
-                revealed: dockArea.revealed, exclusiveZone: win.exclusiveZone });
+                revealed: dockArea.revealed, exclusiveZone: win.exclusiveZone,
+                hovering: dockArea.hovering, hideOffset: dockArea.hideOffset,
+                hitY: hitArea.y, hitHeight: hitArea.height });
         }
         function hover(x: real): void { dockArea.hovering = true; dockArea.mouseX = x; }
         function unhover(): void { dockArea.hovering = Qt.binding(() => mouse.containsMouse); }

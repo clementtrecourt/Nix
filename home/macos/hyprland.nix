@@ -1,10 +1,10 @@
-# Hyprland façon macOS Tahoe : fenêtres flottantes centrées, barres de titre à
-# feux tricolores (hyprbars), coins arrondis continus, grande ombre douce,
+# Hyprland façon macOS Tahoe : fenêtres flottantes centrées (sans barre de titre
+# serveur : décorations des apps seules), coins arrondis continus, grande ombre douce,
 # flou des surfaces du shell (macos-*), animations et gestes du Mac, raccourcis Cmd.
 #
 # Format : hyprlang (hyprland.conf). Le format Lua de Hyprland 0.56 change la syntaxe
 # de `hyprctl dispatch` (attend du Lua : hl.dsp…) ; or Quickshell 0.3.1
-# (Hyprland.dispatch), le shell (services/Windows.qml) et les boutons hyprbars
+# (Hyprland.dispatch) et le shell (services/Windows.qml)
 # envoient des dispatchers classiques. À migrer quand Quickshell suivra.
 #
 # Le bloc « look » vit dans hyprland-look.nix : même source pour la prod et pour le
@@ -17,7 +17,6 @@
   ...
 }: let
   macosPkgs = import ./pkgs {inherit pkgs inputs;};
-  hyprbars = pkgs.hyprlandPlugins.hyprbars;
   wm = "${macosPkgs.macos-wm}/bin/macos-wm";
   shot = "${macosPkgs.macos-screenshot}/bin/macos-screenshot";
   appearance = "${macosPkgs.macos-appearance}/bin/macos-appearance";
@@ -25,7 +24,7 @@
   wpctl = "${pkgs.wireplumber}/bin/wpctl";
   playerctl = "${pkgs.playerctl}/bin/playerctl";
 
-  # Rendu (réglages visuels, règles de fenêtres, hyprbars, animations, saisie, gestes) :
+  # Rendu (réglages visuels, règles de fenêtres, animations, saisie, gestes) :
   # source unique partagée avec le banc de test (dev/nested.sh), sans chemin du store
   look = import ./hyprland-look.nix;
   settingsConf = "${config.xdg.configHome}/hypr/macos-settings.conf";
@@ -45,8 +44,8 @@ in {
   # Disposition qwerty-fr (fichier xkb utilisateur, comme avec Mango)
   xdg.configFile."xkb/symbols/us_qwerty-fr".source = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
 
-  # macos-wm doit être dans le PATH : les boutons hyprbars du bloc « look » l'appellent
-  # par son nom (le bloc est partagé avec le banc de test, sans chemins du store)
+  # macos-wm doit être dans le PATH : le shell (feux du Finder, de Réglages Système)
+  # l'appelle par son nom
   home.packages = [
     macosPkgs.macos-wm
     macosPkgs.macos-screenshot
@@ -58,8 +57,8 @@ in {
 
   wayland.windowManager.hyprland = {
     enable = true;
-    # Paquet et portail fournis par le module NixOS (programs.hyprland) : mêmes versions
-    # que le plugin hyprbars, pas de doublon dans le profil.
+    # Paquet et portail fournis par le module NixOS (programs.hyprland) : pas de
+    # doublon dans le profil.
     package = null;
     portalPackage = null;
     configType = "hyprlang";
@@ -71,9 +70,6 @@ in {
     };
 
     settings = {
-      # Chargé à la lecture de la config (version identique à Hyprland, cf. module NixOS)
-      plugin = ["${hyprbars}/lib/libhyprbars.so"];
-
       monitor = [", preferred, auto, auto"];
 
       env = [

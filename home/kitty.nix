@@ -92,7 +92,7 @@ in {
       repaint_delay = 8;
       input_delay = 0;
 
-      # Fenêtre & Apparence (façon Terminal.app : 80×24, opaque, barre de titre hyprbars)
+      # Fenêtre & Apparence (façon Terminal.app : 80×24, opaque)
       remember_window_size = "no";
       initial_window_width = "80c";
       initial_window_height = "24c";

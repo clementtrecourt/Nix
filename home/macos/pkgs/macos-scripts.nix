@@ -4,7 +4,7 @@
 #                      propre espace, touches Cmd façon Mac, Cmd+`, verrouillage
 #   macos-screenshot : Cmd+Maj+3 / Cmd+Maj+4 (+ Espace = fenêtre), nommage macOS français
 #   macos-appearance : mode clair / sombre de tout le système (GTK4/libadwaita,
-#                      Kvantum, barres de titre hyprbars) d'après gsettings color-scheme
+#                      Kvantum, liseré Hyprland) d'après gsettings color-scheme
 #   macos-settings   : « Réglages Système » (app du shell, IPC settings), aussi
 #                      exposé sous le nom gnome-control-center appelé par le shell
 {
@@ -56,7 +56,7 @@
       #                       ($XDG_STATE_HOME/macos-appearance/kdeglobals, lié par
       #                       home-manager à ~/.config/kdeglobals)
       #   - Qt (Kvantum)     : ~/.config/Kvantum/kvantum.kvconfig -> MacTahoe / MacTahoeDark
-      #   - Hyprland         : barres hyprbars (fond, titre, feux inactifs), liseré
+      #   - Hyprland         : liseré des fenêtres
       # kitty suit seul le mode (fichiers *-theme.auto.conf, via le portail Settings).
       cmd="''${1:-apply}"
       key=/org/gnome/desktop/interface/color-scheme
@@ -82,30 +82,19 @@
 
       hypr() {
         [ -n "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || return 0
-        # Barre de titre = fond de la barre d'en-tête MacTahoe (#333333 / #ffffff), la
-        # même active ou non (pas de bande bicolore avec le contenu) ; titre en label
-        # (actif) ou tertiaryLabel (inactif) ; feux inactifs = Theme.trafficInactive
-        # posé sur la barre ; liseré clair en sombre, noir ~20 % en clair (Tahoe).
+        # Liseré clair en sombre, noir ~20 % en clair (Tahoe)
         if [ "$1" = dark ]; then
-          bar="rgb(333333)" text="rgba(ffffffd9)" dim="rgba(ffffff4d)" off="rgb(585858)" term="rgb(1e1e1e)"
           border="rgba(ffffff24)" border_off="rgba(ffffff14)"
         else
-          bar="rgb(ffffff)" text="rgba(000000d9)" dim="rgba(0000004d)" off="rgb(dcdcdc)" term="rgb(ffffff)"
           border="rgba(00000033)" border_off="rgba(00000024)"
         fi
         local b=""
-        b+="keyword plugin:hyprbars:bar_color $bar;"
-        b+="keyword plugin:hyprbars:col.text $text;"
-        b+="keyword plugin:hyprbars:inactive_button_color $off;"
         b+="keyword general:col.active_border $border;"
-        b+="keyword general:col.inactive_border $border_off;"
-        # Règles ajoutées après celles de la config : elles l'emportent
-        b+="keyword windowrule hyprbars:title_color $dim, match:focus false;"
-        b+="keyword windowrule hyprbars:bar_color $term, match:class ^(kitty|foot|footclient|Alacritty)\$"
+        b+="keyword general:col.inactive_border $border_off"
         hyprctl --batch "$b" >/dev/null 2>&1 || true
       }
 
-      # Feux tricolores de Tahoe en CSS GTK (mêmes couleurs que hyprbars et le shell) :
+      # Feux tricolores de Tahoe en CSS GTK (mêmes couleurs que le shell) :
       # disques de 14 px espacés de 9 px, symboles au survol, gris en arrière-plan.
       # titlebuttons <gtk3|gtk4> <dark|light>
       titlebuttons() {

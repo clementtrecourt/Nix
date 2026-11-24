@@ -1,0 +1,484 @@
+[
+  {
+    "app": "Apps",
+    "variant": "dark",
+    "keys": [
+      "apps"
+    ],
+    "id": "3HshdWWFhH",
+    "name": "Evil Apps",
+    "author": "oscu0",
+    "page": "https://macosicons.com/#/?icon=3HshdWWFhH",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Evil_Apps_3HshdWWFhH_icns-a8ac3da4dc.icns",
+    "darkArtwork": true,
+    "sha256": "df249e51013e35122df95ef19f6d7c0a09e547cd8b68362b2f772112977e7708"
+  },
+  {
+    "app": "Finder",
+    "variant": "dark",
+    "keys": [
+      "nemo",
+      "finder",
+      "system-file-manager"
+    ],
+    "id": "P6ognDOcO9",
+    "name": "Finder (Pure Dark)",
+    "author": "Justanotherguy",
+    "page": "https://macosicons.com/#/?icon=P6ognDOcO9",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Finder__Pure_Dark__P6ognDOcO9_icns-f3b85d2d96.icns",
+    "darkArtwork": true,
+    "sha256": "4b6aeb85cb77f8995829c5b056e659335153d1bd8314c040ea757ed3163a7f4b"
+  },
+  {
+    "app": "System Settings",
+    "variant": "dark",
+    "keys": [
+      "org.gnome.Settings",
+      "nwg-look",
+      "qt5ct",
+      "qt6ct"
+    ],
+    "id": "vraoiEgA8q",
+    "name": "System Settings",
+    "author": "iuriveiga",
+    "page": "https://macosicons.com/#/?icon=vraoiEgA8q",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/System_Settings_vraoiEgA8q_icns-699254c4ee.icns",
+    "darkArtwork": true,
+    "sha256": "a269e703db36318f374c7727914c308df0d0697bca3d7751aeb2b652f5cad5aa"
+  },
+  {
+    "app": "Terminal",
+    "variant": "dark",
+    "keys": [
+      "kitty",
+      "terminal",
+      "foot"
+    ],
+    "id": "OMZZ80GqBU",
+    "name": "Terminal",
+    "author": "moonlight",
+    "page": "https://macosicons.com/#/?icon=OMZZ80GqBU",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Terminal__Alt__OMZZ80GqBU_icns-3a0c5bb3ba.icns",
+    "darkArtwork": true,
+    "sha256": "ecf921680a2621298024cc7ba6ede25f7c4c4e41158cbc067924e901a7cfa9ea"
+  },
+  {
+    "app": "Trash",
+    "variant": "light",
+    "keys": [
+      "user-trash"
+    ],
+    "id": "1aVjAjtCtxU0VsCmh6sAWaGqXxxZaoNTv",
+    "name": "trash (empty)",
+    "author": "Apple (export macOS 26)",
+    "page": "https://drive.google.com/drive/folders/1tQ0OTn5qTckm5i_AWJPQ4C31B8_9luaB",
+    "url": "https://drive.usercontent.google.com/download?id=1aVjAjtCtxU0VsCmh6sAWaGqXxxZaoNTv&export=download",
+    "format": "png",
+    "darkArtwork": false,
+    "sha256": "48b1d559315338d20f4fbe05636b46a63644079249906a148fd588435b35c2a8"
+  },
+  {
+    "app": "Trash",
+    "variant": "light",
+    "keys": [
+      "user-trash-full"
+    ],
+    "id": "19H1NaAQUA6vTo2NRDOlTwrk0TOU9boLn",
+    "name": "trash (full) (upscale edit)",
+    "author": "Apple (export macOS 26)",
+    "page": "https://drive.google.com/drive/folders/1tQ0OTn5qTckm5i_AWJPQ4C31B8_9luaB",
+    "url": "https://drive.usercontent.google.com/download?id=19H1NaAQUA6vTo2NRDOlTwrk0TOU9boLn&export=download",
+    "format": "png",
+    "darkArtwork": false,
+    "sha256": "e023c326453139410b1b23482cb73ad6ae197e2f730c65dc3950d73d60b2f749"
+  },
+  {
+    "app": "Activity Monitor",
+    "variant": "dark",
+    "keys": [
+      "btop"
+    ],
+    "id": "Xa5vzdv8ii",
+    "name": "activity monitor",
+    "author": "shutupshivam",
+    "page": "https://macosicons.com/#/?icon=Xa5vzdv8ii",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/activity_monitor_Xa5vzdv8ii-bcdd12c56d.icns",
+    "darkArtwork": true,
+    "sha256": "e26f69c89c3807bc9635c926ceecd3b77bf26b05779f1d0e69d5e737b5f00f63"
+  },
+  {
+    "app": "AnyDesk",
+    "variant": "light",
+    "keys": [
+      "AnyDesk",
+      "anydesk"
+    ],
+    "id": "mIUEL4LDDT",
+    "name": "Anydesk",
+    "author": "Jack Blaze",
+    "page": "https://macosicons.com/#/?icon=mIUEL4LDDT",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Anydesk_mIUEL4LDDT_icns-49e6678c68.icns",
+    "darkArtwork": false,
+    "sha256": "e2f698262ccd8676a1f0c59cdb0008364b4c3160e9369ee9baf4b335f0bca039"
+  },
+  {
+    "app": "AnyDesk",
+    "variant": "dark",
+    "keys": [
+      "AnyDesk",
+      "anydesk"
+    ],
+    "id": "DPyDehPkd3",
+    "name": "Anydesk Dark Mode",
+    "author": "aidenicons_",
+    "page": "https://macosicons.com/#/?icon=DPyDehPkd3",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Anydesk_Dark_Mode_DPyDehPkd3_icns-2b27723dd8.icns",
+    "darkArtwork": true,
+    "sha256": "093715af19ea861dd4dfc275c4808bc91a16d05c8833e02853a68d8f61bf72d1"
+  },
+  {
+    "app": "Brave",
+    "variant": "light",
+    "keys": [
+      "brave-browser"
+    ],
+    "id": "OATsGHKcn2",
+    "name": "Brave",
+    "author": "corey",
+    "page": "https://macosicons.com/#/?icon=OATsGHKcn2",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Brave_OATsGHKcn2_icns-4677622932.icns",
+    "darkArtwork": false,
+    "sha256": "0eb8f19d8ca789fa8499a4e7db2dd411c1717ed33e8a9df385c7dae40f329ccd"
+  },
+  {
+    "app": "Brave",
+    "variant": "dark",
+    "keys": [
+      "brave-browser"
+    ],
+    "id": "HqaPvEN48W",
+    "name": "Brave (Dark) (macOS 26.2+)",
+    "author": "designer_26.2",
+    "page": "https://macosicons.com/#/?icon=HqaPvEN48W",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Brave__Dark___macOS_26.2___HqaPvEN48W_icns-3d978d7ff7.icns",
+    "darkArtwork": true,
+    "sha256": "41bf0f5ddd9be9a4fff5e68210dd6e3f15d974a7f87d77a96108c281936bdc74"
+  },
+  {
+    "app": "Helium",
+    "variant": "light",
+    "keys": [
+      "helium"
+    ],
+    "id": "nJPjEswiri",
+    "name": "Helium (Liquid Glass)",
+    "author": "e536h",
+    "page": "https://macosicons.com/#/?icon=nJPjEswiri",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Helium__Liquid_Glass__nJPjEswiri_icns-b82cfe85b0.icns",
+    "darkArtwork": false,
+    "sha256": "43a36f0b561898d1f24967687103184816915ea18d125d11b4b3935a7edc5312"
+  },
+  {
+    "app": "Helium",
+    "variant": "dark",
+    "keys": [
+      "helium"
+    ],
+    "id": "HJijcYKVMF",
+    "name": "Helium Browser (Dark)",
+    "author": "xandemaya",
+    "page": "https://macosicons.com/#/?icon=HJijcYKVMF",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Helium_Browser__Dark__HJijcYKVMF_icns-f38a24844f.icns",
+    "darkArtwork": true,
+    "sha256": "41c3c136d8fde823f4364a323b01d38e1d35efa8ceed9a2d34adc4d77016f0e9"
+  },
+  {
+    "app": "Heroic",
+    "variant": "light",
+    "keys": [
+      "com.heroicgameslauncher.hgl"
+    ],
+    "id": "czsZYQdSyP",
+    "name": "Heroic (Liquid Glass)",
+    "author": "e536h",
+    "page": "https://macosicons.com/#/?icon=czsZYQdSyP",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Heroic__Liquid_Glass__czsZYQdSyP_icns-be84199124.icns",
+    "darkArtwork": false,
+    "sha256": "d3ac737c5eb82f716402ff81e60ccf2377ad6ae72cb853f124801f5e521365c1"
+  },
+  {
+    "app": "Heroic",
+    "variant": "dark",
+    "keys": [
+      "com.heroicgameslauncher.hgl"
+    ],
+    "id": "DyMFM4U6Ii",
+    "name": "Heroic games launcher dark mode",
+    "author": "alessandrx",
+    "page": "https://macosicons.com/#/?icon=DyMFM4U6Ii",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Heroic_games_launcher_dark_mode_DyMFM4U6Ii_icns-adae5b34ee.icns",
+    "darkArtwork": true,
+    "sha256": "a30e29eb5167b60a9c31862accdcbbc65069d1b6d4c47ed8793d38283e15119c"
+  },
+  {
+    "app": "LibreWolf",
+    "variant": "light",
+    "keys": [
+      "librewolf"
+    ],
+    "id": "DMrQKdWrM1",
+    "name": "LibreWolf Liquid Glass",
+    "author": "ralphtheiconguy",
+    "page": "https://macosicons.com/#/?icon=DMrQKdWrM1",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/LibreWolf_Liquid_Glass_DMrQKdWrM1_icns-881e6e89fe.icns",
+    "darkArtwork": false,
+    "sha256": "2d08f6f8be5fab590d797c50093576439c796de82c484c74539487ca4216201b"
+  },
+  {
+    "app": "Microsoft Teams",
+    "variant": "light",
+    "keys": [
+      "teams-for-linux"
+    ],
+    "id": "RuxMkP3jfI",
+    "name": "Microsoft Teams (Liquid Glass)",
+    "author": "adrian",
+    "page": "https://macosicons.com/#/?icon=RuxMkP3jfI",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Microsoft_Teams__Liquid_Glass__RuxMkP3jfI_icns-b1680a7069.icns",
+    "darkArtwork": false,
+    "sha256": "99c5ca3866a8a0a534823a9dfbce88d875598f0ee5b83ccc2ec8f9b627fcd072"
+  },
+  {
+    "app": "Microsoft Teams",
+    "variant": "dark",
+    "keys": [
+      "teams-for-linux"
+    ],
+    "id": "zyt4pIE8XP",
+    "name": "Microsoft Teams",
+    "author": "dotkiki",
+    "page": "https://macosicons.com/#/?icon=zyt4pIE8XP",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Microsoft_Teams_zyt4pIE8XP_icns-cffa57f24f.icns",
+    "darkArtwork": true,
+    "sha256": "19fd3ebe7f278e36eaa700271855ef4c42453394cdf37ae54a682dabb60daaca"
+  },
+  {
+    "app": "Motrix",
+    "variant": "light",
+    "keys": [
+      "MotrixNext",
+      "motrix-next"
+    ],
+    "id": "QOmvTSWtrL",
+    "name": "Motrix (Liquid Glass)",
+    "author": "e536h",
+    "page": "https://macosicons.com/#/?icon=QOmvTSWtrL",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Motrix__Liquid_Glass__QOmvTSWtrL_icns-e330520c5f.icns",
+    "darkArtwork": false,
+    "sha256": "ecb6b316a7827298441672886fb03ebdbf62dbb1b102ea2c4ce9cbd9cdb0b6c5"
+  },
+  {
+    "app": "Motrix",
+    "variant": "dark",
+    "keys": [
+      "MotrixNext",
+      "motrix-next"
+    ],
+    "id": "G762CQhiGt",
+    "name": "Motrix",
+    "author": "jordan_qd",
+    "page": "https://macosicons.com/#/?icon=G762CQhiGt",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Motrix_G762CQhiGt_icns-f84abe61df.icns",
+    "darkArtwork": true,
+    "sha256": "cdb32150d182853041aeac65ed5531c78a2158b6f42eb23082c1da38e91b2875"
+  },
+  {
+    "app": "Neovim",
+    "variant": "light",
+    "keys": [
+      "nvim"
+    ],
+    "id": "mfmzfbBM0P",
+    "name": "Neovim",
+    "author": "NeXT",
+    "page": "https://macosicons.com/#/?icon=mfmzfbBM0P",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Neovim_mfmzfbBM0P_icns-bd6f834376.icns",
+    "darkArtwork": false,
+    "sha256": "12ef88d2f612157ae298f3e68853cb0b415d6ea2fbf336d579b6b9f804ff167d"
+  },
+  {
+    "app": "Neovim",
+    "variant": "dark",
+    "keys": [
+      "nvim"
+    ],
+    "id": "Wybiu2nBSh",
+    "name": "Neovim (dark)",
+    "author": "NeXT",
+    "page": "https://macosicons.com/#/?icon=Wybiu2nBSh",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Neovim__dark__Wybiu2nBSh_icns-d38c3f7583.icns",
+    "darkArtwork": true,
+    "sha256": "65cec9918d64a1e9d6ccac9045f61b24a4e9ff70d3f82d81d8b0d3b62b3ceae8"
+  },
+  {
+    "app": "Outlook",
+    "variant": "light",
+    "keys": [
+      "chrome-faolnafnngnfdaknnbpnkhgohbobgegn-Default"
+    ],
+    "id": "dGlSIRTK7r",
+    "name": "Outlook",
+    "author": "Vector",
+    "page": "https://macosicons.com/#/?icon=dGlSIRTK7r",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Outlook_dGlSIRTK7r_icns-3e4c6ffdd8.icns",
+    "darkArtwork": false,
+    "sha256": "f1007cc29f128a1bc009d0c98358af761b9c2a65b0f7b5b784c81f2efacb73f8"
+  },
+  {
+    "app": "Outlook",
+    "variant": "dark",
+    "keys": [
+      "chrome-faolnafnngnfdaknnbpnkhgohbobgegn-Default"
+    ],
+    "id": "EP4b3f5pEH",
+    "name": "Outlook Dark (Liquid Glass)",
+    "author": "trust",
+    "page": "https://macosicons.com/#/?icon=EP4b3f5pEH",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Outlook_Dark__Liquid_Glass__EP4b3f5pEH_icns-51a0ed8d7f.icns",
+    "darkArtwork": true,
+    "sha256": "88f11d95be11fa4149b14b33d5b8fbcc2e3e33ffcd145e71ec10da6ab243ee3c"
+  },
+  {
+    "app": "Preview",
+    "variant": "dark",
+    "keys": [
+      "imv",
+      "org.pwmt.zathura"
+    ],
+    "id": "4sqCnPdVL3",
+    "name": "Preview Dark (macOS 26)",
+    "author": "thienkts",
+    "page": "https://macosicons.com/#/?icon=4sqCnPdVL3",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Preview_4sqCnPdVL3-9725afa1ed.icns",
+    "darkArtwork": true,
+    "sha256": "0cd04b5f9afecbcca1e45f863f6ad5321e12dc071bd061cd48d4efcf0976f991"
+  },
+  {
+    "app": "Spotify",
+    "variant": "light",
+    "keys": [
+      "spotify",
+      "spotify-client"
+    ],
+    "id": "cLGFRH7LcM",
+    "name": "Spotify",
+    "author": "atserif",
+    "page": "https://macosicons.com/#/?icon=cLGFRH7LcM",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Spotify_cLGFRH7LcM_icns-984f1d2d8d.icns",
+    "darkArtwork": false,
+    "sha256": "1b4fbe67658467daf4a6e28975b554f85e6cf575b4efce857862b1742b2f5b7e"
+  },
+  {
+    "app": "Spotify",
+    "variant": "dark",
+    "keys": [
+      "spotify",
+      "spotify-client"
+    ],
+    "id": "tQBv6ezYwU",
+    "name": "Spotify | Liquid Glass (Dark)",
+    "author": "wonki",
+    "page": "https://macosicons.com/#/?icon=tQBv6ezYwU",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Spotify___Liquid_Glass__Dark__tQBv6ezYwU_icns-fa6564c5f6.icns",
+    "darkArtwork": true,
+    "sha256": "113d486f3139cc1f722c07077c6b53925731c54078aa9ac439405d1af9671443"
+  },
+  {
+    "app": "VLC",
+    "variant": "light",
+    "keys": [
+      "vlc"
+    ],
+    "id": "D7EvMtxi0Q",
+    "name": "VLC",
+    "author": "iigiovanni",
+    "page": "https://macosicons.com/#/?icon=D7EvMtxi0Q",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/VLC_D7EvMtxi0Q_icns-5d8bc9f7d4.icns",
+    "darkArtwork": false,
+    "sha256": "9443a787a801be014eec7a3aee3dcd4ec74d85f45ee085e10ac00ca3f7b0620c"
+  },
+  {
+    "app": "VLC",
+    "variant": "dark",
+    "keys": [
+      "vlc"
+    ],
+    "id": "24O23erbM2",
+    "name": "VLC Liquid Glass Dark",
+    "author": "url8saber",
+    "page": "https://macosicons.com/#/?icon=24O23erbM2",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/VLC_Liquid_Glass_Dark_24O23erbM2_icns-51c50cadcc.icns",
+    "darkArtwork": true,
+    "sha256": "328beb47ba7b1b6911d3b4885ef71386cd1f7b4636781016b42e36aa762c6c00"
+  },
+  {
+    "app": "Zed",
+    "variant": "light",
+    "keys": [
+      "dev.zed.Zed",
+      "zed"
+    ],
+    "id": "wgafyS8Bfo",
+    "name": "Zed",
+    "author": "eldershi",
+    "page": "https://macosicons.com/#/?icon=wgafyS8Bfo",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Zed-862c31119e.icns",
+    "darkArtwork": false,
+    "sha256": "417d5164af8412b687ae90e58810dcf876d8f3e4739f60d06556fc423fa9d4a9"
+  },
+  {
+    "app": "Zed",
+    "variant": "dark",
+    "keys": [
+      "dev.zed.Zed",
+      "zed"
+    ],
+    "id": "69IrBm0EZL",
+    "name": "Zed",
+    "author": "ohqay",
+    "page": "https://macosicons.com/#/?icon=69IrBm0EZL",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Zed_69IrBm0EZL_icns-cd27d59cb6.icns",
+    "darkArtwork": true,
+    "sha256": "72ec58dfd0efc323acf47ebd87c85ecf4bc6894166211636f67b9a3834323815"
+  },
+  {
+    "app": "Zen Browser",
+    "variant": "light",
+    "keys": [
+      "zen-beta",
+      "zen-browser"
+    ],
+    "id": "uNMTfyKGVC",
+    "name": "Zen Browser light",
+    "author": "trikooplays",
+    "page": "https://macosicons.com/#/?icon=uNMTfyKGVC",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Zen_Browser_light_uNMTfyKGVC_icns-0ca85ba633.icns",
+    "darkArtwork": false,
+    "sha256": "9f2ddbb14766f802159be0ab42dfdfcc2b5c9ad929d1510ecf0c9593bec9edc7"
+  },
+  {
+    "app": "Zen Browser",
+    "variant": "dark",
+    "keys": [
+      "zen-beta",
+      "zen-browser"
+    ],
+    "id": "lgaaiYlF4g",
+    "name": "Zen (Dark)",
+    "author": "xdan",
+    "page": "https://macosicons.com/#/?icon=lgaaiYlF4g",
+    "url": "https://s3-new.macosicons.com/macosicons/parse/Zen__Dark__lgaaiYlF4g_icns-4fd82ff142.icns",
+    "darkArtwork": true,
+    "sha256": "4e3044c131f0fb18aceade64bb0a7ccf149fb2b9307c44072d530b61cd2ddaae"
+  }
+]

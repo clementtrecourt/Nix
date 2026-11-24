@@ -1,12 +1,12 @@
 # Bloc « look » de Hyprland façon macOS Tahoe : réglages visuels, règles de fenêtres,
-# barres de titre hyprbars, animations, saisie et gestes. AUCUN chemin du store :
+# animations, saisie et gestes. AUCUN chemin du store :
 # expression Nix pure (sans argument ni nixpkgs), source UNIQUE de ce bloc pour
 #   - la prod : home/macos/hyprland.nix (extraConfig) ;
 #   - le banc de test : home/macos/dev/nested.sh (nix eval --raw -f ce fichier).
 # Ainsi le banc imbriqué ne peut plus diverger de la session réelle.
 let
   # Apps à décorations client sans identifiant « reverse-DNS » (navigateurs, Electron,
-  # GTK à barre d'en-tête…) : pas de barre hyprbars, coins « barre d'outils » de Tahoe
+  # GTK à barre d'en-tête…) : coins « barre d'outils » de Tahoe
   csdApps = builtins.concatStringsSep "|" [
     # Sélecteur de fichiers / dialogues du portail GTK (barre d'en-tête GTK propre)
     "xdg-desktop-portal-gtk"
@@ -52,7 +52,7 @@ let
     "FreeTube"
   ];
   # Apps à identifiant « reverse-DNS » qui ne dessinent PAS leurs décorations :
-  # GTK3 sans barre d'en-tête, Qt (QT_WAYLAND_DISABLE_WINDOWDECORATION=1)… -> barre hyprbars
+  # GTK3 sans barre d'en-tête, Qt (QT_WAYLAND_DISABLE_WINDOWDECORATION=1)… -> coins serrés
   ssdApps = builtins.concatStringsSep "|" [
     "org\\.kde\\..*"
     "org\\.qt-project\\..*"
@@ -240,88 +240,33 @@ in ''
   windowrule = size 820 560, match:class ^(xdg-desktop-portal-gtk)$
   # Spotify vit dans l'espace spécial « spotify » (Super+S l'affiche / le cache)
   windowrule = workspace special:spotify silent, match:class ^([Ss]potify)$
-  # Apps à décorations client (GTK4/libadwaita, navigateurs, Electron…) : elles
-  # dessinent déjà leurs boutons -> pas de barre hyprbars, coins Tahoe « barre
-  # d'outils » (~26 pt). Identifiant reverse-DNS = presque toujours GTK4/libadwaita,
-  # sauf la liste ssdApps (GTK3 sans barre d'en-tête, Qt…) qui garde la barre.
-  # (GTK3 sans identifiant reverse-DNS, ex. nemo : décorations serveur -> barre hyprbars)
-  windowrule = hyprbars:no_bar on, match:class ^(.*\..*)$
-  windowrule = hyprbars:no_bar off, match:class ^(${ssdApps})$
-  windowrule = hyprbars:no_bar on, match:class ^(${csdApps})$
+  # Pas de barre de titre serveur : chaque app garde ses propres décorations.
+  # Apps à décorations client (GTK4/libadwaita, navigateurs, Electron…) : coins
+  # Tahoe « barre d'outils » (~26 pt). Identifiant reverse-DNS = presque toujours
+  # GTK4/libadwaita, sauf la liste ssdApps (GTK3 sans barre d'en-tête, Qt…).
   windowrule = rounding 26, match:class ^(.*\..*|${csdApps})$
   windowrule = rounding 16, match:class ^(${ssdApps})$
-  # Fenêtre inactive : titre en tertiaryLabel, feux gris (plugin). La barre garde
-  # sa couleur : Tahoe ne change pas le fond de la barre de titre, et un fond
-  # « backdrop » ferait une bande bicolore avec le contenu (barre d'outils GTK,
-  # terminal) qui, lui, ne change pas.
-  windowrule = hyprbars:title_color rgba(ffffff4d), match:focus false
-  # Terminal : barre de titre de la couleur du fond, comme Terminal.app
-  windowrule = hyprbars:bar_color rgb(1e1e1e), match:class ^(kitty|foot|footclient|Alacritty)$
   # Plein écran : ni coins ni ombre ni liseré
   windowrule = rounding 0, match:fullscreen true
   windowrule = no_shadow on, match:fullscreen true
   windowrule = border_size 0, match:fullscreen true
   # Dialogues GTK/portails : centrés au-dessus de leur parent
   windowrule = center on, match:modal true
-  # Incrustation vidéo (Picture in Picture) : épinglée en coin, sans barre
+  # Incrustation vidéo (Picture in Picture) : épinglée en coin
   windowrule = float on, match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
   windowrule = pin on, match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
-  windowrule = hyprbars:no_bar on, match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
   windowrule = keep_aspect_ratio on, match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
   windowrule = move (monitor_w-window_w-24) (monitor_h-window_h-96), match:title ^(Picture-in-Picture|Picture in picture|Incrustation vidéo)$
   # Finder du shell (shell/finder, fenêtres Quickshell « org.quickshell ») : il
-  # dessine ses feux tricolores dans sa barre latérale -> pas de barre hyprbars,
-  # coins « barre d'outils » de Tahoe ; « Get Info » : petite fenêtre à barre de
+  # dessine ses feux tricolores dans sa barre latérale -> coins « barre
+  # d'outils » de Tahoe ; « Get Info » : petite fenêtre à barre de
   # titre seule, coins plus serrés
-  windowrule = hyprbars:no_bar on, match:class ^(org\.quickshell)$
   windowrule = rounding 26, match:class ^(org\.quickshell)$
   windowrule = rounding 16, match:class ^(org\.quickshell)$, match:title ^(.* Info)$
   # « Get Info » et Réglages Système (largeur fixe) flottent ; la fenêtre principale
   # du Finder est pavée comme les autres apps
   windowrule = float on, match:class ^(org\.quickshell)$, match:title ^(.* Info|System Settings)$
   windowrule = center on, match:class ^(org\.quickshell)$, match:title ^(.* Info|System Settings)$
-
-  # --- Barres de titre Tahoe (plugin hyprbars) --------------------------------
-  plugin {
-    hyprbars {
-      enabled = true
-      # Barre de titre simple de Tahoe : 32 pt, couleur = barre d'en-tête MacTahoe-Dark
-      # (#333333, continue avec la barre de menus / d'outils GTK juste dessous).
-      # Mode clair : couleurs réappliquées par macos-appearance (hyprctl keyword).
-      bar_height = 32
-      bar_color = rgb(333333)
-      col.text = rgba(ffffffd9)
-      bar_title_enabled = true
-      bar_text_font = Inter
-      bar_text_size = 13
-      bar_text_weight = semibold
-      # Tahoe aligne le titre à gauche (leading), juste après les feux
-      bar_text_align = left
-      bar_part_of_window = true
-      bar_precedence_over_border = true
-      bar_blur = false
-      # Feux tricolores à gauche : Ø 14 pt, 9 pt d'écart, disque rouge à 9 pt du bord
-      # (centre à 16 pt, liseré compris), comme sur About This Mac de Tahoe
-      bar_buttons_alignment = left
-      bar_padding = 8
-      bar_button_padding = 9
-      # Symboles visibles au survol du groupe, gris quand la fenêtre est inactive
-      # (gris = voile blanc 18 % de Theme.trafficInactive sur la barre #333333)
-      icon_on_hover = true
-      inactive_button_color = rgb(585858)
-      # Double-clic sur la barre : « Zoom » (remplit l'écran hors barre des menus/Dock)
-      on_double_click = hyprctl dispatch fullscreen 1
-      # hyprbars-button = fond, diamètre, symbole, action, couleur du symbole (de gauche à droite)
-      # Couleurs = Theme.trafficRed/Yellow/Green du shell (relevées sur Tahoe 26)
-      # Symboles (police « sans » à 9 px imposée par le plugin) : glyphes choisis au
-      # banc pour leur taille à l'écran : ✕ ~6 px, ─ ~7 px, ⤡ diagonale ↖↘ comme Tahoe
-      # Jaune : effet « génie » vers le Dock (macos-wm minimize -> global macos:minimize)
-      # Vert : plein écran dans un nouvel espace (macos-wm fullscreen)
-      hyprbars-button = rgb(ec6765), 14, ✕, hyprctl dispatch killactive, rgb(8c1a10)
-      hyprbars-button = rgb(f2ca44), 14, ─, macos-wm minimize, rgb(8f5a00)
-      hyprbars-button = rgb(65c466), 14, ⤡, macos-wm fullscreen, rgb(1b6a1d)
-    }
-  }
 
   # --- Saisie et gestes -------------------------------------------------------
   input {

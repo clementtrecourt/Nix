@@ -1,6 +1,6 @@
 # Feux tricolores de Tahoe 26 pour les apps GTK3 / GTK4 (libadwaita) : SVG dessinés
 # aux couleurs du shell (common/Theme.qml : trafficRed/Yellow/Green + anneau d'un
-# demi-point) et aux mêmes couleurs que les barres hyprbars, symboles au survol
+# demi-point) et aux mêmes couleurs que le shell, symboles au survol
 # (✕, −, deux triangles du plein écran), gris translucide en arrière-plan.
 # macos-appearance s'en sert pour écrire le CSS utilisateur GTK3 / GTK4 selon le mode.
 {runCommand}:

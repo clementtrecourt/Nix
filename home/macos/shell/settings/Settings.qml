@@ -54,6 +54,7 @@ Scope {
         target: "settings-debug"
         function dark(on: bool): void { Theme.dark = on; }
         function search(q: string): void { Nav.search = q; }
+        function iconStyle(s: string): void { Prefs.set("iconStyle", s); }
         function scroll(y: int): void { const w = root.win(); if (w) w.flick.contentY = y; }
         function call(fn: string, arg: string): string {
             const w = root.win();
