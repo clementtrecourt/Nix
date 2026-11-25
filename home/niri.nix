@@ -72,7 +72,7 @@ in {
     // Même thème que home.pointerCursor (home/common.nix).
     cursor {
         xcursor-theme "capitaine-cursors-white"
-        xcursor-size 24
+        xcursor-size 30
     }
 
     spawn-at-startup "zen"

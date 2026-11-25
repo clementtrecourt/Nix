@@ -102,14 +102,14 @@ in {
     enable = true;
     name = "capitaine-cursors-white";
     package = pkgs.capitaine-cursors;
-    size = 24;
+    size = 30;
     gtk.enable = true;
   };
   # L'installateur iNiR écrit ici "capitaine-cursors-light" (absent de nixpkgs) :
   # géré par Home Manager, il n'y touche plus.
   xdg.configFile."environment.d/cursor.conf".text = ''
     XCURSOR_THEME=capitaine-cursors-white
-    XCURSOR_SIZE=24
+    XCURSOR_SIZE=30
   '';
 
   qt = {
