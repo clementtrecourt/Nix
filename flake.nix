@@ -85,7 +85,13 @@
             {
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.backupFileExtension = "bak";
+              # Fichier non géré sur le chemin d'un lien Home Manager : renommé en
+              # <fichier>.hm-<date> (jamais d'échec, même si une sauvegarde existe déjà).
+              # Avec backupFileExtension = "bak", un .bak existant bloquait toute
+              # l'activation au démarrage (cf. essai iNiR du 2026-11-25).
+              home-manager.backupCommand = "${pkgs.writeShellScript "hm-backup" ''
+                mv -- "$1" "$1.hm-$(date +%Y%m%d-%H%M%S)"
+              ''}";
               home-manager.users.clem = import homeModule;
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.sharedModules = [
