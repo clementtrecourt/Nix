@@ -6,6 +6,7 @@
 # réglages. On y ajoute à la fin `include "nix.kdl"` (géré ici) :
 #   - clavier qwerty-fr, numlock
 #   - écrans déclarés dans l'hôte (outputs.kdl, même KDL que le greeter)
+#   - curseur capitaine-cursors-white (celui d'iNiR n'existe pas dans nixpkgs)
 #   - Zen au démarrage
 # Retouches perso : ~/.config/niri/config.d/90-user-extra.kdl (jamais écrasé par iNiR).
 # Repartir de la config iNiR d'origine : supprimer config.kdl + config.d, puis rebuild.
@@ -64,6 +65,14 @@ in {
             repeat-rate 25
             numlock
         }
+    }
+
+    // Curseur : iNiR demande "capitaine-cursors-light", qui n'existe pas dans
+    // nixpkgs (seulement capitaine-cursors / -white) -> gros curseur X par défaut.
+    // Même thème que home.pointerCursor (home/common.nix).
+    cursor {
+        xcursor-theme "capitaine-cursors-white"
+        xcursor-size 24
     }
 
     spawn-at-startup "zen"

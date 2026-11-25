@@ -100,11 +100,17 @@ in {
 
   home.pointerCursor = {
     enable = true;
-    name = "capitaine-cursors";
+    name = "capitaine-cursors-white";
     package = pkgs.capitaine-cursors;
     size = 24;
     gtk.enable = true;
   };
+  # L'installateur iNiR écrit ici "capitaine-cursors-light" (absent de nixpkgs) :
+  # géré par Home Manager, il n'y touche plus.
+  xdg.configFile."environment.d/cursor.conf".text = ''
+    XCURSOR_THEME=capitaine-cursors-white
+    XCURSOR_SIZE=24
+  '';
 
   qt = {
     enable = true;
