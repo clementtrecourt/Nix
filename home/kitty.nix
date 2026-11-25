@@ -54,15 +54,9 @@
       "ctrl+shift+u" = "set_background_opacity 0.80";
     };
 
-    # Couleurs générées par DMS (thème shell -> kitty)
+    # Couleurs générées par iNiR depuis le fond d'écran (comme son propre kitty.conf)
     extraConfig = ''
-      include dank-theme.conf
+      include current-theme.conf
     '';
   };
-
-  # Fichier vide au premier déploiement, DMS le remplit ensuite
-  home.activation.createEmptyKittyDankTheme = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    mkdir -p $HOME/.config/kitty
-    [ -e $HOME/.config/kitty/dank-theme.conf ] || touch $HOME/.config/kitty/dank-theme.conf
-  '';
 }

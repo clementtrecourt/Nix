@@ -15,7 +15,7 @@
 in {
   imports = [
     ./niri.nix
-    ./dms.nix
+    ./inir.nix
     ./kitty.nix
     ./fish.nix
     ./tmux.nix
@@ -214,7 +214,7 @@ in {
     imv
     iwd
     jq
-    mpv
+    # mpv : fourni par iNiR (mpv + script mpris), sinon conflit dans home-manager-path
     nwg-look
     openssh
     pipes

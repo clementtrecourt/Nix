@@ -15,7 +15,7 @@
 #   - taille de la police console / greeter
 #
 # Pour récupérer la config des écrans d'une machine : se connecter sous niri,
-# régler les écrans dans Réglages DMS > Écrans, puis lancer `display-snippet`
+# régler les écrans (`niri msg output ...` ou réglages iNiR), puis lancer `display-snippet`
 # et coller le résultat dans la config de l'hôte.
 {
   config,

@@ -55,13 +55,13 @@
       gcl = "git clone";
 
       # NixOS & nh
-      # DMS et son greeter suivent la branche master (bêta) : chaque rebuild
+      # iNiR et le greeter suivent leur dernière version : chaque rebuild
       # récupère d'abord leur dernier commit, sans toucher à nixpkgs.
-      dmsu = "nix flake update --flake ~/Nix dms dms-greeter";
-      nrs = "cd ~/Nix; and bash modules/t3code-nightly/update.sh; and nix fmt; and dmsu; and nh os switch; and git add .; and git commit -m 'nrs: '(date '+%Y-%m-%d %H:%M:%S'); and git push; and attic push main-cache (readlink -f /run/current-system)";
+      shu = "nix flake update --flake ~/Nix inir dms-greeter";
+      nrs = "cd ~/Nix; and bash modules/t3code-nightly/update.sh; and nix fmt; and shu; and nh os switch; and git add .; and git commit -m 'nrs: '(date '+%Y-%m-%d %H:%M:%S'); and git push; and attic push main-cache (readlink -f /run/current-system)";
       nru = "nix fmt; and nh os switch --update; and attic push main-cache (readlink -f /run/current-system)";
-      nrt = "nix fmt; and dmsu; and nh os test";
-      nrb = "dmsu; and nh os boot";
+      nrt = "nix fmt; and shu; and nh os test";
+      nrb = "shu; and nh os boot";
       nrg = "nh clean all";
       npk = "nh search";
       nsh = "nix-shell -p";

@@ -10,6 +10,7 @@
     ./display.nix
     ./fonts.nix
     ./greeter.nix
+    ./inir.nix
     scripts/organizer.nix
     scripts/auto-cleaner.nix
     scripts/copy-context.nix

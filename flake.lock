@@ -35,49 +35,11 @@
         "type": "github"
       }
     },
-    "dank-qml-common_2": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1795443720,
-        "narHash": "sha256-PNc4vXmHEng0cpxDbpD1VqvJ6OmpBhVvv2z987b/ke0=",
-        "owner": "duxlabs-dev",
-        "repo": "dux-qml-common",
-        "rev": "73bd713f8603bd65864c76dc820f2120b7b82f22",
-        "type": "github"
-      },
-      "original": {
-        "owner": "duxlabs-dev",
-        "repo": "dux-qml-common",
-        "type": "github"
-      }
-    },
-    "dms": {
+    "dms-greeter": {
       "inputs": {
         "dank-qml-common": "dank-qml-common",
         "dux-qt-base": "dux-qt-base",
-        "flake-compat": "flake-compat",
         "nixpkgs": "nixpkgs_2"
-      },
-      "locked": {
-        "lastModified": 1795532791,
-        "narHash": "sha256-8hhwymtg0G3StiT1w5sWkBm3uAtnDtuewoqdu4yQcJI=",
-        "owner": "AvengeMedia",
-        "repo": "DankMaterialShell",
-        "rev": "678ce1711b216875887946d6e636dc5ffa84c2b3",
-        "type": "github"
-      },
-      "original": {
-        "owner": "AvengeMedia",
-        "ref": "master",
-        "repo": "DankMaterialShell",
-        "type": "github"
-      }
-    },
-    "dms-greeter": {
-      "inputs": {
-        "dank-qml-common": "dank-qml-common_2",
-        "dux-qt-base": "dux-qt-base_2",
-        "nixpkgs": "nixpkgs_3"
       },
       "locked": {
         "lastModified": 1795472732,
@@ -97,27 +59,6 @@
     "dux-qt-base": {
       "inputs": {
         "nixpkgs": [
-          "dms",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1795337492,
-        "narHash": "sha256-xGJDFNGgtXujSneISCrN2TxKx2IkTMeFBgTmJIISGfs=",
-        "owner": "duxlabs-dev",
-        "repo": "dux-qt-base",
-        "rev": "0ea003e30fc92c51943ab7660b58d883708e25c2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "duxlabs-dev",
-        "repo": "dux-qt-base",
-        "type": "github"
-      }
-    },
-    "dux-qt-base_2": {
-      "inputs": {
-        "nixpkgs": [
           "dms-greeter",
           "nixpkgs"
         ]
@@ -133,22 +74,6 @@
       "original": {
         "owner": "duxlabs-dev",
         "repo": "dux-qt-base",
-        "type": "github"
-      }
-    },
-    "flake-compat": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1767039857,
-        "narHash": "sha256-vNpUSpF5Nuw8xvDLj2KCwwksIbjua2LZCqhV1LNRDns=",
-        "owner": "NixOS",
-        "repo": "flake-compat",
-        "rev": "5edf11c44bc78a0d334f6334cdaf7d60d732daab",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "repo": "flake-compat",
         "type": "github"
       }
     },
@@ -266,6 +191,26 @@
         "type": "github"
       }
     },
+    "inir": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794594781,
+        "narHash": "sha256-VryCa7VTiCaCJeQfx2G2kntrwL5/Brm+xgroplRlmpk=",
+        "owner": "snowarch",
+        "repo": "iNiR",
+        "rev": "28365436c2a00d083d29503aacfc0b5b321d67c6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "snowarch",
+        "repo": "iNiR",
+        "type": "github"
+      }
+    },
     "lazyvim": {
       "inputs": {
         "flake-utils": "flake-utils",
@@ -359,22 +304,6 @@
     },
     "nixpkgs_3": {
       "locked": {
-        "lastModified": 1792773339,
-        "narHash": "sha256-rZLrzrC6i+jnTAlvPZHogKDulY7WWDEv9hJeHieO7Zw=",
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "3ec636362e1816bc2f0888fa0fa2c69f1bc9e504",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nixos",
-        "ref": "nixos-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "nixpkgs_4": {
-      "locked": {
         "lastModified": 1789546076,
         "narHash": "sha256-zVxLZiSnmaaPLwnhj7pwmqe3axBg/C6nG5JZsJMh2g4=",
         "owner": "NixOS",
@@ -408,14 +337,14 @@
     "root": {
       "inputs": {
         "chaotic": "chaotic",
-        "dms": "dms",
         "dms-greeter": "dms-greeter",
         "helium-flake": "helium-flake",
         "home-manager": "home-manager_2",
+        "inir": "inir",
         "lazyvim": "lazyvim",
         "microvm": "microvm",
         "nix-index-database": "nix-index-database",
-        "nixpkgs": "nixpkgs_4",
+        "nixpkgs": "nixpkgs_3",
         "qwerty-fr": "qwerty-fr",
         "spotx-nix": "spotx-nix",
         "zen-browser": "zen-browser"
