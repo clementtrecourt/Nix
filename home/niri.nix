@@ -1,17 +1,13 @@
-# Niri + iNiR : la config de niri vient d'iNiR, Nix n'y ajoute que l'essentiel.
+# Niri + DMS : config de base (inspirée du niri.kdl de référence DMS).
 # Niri lui-même est installé côté système (programs.niri dans modules/common.nix).
 #
-# ~/.config/niri/config.kdl n'est PAS géré par Nix : à l'activation, s'il n'existe
-# pas, iNiR y copie sa config (config.kdl + config.d/), modifiable depuis ses
-# réglages. On y ajoute à la fin `include "nix.kdl"` (géré ici) :
-#   - clavier qwerty-fr, numlock
-#   - écrans déclarés dans l'hôte (outputs.kdl, même KDL que le greeter)
-#   - curseur capitaine-cursors-white (celui d'iNiR n'existe pas dans nixpkgs)
-#   - Zen au démarrage
-# Retouches perso : ~/.config/niri/config.d/90-user-extra.kdl (jamais écrasé par iNiR).
-# Repartir de la config iNiR d'origine : supprimer config.kdl + config.d, puis rebuild.
+# Ordre de chargement de ~/.config/niri/config.kdl :
+#   1. ce fichier (input, layout, règles)
+#   2. binds-dms.kdl     : raccourcis du modèle DMS (versionné avec l'input `dms`)
+#   3. binds-island.kdl  : raccourcis "dynamic island" (surchargent les précédents)
+#   4. dms/*.kdl         : fichiers générés par DMS (couleurs, layout, animations...),
+#                          modifiables depuis Réglages DMS, donc jamais gérés par Nix.
 {
-  config,
   inputs,
   lib,
   osConfig,
@@ -48,13 +44,50 @@
         "  };"'
     '';
   };
+
+  dmsEmbedded = "${inputs.dms}/core/internal/config/embedded";
+
+  # Raccourcis officiels DMS, terminal remplacé par kitty
+  dmsBinds = pkgs.runCommand "niri-binds-dms.kdl" {} ''
+    substitute ${dmsEmbedded}/niri-binds.kdl $out \
+      --replace-fail '{{TERMINAL_COMMAND}}' 'kitty'
+  '';
+
+  island = activity: ''spawn "dms" "ipc" "call" "island" "toggle" "${activity}";'';
 in {
   xdg.configFile."xkb/symbols/us_qwerty-fr".source = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
+
+  xdg.configFile."niri/binds-dms.kdl".source = dmsBinds;
   xdg.configFile."niri/outputs.kdl".text = outputsKdl;
   home.packages = [displaySnippet];
 
-  # Inclus en DERNIER dans la config d'iNiR : ces valeurs l'emportent sur ses défauts
-  xdg.configFile."niri/nix.kdl".text = ''
+  # Un raccourci par activité de l'île, comme sur la vidéo de référence
+  xdg.configFile."niri/binds-island.kdl".text = ''
+    binds {
+        Mod+Space hotkey-overlay-title="Island: Spotlight" { ${island "launcher"} }
+        Mod+M     hotkey-overlay-title="Island: Média" { ${island "media"} }
+        Mod+D     hotkey-overlay-title="Island: Dashboard" { spawn "dms" "ipc" "call" "dash" "toggle" ""; }
+        Mod+Y     hotkey-overlay-title="Island: Fonds d'écran" { ${island "wallpaper"} }
+        Mod+A     hotkey-overlay-title="Island: Spotlight" { ${island "launcher"} }
+        Mod+Shift+A hotkey-overlay-title="Island: Centre de contrôle" { ${island "controlcenter"} }
+        Mod+Ctrl+N hotkey-overlay-title="Island: Notifications" { ${island "notificationcenter"} }
+        Mod+B     hotkey-overlay-title="Island: Météo" { ${island "weather"} }
+        Mod+V     hotkey-overlay-title="Island: Presse-papiers" { ${island "clipboard"} }
+        Mod+Escape hotkey-overlay-title="Island: Fermer" { spawn "dms" "ipc" "call" "island" "close"; }
+
+        // Habitudes conservées de l'ancienne config
+        Mod+E hotkey-overlay-title="Yazi" { spawn "kitty" "-e" "yazi"; }
+        Print { screenshot; }
+        Mod+P { screenshot; }
+        Mod+Shift+P { screenshot-window; }
+    }
+  '';
+
+  xdg.configFile."niri/config.kdl".text = ''
+    config-notification {
+        disable-failed
+    }
+
     input {
         keyboard {
             xkb {
@@ -65,30 +98,161 @@ in {
             repeat-rate 25
             numlock
         }
+        touchpad {
+            tap
+            dwt
+            drag true
+            drag-lock
+        }
+        focus-follows-mouse max-scroll-amount="0%"
+        warp-mouse-to-focus
     }
 
-    // Curseur : iNiR demande "capitaine-cursors-light", qui n'existe pas dans
-    // nixpkgs (seulement capitaine-cursors / -white) -> gros curseur X par défaut.
-    // Même thème que home.pointerCursor (home/common.nix).
-    cursor {
-        xcursor-theme "capitaine-cursors-white"
-        xcursor-size 30
+    gestures {
+        hot-corners {
+            off
+        }
     }
+
+    layout {
+        background-color "transparent"
+        gaps 10
+        center-focused-column "never"
+        preset-column-widths {
+            proportion 0.5
+            proportion 0.66667
+            proportion 1.0
+        }
+        default-column-width { proportion 0.66667; }
+        // Liseré "menthe" fin autour de la fenêtre active (couleur fournie par dms/colors.kdl)
+        focus-ring {
+            width 2
+        }
+        border {
+            off
+        }
+        shadow {
+            on
+            softness 30
+            spread 5
+            offset x=0 y=5
+            color "#0007"
+        }
+    }
+
+    // Le fond d'écran DMS reste visible derrière l'overview (fond flouté)
+    layer-rule {
+        match namespace="^quickshell$"
+        place-within-backdrop true
+    }
+    layer-rule {
+        match namespace="dms:blurwallpaper"
+        place-within-backdrop true
+    }
+
+    overview {
+        workspace-shadow {
+            off
+        }
+    }
+
+    environment {
+        XDG_CURRENT_DESKTOP "niri"
+        QT_QPA_PLATFORMTHEME "qt6ct"
+        ELECTRON_OZONE_PLATFORM_HINT "auto"
+        MOZ_ENABLE_WAYLAND "1"
+    }
+
+    cursor {
+        xcursor-theme "capitaine-cursors"
+        xcursor-size 24
+    }
+
+    hotkey-overlay {
+        skip-at-startup
+    }
+
+    prefer-no-csd
+    screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 
     spawn-at-startup "zen"
 
-    include "outputs.kdl"
-  '';
+    window-rule {
+        geometry-corner-radius 14
+        clip-to-geometry true
+        // Toujours un espace autour des fenêtres : une appli qui s'ouvre
+        // "maximisée" (Zen, Chrome, Electron...) devient une colonne pleine
+        // largeur avec les gaps, au lieu d'occuper l'écran bord à bord.
+        open-maximized-to-edges false
+    }
+    window-rule {
+        match app-id=r#"^org\.gnome\.Calculator$"#
+        match app-id=r#"^blueman-manager$"#
+        match app-id=r#"^xdg-desktop-portal$"#
+        match app-id=r#"^pavucontrol$"#
+        open-floating true
+    }
+    window-rule {
+        match app-id=r#"firefox$"# title="^Picture-in-Picture$"
+        match app-id=r#"^zen"# title="^Picture-in-Picture$"
+        open-floating true
+    }
+    window-rule {
+        match app-id=r#"^steam$"# title=r#"^notificationtoasts_\d+_desktop$"#
+        default-floating-position x=10 y=10 relative-to="bottom-right"
+        open-focused false
+    }
+    window-rule {
+        match app-id="kitty"
+        match app-id=r#"^zen"#
+        draw-border-with-background false
+    }
 
-  # Après la copie de la config iNiR (inirNiriSeed) : y ajouter l'include, une seule fois
-  home.activation.inirNixInclude = lib.hm.dag.entryAfter ["inirNiriSeed"] ''
-    f="${config.xdg.configHome}/niri/config.kdl"
-    if [ -f "$f" ] && [ ! -L "$f" ] && ! grep -q 'include "nix.kdl"' "$f"; then
-      if [ -v DRY_RUN ]; then
-        echo "ajouterait include \"nix.kdl\" à $f"
-      else
-        printf '\n// Ajouté par ~/Nix/home/niri.nix (clavier, écrans, Zen)\ninclude "nix.kdl"\n' >> "$f"
-      fi
-    fi
+    // Flou d'arrière-plan (natif niri) derrière les fenêtres transparentes
+    blur {
+        passes 3
+        offset 3
+        noise 0.02
+        saturation 1.5
+    }
+    window-rule {
+        match app-id="kitty"
+        background-effect {
+            blur true
+        }
+    }
+
+    debug {
+        honor-xdg-activation-with-invalid-serial
+    }
+
+    recent-windows {
+        binds {
+            Alt+Tab         { next-window scope="output"; }
+            Alt+Shift+Tab   { previous-window scope="output"; }
+            Alt+grave       { next-window filter="app-id"; }
+            Alt+Shift+grave { previous-window filter="app-id"; }
+        }
+    }
+
+    // Écrans : Nix d'abord (niri retient le PREMIER bloc qui correspond à un écran),
+    // donc la config de l'hôte fait foi ; dms/outputs.kdl (Réglages DMS > Écrans)
+    // ne sert que pour les écrans non déclarés (projecteur, écran de passage...).
+    include "outputs.kdl"
+
+    include "binds-dms.kdl"
+    include "binds-island.kdl"
+
+    // Fichiers générés par DMS (Réglages > Compositeur / Thème)
+    include optional=true "dms/colors.kdl"
+    include optional=true "dms/layout.kdl"
+    include optional=true "dms/alttab.kdl"
+    include optional=true "dms/animations.kdl"
+    include optional=true "dms/binds.kdl"
+    include optional=true "dms/outputs.kdl"
+    include optional=true "dms/cursor.kdl"
+    include optional=true "dms/input.kdl"
+    include optional=true "dms/wpblur.kdl"
+    include optional=true "dms/windowrules.kdl"
   '';
 }

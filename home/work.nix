@@ -16,4 +16,7 @@
     easyeffects
     heroic
   ];
+
+  # Les liens ipdiva:// du portail Systancia Gate ouvrent GateClient (modules/work.nix)
+  xdg.mimeApps.defaultApplications."x-scheme-handler/ipdiva" = ["gateclient.desktop"];
 }

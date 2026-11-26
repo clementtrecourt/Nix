@@ -15,7 +15,7 @@
 in {
   imports = [
     ./niri.nix
-    ./inir.nix
+    ./dms.nix
     ./kitty.nix
     ./fish.nix
     ./tmux.nix
@@ -100,17 +100,11 @@ in {
 
   home.pointerCursor = {
     enable = true;
-    name = "capitaine-cursors-white";
+    name = "capitaine-cursors";
     package = pkgs.capitaine-cursors;
-    size = 30;
+    size = 24;
     gtk.enable = true;
   };
-  # L'installateur iNiR écrit ici "capitaine-cursors-light" (absent de nixpkgs) :
-  # géré par Home Manager, il n'y touche plus.
-  xdg.configFile."environment.d/cursor.conf".text = ''
-    XCURSOR_THEME=capitaine-cursors-white
-    XCURSOR_SIZE=30
-  '';
 
   qt = {
     enable = true;
@@ -220,7 +214,7 @@ in {
     imv
     iwd
     jq
-    # mpv : fourni par iNiR (mpv + script mpris), sinon conflit dans home-manager-path
+    mpv
     nwg-look
     openssh
     pipes
@@ -238,7 +232,7 @@ in {
     pkg-config
     sqlite
     librewolf
-    motrix-next
+    rayburst
 
     # Qt & Intégration
     qt6Packages.qt6ct

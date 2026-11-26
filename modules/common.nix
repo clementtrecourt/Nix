@@ -10,7 +10,6 @@
     ./display.nix
     ./fonts.nix
     ./greeter.nix
-    ./inir.nix
     scripts/organizer.nix
     scripts/auto-cleaner.nix
     scripts/copy-context.nix
@@ -61,7 +60,6 @@
     enable = true;
     interval = "weekly";
   };
-  boot.initrd.systemd.enable = true;
   services.xserver.xkb = {
     layout = "qwerty-fr";
     variant = "";
@@ -155,6 +153,7 @@
     attic-client
     (callPackage ./waveflow.nix {})
     (callPackage ./t3code-nightly {}) # T3 Code, canal Nightly
+    (callPackage ./orca-rc {}) # Orca, canal RC (bêta)
     inputs.helium-flake.packages.${system}.default
     mpvpaper
   ];

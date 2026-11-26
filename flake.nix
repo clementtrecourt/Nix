@@ -34,12 +34,13 @@
       flake = false;
     };
 
-    # iNiR : shell Quickshell pour niri (barre, launcher, notifications, fonds d'écran...)
-    # Mis à jour avant chaque rebuild par nrs / nrt / nrb (alias shu, home/fish.nix).
-    inir = {
-      url = "github:snowarch/iNiR";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # Dux/Dank Material Shell : barre "dynamic island", launcher, OSD, lock, widgets
+    # DMS suit volontairement master (bêta, toujours la dernière version) ;
+    # nrs / nrt / nrb font `nix flake update dms dms-greeter` avant chaque rebuild
+    # (alias dmsu, home/fish.nix).
+    # Pas de "follows" : la bêta exige souvent un Go plus récent que notre
+    # nixpkgs ; elle est compilée avec son propre nixpkgs (cf. home/dms.nix).
+    dms.url = "github:AvengeMedia/DankMaterialShell/master";
     # Écran de connexion DMS (même thème/fond que le shell), cf. modules/greeter.nix
     dms-greeter.url = "github:duxlabs-dev/dux-greeter/master";
 
@@ -94,7 +95,7 @@
               home-manager.users.clem = import homeModule;
               home-manager.extraSpecialArgs = {inherit inputs;};
               home-manager.sharedModules = [
-                inputs.inir.homeModules.default
+                inputs.dms.homeModules.dank-material-shell
               ];
             }
           ]

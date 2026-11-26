@@ -67,8 +67,10 @@
       "position": 0,
       "rightWidgets": [
         {
-          "enabled": true,
-          "id": "systemTray"
+          "enabled": false,
+          "id": "systemTray",
+          "overflowMode": "always",
+          "background": true
         }
       ],
       "screenPreferences": [
@@ -76,8 +78,9 @@
       ],
       "showOnLastDisplay": true,
       "showOnWindowsOpen": true,
-      "transparency": 0,
-      "widgetStyle": "pills"
+      "transparency": 0.82,
+      "widgetStyle": "pills",
+      "followInterfaceStyle": true
     }
   ],
   "blurEnabled": true,
@@ -177,7 +180,7 @@
     "niri"
   ],
   "configVersion": 47,
-  "matugenScheme": "scheme-fidelity",
+  "matugenScheme": "scheme-expressive",
   "hostSurfaceColor": "custom",
   "hostSurfaceCustomColor": "#000000",
   "cardSurfaceColor": "custom",
@@ -200,7 +203,19 @@
       "trigger": "?"
     }
   },
-  "matugenSpec": "2021",
+  "matugenSpec": "dms",
   "matugenSourceMode": "dominant",
-  "matugenContrast": 0.53
+  "matugenContrast": 0,
+  "avatarRing": "outline",
+  "interfaceStyle": "expressive",
+  "blurForegroundLayers": true,
+  "foregroundLayerTransparency": 1,
+  "blurLayerOutlineOpacity": 0,
+  "blurBorderEnabled": true,
+  "blurBorderSeeded": true,
+  "radiusMode": "fixed",
+  "spotlightSectionViewModes": {
+    "apps": "icons"
+  },
+  "matugenSeedColor": ""
 }
