@@ -20,6 +20,7 @@ in {
     ./fish.nix
     ./tmux.nix
     ./zed.nix
+    ./zen.nix
     inputs.lazyvim.homeManagerModules.default
   ];
 

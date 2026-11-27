@@ -1,0 +1,33 @@
+{
+	"id": "ff-better-findbar",
+	"name": "Better Find Bar",
+	"description": "Improves the find bar, making it floating with theme match and customization.",
+	"homepage": "https://github.com/RobotoSkunk/ff-better-findbar",
+	"image": "https://raw.githubusercontent.com/RobotoSkunk/ff-better-findbar/refs/heads/main/image.png",
+	"style": {
+		"chrome": "userChrome.css"
+	},
+	"preferences": "preferences.json",
+	"readme": "https://raw.githubusercontent.com/RobotoSkunk/ff-better-findbar/refs/heads/main/README.md",
+	"author": "RobotoSkunk",
+	"version": "1.7.1",
+	"tags": [
+		"better",
+		"find",
+		"bar",
+		"search",
+		"findbar",
+		"searchbar",
+		"find-bar",
+		"search-bar"
+	],
+	"createdAt": "2024-11-24",
+	"updatedAt": "2026-09-8",
+	"fork": [
+		"zen",
+		"floorp",
+		"firefox",
+		"librewolf",
+		"mullvad"
+	]
+}

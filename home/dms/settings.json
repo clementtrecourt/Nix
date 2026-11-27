@@ -180,7 +180,7 @@
     "niri"
   ],
   "configVersion": 47,
-  "matugenScheme": "scheme-expressive",
+  "matugenScheme": "scheme-tonal-spot",
   "hostSurfaceColor": "custom",
   "hostSurfaceCustomColor": "#000000",
   "cardSurfaceColor": "custom",
@@ -203,7 +203,7 @@
       "trigger": "?"
     }
   },
-  "matugenSpec": "dms",
+  "matugenSpec": "2025",
   "matugenSourceMode": "dominant",
   "matugenContrast": 0,
   "avatarRing": "outline",

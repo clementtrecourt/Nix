@@ -12,6 +12,103 @@
     };
   };
 
+  # Prefs verrouillées via config.js (autoconfig, chargé depuis le bootloader
+  # Sine). À utiliser pour les prefs que la policy "Preferences" refuse :
+  # elle n'accepte que certains préfixes (browser., widget., ...), donc tout
+  # ce qui est en zen.* y est ignoré sans erreur.
+  autoconfigPrefs = {
+    # Fenêtre transparente sur Linux (le flou est fait par niri, cf. home/niri.nix).
+    # Seule la sidebar reste transparente : voir le mod Sine local "sidebar-glass".
+    "zen.widget.linux.transparency" = true;
+    # Sidebar translucide (sinon Zen la peint à opacité 1 quoi qu'il arrive)
+    "zen.theme.acrylic-sidebar" = true;
+    # Firefox déclare sinon sa fenêtre opaque à Wayland : niri l'affiche alors
+    # sans tenir compte de l'alpha, et le flou ne passe jamais.
+    "widget.wayland.opaque-region.enabled" = false;
+    # Autorise une fenêtre principale réellement transparente (sinon Firefox
+    # remplit le fond avec la couleur Canvas avant de dessiner l'UI).
+    "widget.transparent-windows" = true;
+    # Sinon Zen peint un fond plein (InactiveCaption) quand la fenêtre n'a
+    # pas le focus, et la sidebar redevient opaque.
+    "zen.view.grey-out-inactive-windows" = false;
+    # Pas de barre de titre dessinée par Zen (CSD) : sinon GTK peint le fond
+    # de son thème sous l'UI et la sidebar redevient opaque. niri est en
+    # prefer-no-csd, donc aucune décoration n'apparaît.
+    "browser.tabs.inTitlebar" = 0;
+  };
+
+  # Réglages Sine et des mods (copiés du PC work), en valeurs par défaut :
+  # modifiables depuis Zen, et le prefs.js d'un profil existant reste prioritaire.
+  autoconfigDefaults = {
+    "mod.compacttpr.customblur" = "5px";
+    "mod.compacttpr.customcolor" = "rgba(23, 23, 26, 1)";
+    "mod.compacttpr.leftsidebarheight" = "80%";
+    "mod.compacttpr.leftsidebaronlycollapsed" = true;
+    "mod.compacttpr.transparentvalue" = "15%";
+    "mod.compacttpr.usecompacttransparent" = true;
+    "mod.compacttpr.usefromzen" = true;
+    "mod.detaloadingbar.blur.enabled" = true;
+    "mod.detaloadingbar.blur.intensity" = "1.8px";
+    "mod.detaloadingbar.boxshadow.enabled" = true;
+    "mod.detaloadingbar.enabled" = true;
+    "mod.detaloadingbar.maincolor" = "rgba(243,202,176,255)";
+    "mod.detaloadingbar.maxwidth" = "120px";
+    "mod.detaloadingbar.middlecolor" = "rgba(255,255,255,255)";
+    "mod.detaloadingbar.minwidth" = "20px";
+    "mod.detaloadingbar.position.top" = true;
+    "mod.detaloadingbar.rightcolor" = "rgba(243,202,176,255)";
+    "mod.detaloadingbar.spacerwidth" = "8px";
+    "mod.detaloadingbar.thickness" = "6px";
+    "mod.detaloadingbar.usefromzen" = true;
+    "mod.forkedtidypopup.hovercolor.dark" = "";
+    "mod.forkedtidypopup.hovercolor.light" = "";
+    "mod.sameerasw.zen_bg_blur" = "3px";
+    "mod.sameerasw.zen_bg_img" = "url('https://github.com/sameerasw/my-internet/blob/main/wallpapers/zen-coral-01.jpeg?raw=true')";
+    "mod.sameerasw.zen_bg_opacity" = "0.8";
+    "mod.sameerasw.zen_compact_sidebar_width" = "165px";
+    "mod.sameerasw.zen_notab_img" = "url('https://github.com/sameerasw/my-internet/blob/main/wave-light.png?raw=true')";
+    "mod.sameerasw.zen_notab_img_opacity" = "1";
+    "mod.sameerasw.zen_notab_img_size" = "150px";
+    "mod.sameerasw.zen_tab_switch_anim" = true;
+    "mod.sameerasw.zen_transparency_color" = "#00000000";
+    "mod.sameerasw.zen_transparent_glance_enabled" = true;
+    "mod.sameerasw.zen_transparent_sidebar_enabled" = true;
+    "mod.sameerasw_zen_animations" = "1";
+    "mod.sameerasw_zen_compact_sidebar_type" = "0";
+    "mod.sameerasw_zen_empty_tab_logo" = "0";
+    "mod.sameerasw_zen_light_tint" = "2";
+    "mod.superpins.essentials.grid-count" = "1";
+    "mod.superpins.pins.active-bg" = "";
+    "mod.superpins.pins.grid-count" = "1";
+    "mod.zenslop.captions" = "youtube";
+    "mod.zenslop.framerate" = "15";
+    "mod.zenslop.quality" = "360";
+    "mod.zenslop.renderer" = "auto";
+    "sine.allow-external-marketplace" = true;
+    "sine.allow-unsafe-js" = true;
+    "sine.enable-dev" = true;
+    "sine.engine.auto-update" = true;
+    "sine.fork-id" = "zen";
+    "sine.tidy-pinned-folders.collapse-children-with-parent" = true;
+  };
+
+  zenAutoconfig = pkgs.writeText "config.js" ''
+    // Firefox ignore la première ligne de ce fichier.
+    ${lib.concatLines (
+      lib.mapAttrsToList (
+        name: value: "lockPref(${lib.strings.toJSON name}, ${lib.strings.toJSON value});"
+      )
+      autoconfigPrefs
+    )}
+    ${lib.concatLines (
+      lib.mapAttrsToList (
+        name: value: "defaultPref(${lib.strings.toJSON name}, ${lib.strings.toJSON value});"
+      )
+      autoconfigDefaults
+    )}
+    ${builtins.readFile ./zen-sine/config.js}
+  '';
+
   prefs = {
     # Check these out at about:config
     "extensions.autoDisableScopes" = 0;
@@ -278,6 +375,31 @@
       ];
     };
   };
+  # Bootloader Sine (https://github.com/sineorg/bootloader, program.zip v0.1.4).
+  # Doit vivre dans le paquet *unwrapped* : Zen résout son binaire (symlink)
+  # vers ce dossier, c'est donc là qu'il cherche config.js et defaults/pref.
+  # Le reste de Sine (engine.zip + profile.zip) est dans <profil>/chrome.
+  zenUnwrapped =
+    inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.beta-unwrapped.overrideAttrs
+    (old: {
+      postInstall =
+        (old.postInstall or "")
+        + ''
+          for d in "$out"/lib/zen-bin-*; do
+            chmod u+w "$d" "$d/defaults/pref"
+            install -Dm644 ${zenAutoconfig} "$d/config.js"
+            install -Dm644 ${./zen-sine/defaults/pref/config-prefs.js} "$d/defaults/pref/config-prefs.js"
+          done
+        '';
+    });
+  # Firefox >= 153 déclare toute la fenêtre opaque au compositeur
+  # (wl_surface.set_opaque_region, bug Mozilla 2045222) même avec
+  # widget.wayland.opaque-region.enabled = false : niri ignore alors l'alpha et
+  # ne floute rien. Ce petit preload remplace la région par NULL.
+  zenNoOpaque = pkgs.runCommandCC "zen-noopaque" {} ''
+    mkdir -p $out/lib
+    $CC -shared -fPIC -O2 -Wall -o $out/lib/libnoopaque.so ${./zen-sine/noopaque.c} -ldl
+  '';
 in {
   # System-wide policy file — this is what actually fixes "Enterprise
   # Policies service is inactive" AND is now also how `prefs` get applied
@@ -293,19 +415,23 @@ in {
   };
 
   environment.systemPackages = [
-    (
-      pkgs.wrapFirefox
-      inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.beta-unwrapped
-      {
-        extraPrefs = lib.concatLines (
-          lib.mapAttrsToList (
-            name: value: ''lockPref(${lib.strings.toJSON name}, ${lib.strings.toJSON value});''
-          )
-          prefs
-        );
+    ((
+        pkgs.wrapFirefox
+        zenUnwrapped
+        {
+          extraPrefs = lib.concatLines (
+            lib.mapAttrsToList (
+              name: value: ''lockPref(${lib.strings.toJSON name}, ${lib.strings.toJSON value});''
+            )
+            prefs
+          );
 
-        extraPolicies = policies;
-      }
-    )
+          extraPolicies = policies;
+        }
+      ).overrideAttrs (old: {
+        makeWrapperArgs =
+          old.makeWrapperArgs
+          ++ ["--prefix" "LD_PRELOAD" ":" "${zenNoOpaque}/lib/libnoopaque.so"];
+      }))
   ];
 }

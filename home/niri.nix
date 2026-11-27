@@ -8,6 +8,7 @@
 #   4. dms/*.kdl         : fichiers générés par DMS (couleurs, layout, animations...),
 #                          modifiables depuis Réglages DMS, donc jamais gérés par Nix.
 {
+  config,
   inputs,
   lib,
   osConfig,
@@ -53,11 +54,37 @@
       --replace-fail '{{TERMINAL_COMMAND}}' 'kitty'
   '';
 
+  # Bordure "verre" : mêmes couleurs que le thème DMS, mais translucides avec un
+  # reflet en dégradé. Template matugen à nous, que DMS rend à chaque changement
+  # de thème (il fusionne ~/.config/matugen/dms/configs/*.toml) vers
+  # niri/glass-colors.kdl, inclus APRÈS dms/colors.kdl pour le surcharger.
+  # Opacité en hex sur 2 chiffres : ff = 100 %, b3 = 70 %, 80 = 50 %, 4d = 30 %, 26 = 15 %.
+  glassTemplate = pkgs.writeText "niri-glass-colors.kdl" ''
+    // Généré par DMS depuis home/niri.nix (glassTemplate), ne pas éditer.
+    layout {
+        focus-ring {
+            active-gradient   from="{{colors.primary.default.hex}}b3" to="{{colors.primary.default.hex}}26" angle=135 in="oklch"
+            inactive-gradient from="{{colors.outline.default.hex}}4d" to="{{colors.outline.default.hex}}10" angle=135 in="oklch"
+            urgent-color      "{{colors.error.default.hex}}b3"
+        }
+        border {
+            active-gradient   from="{{colors.primary.default.hex}}b3" to="{{colors.primary.default.hex}}26" angle=135 in="oklch"
+            inactive-gradient from="{{colors.outline.default.hex}}4d" to="{{colors.outline.default.hex}}10" angle=135 in="oklch"
+            urgent-color      "{{colors.error.default.hex}}b3"
+        }
+    }
+  '';
+
   island = activity: ''spawn "dms" "ipc" "call" "island" "toggle" "${activity}";'';
 in {
   xdg.configFile."xkb/symbols/us_qwerty-fr".source = "${inputs.qwerty-fr}/linux/us_qwerty-fr";
 
   xdg.configFile."niri/binds-dms.kdl".source = dmsBinds;
+  xdg.configFile."matugen/dms/configs/niri-glass.toml".text = ''
+    [templates.niriglass]
+    input_path = '${glassTemplate}'
+    output_path = '${config.xdg.configHome}/niri/glass-colors.kdl'
+  '';
   xdg.configFile."niri/outputs.kdl".text = outputsKdl;
   home.packages = [displaySnippet];
 
@@ -104,7 +131,7 @@ in {
             drag true
             drag-lock
         }
-        focus-follows-mouse max-scroll-amount="0%"
+        focus-follows-mouse
         warp-mouse-to-focus
     }
 
@@ -210,13 +237,14 @@ in {
 
     // Flou d'arrière-plan (natif niri) derrière les fenêtres transparentes
     blur {
-        passes 3
-        offset 3
-        noise 0.02
-        saturation 1.5
+        passes 4
+        offset 5
+        noise 0
+        saturation 0.8
     }
     window-rule {
         match app-id="kitty"
+        match app-id=r#"^zen"#
         background-effect {
             blur true
         }
@@ -245,6 +273,7 @@ in {
 
     // Fichiers générés par DMS (Réglages > Compositeur / Thème)
     include optional=true "dms/colors.kdl"
+    include optional=true "glass-colors.kdl"
     include optional=true "dms/layout.kdl"
     include optional=true "dms/alttab.kdl"
     include optional=true "dms/animations.kdl"

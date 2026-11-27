@@ -1,0 +1,167 @@
+.tabbrowser-tab.zen-vim-active-tab .tab-background {
+  outline: 2px solid #7aa2f7 !important;
+  outline-offset: -2px;
+}
+
+.tabbrowser-tab[data-depth-level] {
+    --tree-step: 24px;
+    --tree-line-x: calc(var(--tab-inline-padding, 8px) + 8px);
+    --tree-line-color: color-mix(in srgb, currentColor 22%, transparent);
+
+    position: relative;
+    background-repeat: no-repeat !important;
+    background-size: max(0px, (var(--depth-level) - 1) * var(--tree-step)) 100% !important;
+
+    & > .tab-stack {
+        margin-inline-start: calc(var(--depth-level) * var(--tree-step));
+    }
+
+    &:not([data-depth-level="0"])::before {
+        content: "";
+        position: absolute;
+        pointer-events: none;
+        inset-block-start: -50%;
+        inset-inline-start: calc((var(--depth-level) - 1) * var(--tree-step) + var(--tree-line-x));
+        width: calc(var(--tree-step) - var(--tree-line-x));
+        height: 100%;
+        border-inline-start: 1px solid var(--tree-line-color);
+        border-block-end: 1px solid var(--tree-line-color);
+        border-end-start-radius: 6px;
+    }
+}
+
+.tabbrowser-tab.foldable + .tabbrowser-tab::before {
+    inset-block-start: 0;
+    height: 50%;
+}
+
+.zen-vim-fold-btn {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-inline-end: 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0.6;
+    rotate: 180deg;
+    transition: rotate 150ms ease, opacity 150ms ease, background-color 150ms ease;
+
+    &::before {
+        content: "";
+        display: block;
+        width: 100%;
+        height: 100%;
+        background-color: currentColor;
+        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 9.5l3-3 3 3'/%3E%3C/svg%3E") center / 12px no-repeat;
+    }
+
+    &:hover {
+        opacity: 1;
+        background-color: color-mix(in srgb, currentColor 15%, transparent);
+    }
+
+    .tabbrowser-tab.folded & {
+        rotate: 90deg;
+    }
+}
+
+.tabbrowser-tab.folded-hidden {
+    display: none;
+    opacity: 0;
+    transition: opacity 150ms ease, display 150ms allow-discrete;
+}
+
+#zv-command-palette {
+    z-index: 100;
+    position: fixed;
+    top: 25vh;
+    left: 50%;
+    translate: -50% 0;
+    width: min(80%, 50rem);
+    padding: 4px;
+    border-radius: 10px;
+    background: var(--zen-urlbar-background, var(--zen-dialog-background, Field));
+    color: var(--toolbar-color, FieldText);
+    outline: 1px solid light-dark(rgba(0, 0, 0, 0.15), rgba(255, 255, 255, 0.15));
+    box-shadow: 0 0 9px 3px light-dark(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.4));
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    & > .selected-command {
+        margin: 0 0 0 4px;
+        padding: 2px 10px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--zen-primary-color, AccentColor) 30%, transparent);
+        white-space: nowrap;
+    }
+
+    & > input {
+        appearance: none !important;
+        box-sizing: border-box;
+        flex: 1;
+        min-width: 0;
+        height: 36px;
+        margin: 0 !important;
+        padding: 0 8px !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        color: inherit !important;
+        font-size: 1em;
+    }
+
+    & > .commands,
+    & > .info {
+        flex-basis: 100%;
+    }
+
+    & > .info {
+        margin: 0;
+        padding: 8px;
+        opacity: 0.6;
+    }
+
+    & > .commands {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        max-height: 190px;
+        overflow: scroll;
+        padding-block: 4px;
+        border-top: 1px solid light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1));
+
+        &:empty {
+            display: none;
+        }
+
+        & > div {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            gap: 12px;
+            padding: 8px;
+            border-radius: 6px;
+
+            &:hover {
+                background: color-mix(in srgb, currentColor 5%, transparent);
+            }
+
+            & > .shortcut {
+                margin-inline-start: auto;
+                font-size: 0.85em;
+                opacity: 0.6;
+                white-space: nowrap;
+            }
+
+            &.selected {
+                background: color-mix(in srgb, currentColor 10%, transparent);
+            }
+        }
+    }
+}
+
+.d-none {
+    display: none !important;
+}

@@ -1,0 +1,227 @@
+[
+	{
+		"type": "text",
+		"label": "⚙️ Better Find Bar Settings",
+		"margin": "8px 4px",
+		"size": "1.2em"
+	},
+	{
+		"type": "separator",
+		"label": "📍 Size and position",
+		"margin": "14px 0"
+	},
+	{
+		"type": "dropdown",
+		"property": "better_findbar.horizontal_position",
+		"label": "Horizontal position",
+		"placeholder": "Use default",
+		"defaultValue": "center",
+		"options": [
+			{
+				"label": "Left",
+				"value": "left"
+			},
+			{
+				"label": "Center",
+				"value": "center"
+			},
+			{
+				"label": "Right",
+				"value": "right"
+			}
+		]
+	},
+	{
+		"type": "dropdown",
+		"property": "better_findbar.vertical_position",
+		"label": "Vertical position",
+		"placeholder": "Use default",
+		"defaultValue": "bottom",
+		"options": [
+			{
+				"label": "Top",
+				"value": "top"
+			},
+			{
+				"label": "Bottom",
+				"value": "bottom"
+			}
+		]
+	},
+	{
+		"type": "string",
+		"property": "better_findbar.textbox_width",
+		"label": "Textbox width (px)",
+		"defaultValue": "800"
+	},
+	{
+		"type": "separator",
+		"label": "🎨 Custom colors and transparency",
+		"margin": "14px 0"
+	},
+	{
+		"type": "checkbox",
+		"property": "better_findbar.transparent_background",
+		"label": "Transparent background *(disable it if the background blur doesn't work)*",
+		"defaultValue": true
+	},
+	{
+		"type": "checkbox",
+		"property": "better_findbar.enable_custom_background",
+		"label": "Enable custom background color",
+		"defaultValue": false
+	},
+	{
+		"type": "string",
+		"property": "better_findbar.custom_background",
+		"label": "Custom background color",
+		"defaultValue": "#112233",
+		"placeholder": "#112233",
+		"conditions": [
+			{
+				"if": {
+					"property": "better_findbar.enable_custom_background",
+					"value": true
+				}
+			}
+		]
+	},
+	{
+		"type": "checkbox",
+		"property": "better_findbar.enable_custom_text_color",
+		"label": "Enable custom text color",
+		"defaultValue": false
+	},
+	{
+		"type": "string",
+		"property": "better_findbar.custom_text_color",
+		"label": "Custom text color",
+		"defaultValue": "#ffffff",
+		"placeholder": "#ffffff",
+		"conditions": [
+			{
+				"if": {
+					"property": "better_findbar.enable_custom_text_color",
+					"value": true
+				}
+			}
+		]
+	},
+	{
+		"type": "checkbox",
+		"property": "better_findbar.enable_custom_box_shadow",
+		"label": "Enable custom box shadow",
+		"defaultValue": false
+	},
+	{
+		"type": "string",
+		"property": "better_findbar.custom_box_shadow",
+		"label": "Custom box shadow *(full CSS box-shadow value)*",
+		"defaultValue": "0 5px 10px rgba(0,0,0,0.5)",
+		"placeholder": "0 5px 10px rgba(0,0,0,0.5)",
+		"conditions": [
+			{
+				"if": {
+					"property": "better_findbar.enable_custom_box_shadow",
+					"value": true
+				}
+			}
+		]
+	},
+	{
+		"type": "separator",
+		"label": "✅ Find bar checkboxes visibility",
+		"margin": "14px 0"
+	},
+	{
+		"type": "dropdown",
+		"property": "better_findbar.hide_highlight",
+		"label": "\"Highlight\" checkbox",
+		"placeholder": "Show",
+		"defaultValue": "not_hide",
+		"options": [
+			{
+				"label": "Hide",
+				"value": "hide_immediately"
+			},
+			{
+				"label": "Show only when checked",
+				"value": "hide_on_disable"
+			}
+		]
+	},
+	{
+		"type": "dropdown",
+		"property": "better_findbar.hide_match_case",
+		"label": "\"Match Case\" checkbox",
+		"placeholder": "Show",
+		"defaultValue": "not_hide",
+		"options": [
+			{
+				"label": "Hide",
+				"value": "hide_immediately"
+			},
+			{
+				"label": "Show only when checked",
+				"value": "hide_on_disable"
+			}
+		]
+	},
+	{
+		"type": "dropdown",
+		"property": "better_findbar.hide_match_diacritics",
+		"label": "\"Match Diacritics\" checkbox",
+		"placeholder": "Show",
+		"defaultValue": "not_hide",
+		"options": [
+			{
+				"label": "Hide",
+				"value": "hide_immediately"
+			},
+			{
+				"label": "Show only when checked",
+				"value": "hide_on_disable"
+			}
+		]
+	},
+	{
+		"type": "dropdown",
+		"property": "better_findbar.hide_whole_words",
+		"label": "\"Whole Words\" checkbox",
+		"placeholder": "Show",
+		"defaultValue": "not_hide",
+		"options": [
+			{
+				"label": "Hide",
+				"value": "hide_immediately"
+			},
+			{
+				"label": "Show only when checked",
+				"value": "hide_on_disable"
+			}
+		]
+	},
+	{
+		"type": "separator",
+		"label": "🧩 Others",
+		"margin": "14px 0"
+	},
+	{
+		"type": "checkbox",
+		"property": "better_findbar.instant_animations",
+		"label": "Instant animations",
+		"defaultValue": false
+	},
+	{
+		"type": "checkbox",
+		"property": "better_findbar.hide_find_status",
+		"label": "Hide find status label",
+		"defaultValue": false
+	},
+	{
+		"type": "checkbox",
+		"property": "better_findbar.hide_found_matches",
+		"label": "Hide found matches label",
+		"defaultValue": false
+	}
+]

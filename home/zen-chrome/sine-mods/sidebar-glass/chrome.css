@@ -1,0 +1,84 @@
+/* sidebar-glass (mod local) — seule la sidebar est floutée.
+ * Transparence : prefs verrouillées dans config.js (config Nix) + flou niri.
+ * - Contenu (à droite de la sidebar) toujours opaque.
+ * - Voile "Fumé" par défaut ; s'efface si le mod Transparent Zen gère la
+ *   couleur de fond (option "Enable custom background color"). */
+:root {
+  /* Voile utilisé tant que Transparent Zen ne gère pas la couleur */
+  --sidebar-glass-tint: rgba(6, 6, 8, 0.80);
+  /* Lisibilité du texte de la sidebar */
+  --sidebar-glass-text: rgba(255, 255, 255, 0.95);
+  --sidebar-glass-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+  /* Couleur de la zone de contenu */
+  --sidebar-glass-content-bg: light-dark(#f0f0f4, #1b1b1b);
+}
+
+@media not -moz-pref("mod.sameerasw.zen_bg_color_enabled") {
+  #zen-browser-background::after {
+    background: var(--sidebar-glass-tint) !important;
+    opacity: 1 !important;
+  }
+  #zen-browser-background::before {
+    opacity: 0 !important;
+  }
+}
+
+/* Tout ce qui est à droite de la sidebar reste opaque */
+#zen-appcontent-wrapper {
+  background: var(--sidebar-glass-content-bg) !important;
+}
+#tabbrowser-tabpanels browser[type="content"] {
+  background-color: var(--sidebar-glass-content-bg) !important;
+}
+
+/* Lisibilité : texte plus contrasté + ombre légère au-dessus du flou */
+@media (prefers-color-scheme: dark) {
+  #navigator-toolbox {
+    color: var(--sidebar-glass-text) !important;
+
+    & .tab-label,
+    & .tab-icon-image,
+    & .zen-current-workspace-indicator,
+    & .zen-workspace-indicator-name,
+    & .tab-group-label,
+    & label,
+    & toolbarbutton {
+      text-shadow: var(--sidebar-glass-text-shadow) !important;
+    }
+    & .tab-label {
+      color: var(--sidebar-glass-text) !important;
+    }
+    & .tab-icon-image {
+      filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
+    }
+  }
+}
+
+/* Favoris (Essentials) en verre : fond translucide en dégradé, liseré clair,
+ * reflet en haut, flou de ce qui est derrière. */
+:root {
+  --sidebar-glass-ess-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.04) 60%);
+  --sidebar-glass-ess-bg-hover: linear-gradient(160deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.07) 60%);
+  --sidebar-glass-ess-bg-selected: linear-gradient(160deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.10) 60%);
+  --sidebar-glass-ess-border: rgba(255, 255, 255, 0.16);
+}
+
+.tabbrowser-tab[zen-essential="true"] {
+  & > .tab-stack > .tab-background {
+    background: var(--sidebar-glass-ess-bg) !important;
+    border: 1px solid var(--sidebar-glass-ess-border) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 2px 8px rgba(0, 0, 0, 0.35) !important;
+    backdrop-filter: blur(12px) saturate(1.4);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  &:hover > .tab-stack > .tab-background {
+    background: var(--sidebar-glass-ess-bg-hover) !important;
+    border-color: rgba(255, 255, 255, 0.24) !important;
+  }
+  &:is([visuallyselected], [multiselected="true"]) > .tab-stack > .tab-background {
+    background: var(--sidebar-glass-ess-bg-selected) !important;
+    border-color: rgba(255, 255, 255, 0.32) !important;
+  }
+}
